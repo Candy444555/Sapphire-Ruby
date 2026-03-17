@@ -1,0 +1,14 @@
+packages:
+  "react-markdown": "Render markdown in chat messages"
+  "remark-gfm": "GitHub Flavored Markdown for tables and formatting"
+  "react-syntax-highlighter": "Code block syntax highlighting"
+  "@types/react-syntax-highlighter": "Type definitions for syntax highlighter"
+  "clsx": "Utility for constructing className strings conditionally"
+  "tailwind-merge": "Utility to merge tailwind classes without conflicts"
+  "framer-motion": "Smooth animations for chat messages, models list, and panels"
+
+images: []
+
+notes:
+  - "The /api/chat endpoint returns an SSE stream with format 'data: <token>\\n\\n'. Using custom fetch with ReadableStream to process this."
+  - "State is managed locally in the chat hook, no persistence to DB required."

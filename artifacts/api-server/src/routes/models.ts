@@ -3,17 +3,11 @@ import { Router, type IRouter } from "express";
 const router: IRouter = Router();
 
 const MODELS = [
-  // --- UNCENSORED MODELS ---
-  {
-    id: "nousresearch/hermes-4-405b",
-    name: "Hermes 4 405B",
-    description: "Nous Research's most powerful uncensored model — latest generation",
-    uncensored: true,
-  },
+  // --- UNCENSORED MODELS (all verified working) ---
   {
     id: "nousresearch/hermes-4-70b",
     name: "Hermes 4 70B",
-    description: "Fast and capable uncensored Hermes 4 model",
+    description: "Nous Research's latest uncensored model — fast and highly capable",
     uncensored: true,
   },
   {
@@ -23,39 +17,27 @@ const MODELS = [
     uncensored: true,
   },
   {
-    id: "nousresearch/hermes-3-llama-3.1-405b:free",
-    name: "Hermes 3 Llama 3.1 405B (Free)",
-    description: "Free tier — powerful uncensored 405B model",
-    uncensored: true,
-  },
-  {
     id: "nousresearch/hermes-3-llama-3.1-70b",
     name: "Hermes 3 Llama 3.1 70B",
-    description: "Nous Research uncensored 70B, strong instruction following",
+    description: "Uncensored 70B with strong instruction following",
     uncensored: true,
   },
   {
     id: "nousresearch/hermes-2-pro-llama-3-8b",
     name: "Hermes 2 Pro Llama 3 8B",
-    description: "Fast uncensored 8B model, great for quick tasks",
-    uncensored: true,
-  },
-  {
-    id: "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
-    name: "Dolphin Mistral 24B Venice (Free)",
-    description: "Free uncensored Dolphin fine-tune on Mistral 24B — Venice edition",
+    description: "Fast uncensored 8B model, ideal for quick tasks",
     uncensored: true,
   },
   {
     id: "sao10k/l3.3-euryale-70b",
     name: "Euryale v2.3 70B",
-    description: "Latest Euryale — top uncensored model for creative writing and roleplay",
+    description: "Best uncensored model for creative writing, roleplay and adult content",
     uncensored: true,
   },
   {
     id: "sao10k/l3.1-euryale-70b",
     name: "Euryale v2.2 70B",
-    description: "Uncensored creative and roleplay focused Llama 3.1 70B fine-tune",
+    description: "Uncensored creative and roleplay Llama 3.1 70B fine-tune",
     uncensored: true,
   },
   {

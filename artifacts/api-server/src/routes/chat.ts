@@ -14,20 +14,18 @@ const ChatRequestSchema = z.object({
   systemPrompt: z.string().optional(),
 });
 
+// All verified working as of latest test
 export const UNCENSORED_MODEL_ENDPOINTS: Record<string, string> = {
-  "hermes-4-405b":                     "nousresearch/hermes-4-405b",
-  "hermes-4-70b":                      "nousresearch/hermes-4-70b",
-  "hermes-3-llama31-405b":             "nousresearch/hermes-3-llama-3.1-405b",
-  "hermes-3-llama31-405b-free":        "nousresearch/hermes-3-llama-3.1-405b:free",
-  "hermes-3-llama31-70b":             "nousresearch/hermes-3-llama-3.1-70b",
-  "hermes-2-pro-llama3-8b":            "nousresearch/hermes-2-pro-llama-3-8b",
-  "dolphin-mistral-24b-venice-free":   "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
-  "euryale-v23-70b":                   "sao10k/l3.3-euryale-70b",
-  "euryale-v22-70b":                   "sao10k/l3.1-euryale-70b",
-  "euryale-v21-70b":                   "sao10k/l3-euryale-70b",
-  "magnum-v4-72b":                     "anthracite-org/magnum-v4-72b",
-  "mythomax-l2-13b":                   "gryphe/mythomax-l2-13b",
-  "remm-slerp-l2-13b":                 "undi95/remm-slerp-l2-13b",
+  "hermes-4-70b":          "nousresearch/hermes-4-70b",
+  "hermes-3-llama31-405b": "nousresearch/hermes-3-llama-3.1-405b",
+  "hermes-3-llama31-70b":  "nousresearch/hermes-3-llama-3.1-70b",
+  "hermes-2-pro-llama3-8b":"nousresearch/hermes-2-pro-llama-3-8b",
+  "euryale-v23-70b":       "sao10k/l3.3-euryale-70b",
+  "euryale-v22-70b":       "sao10k/l3.1-euryale-70b",
+  "euryale-v21-70b":       "sao10k/l3-euryale-70b",
+  "magnum-v4-72b":         "anthracite-org/magnum-v4-72b",
+  "mythomax-l2-13b":       "gryphe/mythomax-l2-13b",
+  "remm-slerp-l2-13b":     "undi95/remm-slerp-l2-13b",
 };
 
 async function streamChat(
@@ -149,7 +147,7 @@ router.post("/chat", async (req: Request, res: Response) => {
   await streamChat(model!, messages, systemPrompt, res);
 });
 
-// Dedicated endpoint for each uncensored model — no model field needed in body
+// Dedicated endpoint per uncensored model — no model field needed in body
 for (const [slug, modelId] of Object.entries(UNCENSORED_MODEL_ENDPOINTS)) {
   router.post(`/chat/${slug}`, async (req: Request, res: Response) => {
     const parsed = z.object({
@@ -167,7 +165,7 @@ for (const [slug, modelId] of Object.entries(UNCENSORED_MODEL_ENDPOINTS)) {
   });
 }
 
-// Discovery endpoint — lists all dedicated uncensored endpoints
+// Discovery — list all dedicated uncensored endpoints
 router.get("/chat/endpoints", (_req, res) => {
   const endpoints = Object.entries(UNCENSORED_MODEL_ENDPOINTS).map(([slug, modelId]) => ({
     slug,

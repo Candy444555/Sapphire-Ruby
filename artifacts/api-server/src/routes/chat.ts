@@ -15,24 +15,19 @@ const ChatRequestSchema = z.object({
 });
 
 export const UNCENSORED_MODEL_ENDPOINTS: Record<string, string> = {
-  "dolphin-mistral-24b-free":       "cognitivecomputations/dolphin3.0-mistral-24b:free",
-  "dolphin-r1-mistral-24b-free":    "cognitivecomputations/dolphin3.0-r1-mistral-24b:free",
-  "dolphin-mixtral-8x22b":          "cognitivecomputations/dolphin-mixtral-8x22b",
-  "dolphin-mixtral-8x7b":           "cognitivecomputations/dolphin-mixtral-8x7b",
-  "dolphin-llama3-70b":             "cognitivecomputations/dolphin-llama-3-70b",
-  "hermes-3-llama31-405b":          "nousresearch/hermes-3-llama-3.1-405b",
-  "hermes-3-llama31-70b":           "nousresearch/hermes-3-llama-3.1-70b",
-  "hermes-2-pro-llama3-8b":         "nousresearch/hermes-2-pro-llama-3-8b",
-  "hermes-2-mixtral-8x7b-dpo":      "nousresearch/nous-hermes-2-mixtral-8x7b-dpo",
-  "euryale-v23-70b":                "sao10k/l3.3-euryale-70b",
-  "euryale-v22-70b":                "sao10k/l3.1-euryale-70b",
-  "euryale-v21-70b":                "sao10k/l3-euryale-70b",
-  "magnum-v4-72b":                  "anthracite-org/magnum-v4-72b",
-  "magnum-v2-72b":                  "anthracite-org/magnum-v2-72b",
-  "mythalion-13b":                  "pygmalionai/mythalion-13b",
-  "mythomax-l2-13b":                "gryphe/mythomax-l2-13b",
-  "remm-slerp-l2-13b":              "undi95/remm-slerp-l2-13b",
-  "lzlv-70b":                       "lizpreciatior/lzlv-70b-fp16-hf",
+  "hermes-4-405b":                     "nousresearch/hermes-4-405b",
+  "hermes-4-70b":                      "nousresearch/hermes-4-70b",
+  "hermes-3-llama31-405b":             "nousresearch/hermes-3-llama-3.1-405b",
+  "hermes-3-llama31-405b-free":        "nousresearch/hermes-3-llama-3.1-405b:free",
+  "hermes-3-llama31-70b":             "nousresearch/hermes-3-llama-3.1-70b",
+  "hermes-2-pro-llama3-8b":            "nousresearch/hermes-2-pro-llama-3-8b",
+  "dolphin-mistral-24b-venice-free":   "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+  "euryale-v23-70b":                   "sao10k/l3.3-euryale-70b",
+  "euryale-v22-70b":                   "sao10k/l3.1-euryale-70b",
+  "euryale-v21-70b":                   "sao10k/l3-euryale-70b",
+  "magnum-v4-72b":                     "anthracite-org/magnum-v4-72b",
+  "mythomax-l2-13b":                   "gryphe/mythomax-l2-13b",
+  "remm-slerp-l2-13b":                 "undi95/remm-slerp-l2-13b",
 };
 
 async function streamChat(
@@ -48,7 +43,7 @@ async function streamChat(
   }
 
   const openRouterMessages: { role: string; content: string }[] = [];
-  if (systemPrompt) {
+  if (systemPrompt?.trim()) {
     openRouterMessages.push({ role: "system", content: systemPrompt });
   }
   openRouterMessages.push(...messages);
@@ -77,13 +72,18 @@ async function streamChat(
 
     if (!response.ok) {
       const errorText = await response.text();
-      res.write(`data: [ERROR] ${errorText}\n\n`);
+      let errorMsg = errorText;
+      try {
+        const parsed = JSON.parse(errorText);
+        errorMsg = parsed?.error?.message || parsed?.error || errorText;
+      } catch {}
+      res.write(`data: [ERROR] ${errorMsg}\n\n`);
       res.end();
       return;
     }
 
     if (!response.body) {
-      res.write(`data: [ERROR] No response body\n\n`);
+      res.write(`data: [ERROR] No response body from OpenRouter\n\n`);
       res.end();
       return;
     }
@@ -91,10 +91,11 @@ async function streamChat(
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = "";
+    let done = false;
 
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+    while (!done) {
+      const { done: readerDone, value } = await reader.read();
+      if (readerDone) break;
 
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");
@@ -102,18 +103,25 @@ async function streamChat(
 
       for (const line of lines) {
         const trimmed = line.trim();
+        if (!trimmed) continue;
+
         if (trimmed === "data: [DONE]") {
-          res.write("data: [DONE]\n\n");
-          continue;
+          done = true;
+          break;
         }
-        if (!trimmed || !trimmed.startsWith("data: ")) continue;
+
+        if (!trimmed.startsWith("data: ")) continue;
 
         const jsonStr = trimmed.slice(6);
         try {
           const chunk = JSON.parse(jsonStr);
           const token = chunk.choices?.[0]?.delta?.content;
-          if (token) {
-            res.write(`data: ${token}\n\n`);
+          if (token != null) {
+            // JSON-encode so newlines/special chars never break SSE format
+            res.write(`data: ${JSON.stringify(token)}\n\n`);
+          }
+          if (chunk.choices?.[0]?.finish_reason != null) {
+            done = true;
           }
         } catch {
           // skip malformed chunks
@@ -141,7 +149,7 @@ router.post("/chat", async (req: Request, res: Response) => {
   await streamChat(model!, messages, systemPrompt, res);
 });
 
-// Dedicated endpoint for each uncensored model
+// Dedicated endpoint for each uncensored model — no model field needed in body
 for (const [slug, modelId] of Object.entries(UNCENSORED_MODEL_ENDPOINTS)) {
   router.post(`/chat/${slug}`, async (req: Request, res: Response) => {
     const parsed = z.object({
@@ -159,7 +167,7 @@ for (const [slug, modelId] of Object.entries(UNCENSORED_MODEL_ENDPOINTS)) {
   });
 }
 
-// List all uncensored model endpoints
+// Discovery endpoint — lists all dedicated uncensored endpoints
 router.get("/chat/endpoints", (_req, res) => {
   const endpoints = Object.entries(UNCENSORED_MODEL_ENDPOINTS).map(([slug, modelId]) => ({
     slug,

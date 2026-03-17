@@ -1,120 +1,128 @@
 import { useState, useRef, useCallback } from "react";
-import type { ChatMessage, ChatRequest } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { ChatMessage } from "@workspace/api-client-react/src/generated/api.schemas";
+
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 export function useChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  
-  // Ref to hold the AbortController for cancelling streams
+
+  // Keep a ref so sendMessage never has a stale snapshot of messages
+  const messagesRef = useRef<ChatMessage[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const sendMessage = useCallback(async (content: string, model: string, systemPrompt?: string) => {
-    if (!content.trim() || !model) return;
+  const updateMessages = useCallback((next: ChatMessage[]) => {
+    messagesRef.current = next;
+    setMessages(next);
+  }, []);
 
-    setError(null);
-    setIsStreaming(true);
+  const sendMessage = useCallback(
+    async (content: string, model: string, systemPrompt?: string) => {
+      if (!content.trim() || !model) return;
 
-    const newMessages: ChatMessage[] = [...messages, { role: "user", content }];
-    setMessages(newMessages);
+      setError(null);
+      setIsStreaming(true);
 
-    // Add placeholder for assistant response
-    setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+      const history = messagesRef.current;
+      const newMessages: ChatMessage[] = [...history, { role: "user", content }];
+      updateMessages(newMessages);
 
-    // Initialize abort controller for this request
-    abortControllerRef.current = new AbortController();
+      // Add empty assistant placeholder
+      const withPlaceholder: ChatMessage[] = [...newMessages, { role: "assistant", content: "" }];
+      updateMessages(withPlaceholder);
 
-    try {
-      const requestBody: ChatRequest = {
-        model,
-        messages: newMessages,
-        ...(systemPrompt ? { systemPrompt } : {})
-      };
+      abortControllerRef.current = new AbortController();
 
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-        signal: abortControllerRef.current.signal
-      });
+      try {
+        const res = await fetch(`${BASE}/api/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ model, messages: newMessages, systemPrompt }),
+          signal: abortControllerRef.current.signal,
+        });
 
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `HTTP error! status: ${res.status}`);
-      }
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.error || `Server error ${res.status}`);
+        }
 
-      const reader = res.body?.getReader();
-      const decoder = new TextDecoder();
+        const reader = res.body?.getReader();
+        if (!reader) throw new Error("No response stream available");
 
-      if (reader) {
-        let assistantContent = '';
-        let buffer = '';
+        const decoder = new TextDecoder();
+        let assistantContent = "";
+        let buffer = "";
+        let done = false;
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
+        while (!done) {
+          const { done: readerDone, value } = await reader.read();
+          if (readerDone) break;
 
           buffer += decoder.decode(value, { stream: true });
-          
-          // Parse SSE format: segments separated by \n\n
-          let newlineIdx;
-          while ((newlineIdx = buffer.indexOf('\n\n')) >= 0) {
-            const event = buffer.slice(0, newlineIdx);
-            buffer = buffer.slice(newlineIdx + 2);
 
-            if (event.startsWith('data: ')) {
-              const dataStr = event.slice(6);
-              
-              if (dataStr === '[DONE]') {
-                break;
-              }
+          // Process all complete SSE events (delimited by \n\n)
+          let boundary: number;
+          while ((boundary = buffer.indexOf("\n\n")) >= 0) {
+            const event = buffer.slice(0, boundary);
+            buffer = buffer.slice(boundary + 2);
 
-              // Try parsing as JSON first (common standard), fallback to raw text
-              try {
-                const json = JSON.parse(dataStr);
-                if (json.choices?.[0]?.delta?.content) {
-                  assistantContent += json.choices[0].delta.content;
-                } else if (typeof json === 'string') {
-                  assistantContent += json;
-                } else {
-                  assistantContent += dataStr; // Unrecognized JSON structure
-                }
-              } catch {
-                // If it's not JSON, it's a raw token string
-                // Handle escaped newlines from raw string serialization
-                let token = dataStr.replace(/\\n/g, '\n');
-                // Remove wrapping quotes if present
-                if (token.startsWith('"') && token.endsWith('"')) {
-                  token = token.slice(1, -1);
-                }
+            if (!event.startsWith("data: ")) continue;
+            const dataStr = event.slice(6);
+
+            if (dataStr === "[DONE]") {
+              done = true;
+              break;
+            }
+
+            if (dataStr.startsWith("[ERROR]")) {
+              throw new Error(dataStr.slice(8));
+            }
+
+            // Backend sends JSON-encoded token strings (e.g. "hello" or "line1\nline2")
+            try {
+              const token = JSON.parse(dataStr) as string;
+              if (typeof token === "string") {
                 assistantContent += token;
+                setMessages((prev) => {
+                  const updated = [...prev];
+                  updated[updated.length - 1] = { role: "assistant", content: assistantContent };
+                  messagesRef.current = updated;
+                  return updated;
+                });
               }
-
-              // Update the last message
+            } catch {
+              // Fallback: treat as raw string if not valid JSON
+              assistantContent += dataStr;
               setMessages((prev) => {
                 const updated = [...prev];
-                updated[updated.length - 1] = { 
-                  ...updated[updated.length - 1], 
-                  content: assistantContent 
-                };
+                updated[updated.length - 1] = { role: "assistant", content: assistantContent };
+                messagesRef.current = updated;
                 return updated;
               });
             }
           }
         }
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === "AbortError") {
+          // User cancelled — keep whatever was streamed so far
+        } else {
+          const msg = err instanceof Error ? err.message : "Failed to generate response";
+          setError(msg);
+          // Remove the empty assistant placeholder on error
+          setMessages((prev) => {
+            const updated = prev.filter((_, i) => !(i === prev.length - 1 && prev[i].role === "assistant" && !prev[i].content));
+            messagesRef.current = updated;
+            return updated;
+          });
+        }
+      } finally {
+        setIsStreaming(false);
+        abortControllerRef.current = null;
       }
-    } catch (err: any) {
-      if (err.name === 'AbortError') {
-        console.log("Stream aborted by user");
-      } else {
-        console.error("Chat streaming error:", err);
-        setError(err.message || "Failed to generate response.");
-      }
-    } finally {
-      setIsStreaming(false);
-      abortControllerRef.current = null;
-    }
-  }, [messages]);
+    },
+    [updateMessages]
+  );
 
   const stopStreaming = useCallback(() => {
     if (abortControllerRef.current) {
@@ -126,16 +134,9 @@ export function useChat() {
 
   const clearMessages = useCallback(() => {
     stopStreaming();
-    setMessages([]);
+    updateMessages([]);
     setError(null);
-  }, [stopStreaming]);
+  }, [stopStreaming, updateMessages]);
 
-  return { 
-    messages, 
-    sendMessage, 
-    isStreaming, 
-    error, 
-    clearMessages,
-    stopStreaming
-  };
+  return { messages, sendMessage, isStreaming, error, clearMessages, stopStreaming };
 }

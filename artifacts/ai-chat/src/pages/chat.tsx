@@ -107,11 +107,22 @@ export default function ChatPage() {
                     {isLoadingModels ? (
                       <option>Loading parameters...</option>
                     ) : (
-                      models.map((model) => (
-                        <option key={model.id} value={model.id}>
-                          {model.name}
-                        </option>
-                      ))
+                      <>
+                        <optgroup label="⚡ Uncensored Models">
+                          {models.filter(m => m.uncensored).map((model) => (
+                            <option key={model.id} value={model.id}>
+                              {model.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="── Standard Models">
+                          {models.filter(m => !m.uncensored).map((model) => (
+                            <option key={model.id} value={model.id}>
+                              {model.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      </>
                     )}
                   </select>
                   <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />

@@ -1,16 +1,37 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import type { ChatMessage } from "@workspace/api-client-react/src/generated/api.schemas";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
-export function useChat() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+interface UseChatOptions {
+  conversationId?: string;
+  initialMessages?: ChatMessage[];
+  onMessagesChange?: (messages: ChatMessage[]) => void;
+}
+
+export function useChat({
+  conversationId,
+  initialMessages = [],
+  onMessagesChange,
+}: UseChatOptions = {}) {
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Keep a ref so sendMessage never has a stale snapshot of messages
-  const messagesRef = useRef<ChatMessage[]>([]);
+  const messagesRef = useRef<ChatMessage[]>(initialMessages);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const onMessagesChangeRef = useRef(onMessagesChange);
+  onMessagesChangeRef.current = onMessagesChange;
+
+  // Only reset when the conversation ID changes (not when messages array updates)
+  const prevConversationId = useRef<string | undefined>(conversationId);
+  useEffect(() => {
+    if (prevConversationId.current === conversationId) return;
+    prevConversationId.current = conversationId;
+    messagesRef.current = initialMessages;
+    setMessages(initialMessages);
+    setError(null);
+  }); // intentionally no dependency array — runs every render but guards with ref
 
   const updateMessages = useCallback((next: ChatMessage[]) => {
     messagesRef.current = next;
@@ -27,9 +48,12 @@ export function useChat() {
       const history = messagesRef.current;
       const newMessages: ChatMessage[] = [...history, { role: "user", content }];
       updateMessages(newMessages);
+      onMessagesChangeRef.current?.(newMessages);
 
-      // Add empty assistant placeholder
-      const withPlaceholder: ChatMessage[] = [...newMessages, { role: "assistant", content: "" }];
+      const withPlaceholder: ChatMessage[] = [
+        ...newMessages,
+        { role: "assistant", content: "" },
+      ];
       updateMessages(withPlaceholder);
 
       abortControllerRef.current = new AbortController();
@@ -61,7 +85,6 @@ export function useChat() {
 
           buffer += decoder.decode(value, { stream: true });
 
-          // Process all complete SSE events (delimited by \n\n)
           let boundary: number;
           while ((boundary = buffer.indexOf("\n\n")) >= 0) {
             const event = buffer.slice(0, boundary);
@@ -79,40 +102,55 @@ export function useChat() {
               throw new Error(dataStr.slice(8));
             }
 
-            // Backend sends JSON-encoded token strings (e.g. "hello" or "line1\nline2")
             try {
               const token = JSON.parse(dataStr) as string;
               if (typeof token === "string") {
                 assistantContent += token;
                 setMessages((prev) => {
                   const updated = [...prev];
-                  updated[updated.length - 1] = { role: "assistant", content: assistantContent };
+                  updated[updated.length - 1] = {
+                    role: "assistant",
+                    content: assistantContent,
+                  };
                   messagesRef.current = updated;
                   return updated;
                 });
               }
             } catch {
-              // Fallback: treat as raw string if not valid JSON
               assistantContent += dataStr;
               setMessages((prev) => {
                 const updated = [...prev];
-                updated[updated.length - 1] = { role: "assistant", content: assistantContent };
+                updated[updated.length - 1] = {
+                  role: "assistant",
+                  content: assistantContent,
+                };
                 messagesRef.current = updated;
                 return updated;
               });
             }
           }
         }
+
+        // Save completed conversation
+        onMessagesChangeRef.current?.(messagesRef.current);
       } catch (err: unknown) {
         if (err instanceof Error && err.name === "AbortError") {
-          // User cancelled — keep whatever was streamed so far
+          onMessagesChangeRef.current?.(messagesRef.current);
         } else {
-          const msg = err instanceof Error ? err.message : "Failed to generate response";
+          const msg =
+            err instanceof Error ? err.message : "Failed to generate response";
           setError(msg);
-          // Remove the empty assistant placeholder on error
           setMessages((prev) => {
-            const updated = prev.filter((_, i) => !(i === prev.length - 1 && prev[i].role === "assistant" && !prev[i].content));
+            const updated = prev.filter(
+              (_, i) =>
+                !(
+                  i === prev.length - 1 &&
+                  prev[i].role === "assistant" &&
+                  !prev[i].content
+                )
+            );
             messagesRef.current = updated;
+            onMessagesChangeRef.current?.(updated);
             return updated;
           });
         }
@@ -135,6 +173,7 @@ export function useChat() {
   const clearMessages = useCallback(() => {
     stopStreaming();
     updateMessages([]);
+    onMessagesChangeRef.current?.([]);
     setError(null);
   }, [stopStreaming, updateMessages]);
 

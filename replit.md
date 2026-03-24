@@ -51,25 +51,26 @@ The main artifact is the **AI Chat** app at `/`.
 
 ### Backend Routes
 - `GET /api/models` — Returns list of models (uncensored + standard)
-- `POST /api/chat` — Streams SSE chat responses from OpenRouter
+- `POST /api/chat` — Streams SSE chat responses from Hugging Face Inference API
 
 ### Uncensored Models Available
-- Dolphin 3.0 Mistral 24B (free)
-- Dolphin Mixtral 8x22B
-- Hermes 3 Llama 3.1 405B
-- Hermes 3 Llama 3.1 70B
-- Euryale v2.2 70B (creative/roleplay)
+- Hermes 3 Llama 3.1 405B / 70B
+- Hermes 2 Pro Llama 3 8B
+- Euryale v2.1 / v2.2 / v2.3 70B (creative/roleplay)
+- Magnum v4 72B
+- MythoMax L2 13B
+- ReMM SLERP L2 13B
 
 ### Standard Models
-- GPT-4o, GPT-4o Mini
-- Claude 3.5 Sonnet
-- Gemini 2.0 Flash
-- Llama 3.3 70B Instruct
-- Mistral Large
-- DeepSeek Chat V3
+- Llama 3.3 70B Instruct (Meta)
+- Qwen 2.5 72B / 7B Instruct (Alibaba)
+- Mistral Large (Mistral AI)
+- DeepSeek V3
+- Gemma 2 27B (Google)
+- Phi-4 14B (Microsoft)
 
 ### Environment Variables
-- `OPENROUTER_API_KEY` — Required. Get from https://openrouter.ai/keys
+- `HF_TOKEN` — Required. Get from https://huggingface.co/settings/tokens
 
 ## TypeScript & Composite Projects
 

@@ -14,18 +14,16 @@ const ChatRequestSchema = z.object({
   systemPrompt: z.string().optional(),
 });
 
-// All verified working as of latest test
 export const UNCENSORED_MODEL_ENDPOINTS: Record<string, string> = {
-  "hermes-4-70b":          "nousresearch/hermes-4-70b",
-  "hermes-3-llama31-405b": "nousresearch/hermes-3-llama-3.1-405b",
-  "hermes-3-llama31-70b":  "nousresearch/hermes-3-llama-3.1-70b",
-  "hermes-2-pro-llama3-8b":"nousresearch/hermes-2-pro-llama-3-8b",
-  "euryale-v23-70b":       "sao10k/l3.3-euryale-70b",
-  "euryale-v22-70b":       "sao10k/l3.1-euryale-70b",
-  "euryale-v21-70b":       "sao10k/l3-euryale-70b",
+  "hermes-3-llama31-405b": "NousResearch/Hermes-3-Llama-3.1-405B",
+  "hermes-3-llama31-70b":  "NousResearch/Hermes-3-Llama-3.1-70B",
+  "hermes-2-pro-llama3-8b":"NousResearch/Hermes-2-Pro-Llama-3-8B",
+  "euryale-v23-70b":       "sao10k/L3.3-Euryale-70B",
+  "euryale-v22-70b":       "sao10k/L3.1-Euryale-70B",
+  "euryale-v21-70b":       "sao10k/L3-Euryale-70B",
   "magnum-v4-72b":         "anthracite-org/magnum-v4-72b",
-  "mythomax-l2-13b":       "gryphe/mythomax-l2-13b",
-  "remm-slerp-l2-13b":     "undi95/remm-slerp-l2-13b",
+  "mythomax-l2-13b":       "Gryphe/MythoMax-L2-13b",
+  "remm-slerp-l2-13b":     "Undi95/ReMM-SLERP-L2-13b",
 };
 
 async function streamChat(
@@ -34,17 +32,17 @@ async function streamChat(
   systemPrompt: string | undefined,
   res: Response
 ) {
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = process.env.HF_TOKEN;
   if (!apiKey) {
-    res.status(500).json({ error: "OPENROUTER_API_KEY is not configured" });
+    res.status(500).json({ error: "HF_TOKEN is not configured" });
     return;
   }
 
-  const openRouterMessages: { role: string; content: string }[] = [];
+  const hfMessages: { role: string; content: string }[] = [];
   if (systemPrompt?.trim()) {
-    openRouterMessages.push({ role: "system", content: systemPrompt });
+    hfMessages.push({ role: "system", content: systemPrompt });
   }
-  openRouterMessages.push(...messages);
+  hfMessages.push(...messages);
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -53,17 +51,15 @@ async function streamChat(
   res.flushHeaders();
 
   try {
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch("https://api-inference.huggingface.co/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://replit.com",
-        "X-Title": "Uncensored AI Chat",
       },
       body: JSON.stringify({
         model: modelId,
-        messages: openRouterMessages,
+        messages: hfMessages,
         stream: true,
       }),
     });
@@ -81,7 +77,7 @@ async function streamChat(
     }
 
     if (!response.body) {
-      res.write(`data: [ERROR] No response body from OpenRouter\n\n`);
+      res.write(`data: [ERROR] No response body from Hugging Face\n\n`);
       res.end();
       return;
     }

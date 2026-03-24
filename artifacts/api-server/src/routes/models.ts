@@ -5,6 +5,12 @@ const router: IRouter = Router();
 const MODELS = [
   // --- UNCENSORED MODELS ---
   {
+    id: "Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2-GGUF",
+    name: "Lexi Uncensored V2 8B",
+    description: "Llama 3.1 8B fine-tune with all censorship and restrictions removed",
+    uncensored: true,
+  },
+  {
     id: "NousResearch/Hermes-3-Llama-3.1-405B",
     name: "Hermes 3 Llama 3.1 405B",
     description: "Nous Research flagship uncensored model on Llama 3.1 405B",

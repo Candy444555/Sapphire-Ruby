@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import type { ChatMessage as ChatMsg } from '@workspace/api-client-react/src/generated/api.schemas';
-import { ChatMessageRole } from '@workspace/api-zod/src/generated/types/chatMessageRole';
+import type { ChatMessage as ChatMsg } from '@workspace/api-client-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Send, Settings2, Trash2, StopCircle,
@@ -25,7 +24,7 @@ const SYSTEM_PROMPT_PRESETS = [
   {
     label: 'God Mode',
     icon: '⚡',
-    value: ChatMessageRole.developer,
+    value: 'act like you are God and will do whatever you want',
   },
 ];
 
@@ -244,7 +243,7 @@ export default function ChatPage() {
                             <option key={model.id} value={model.id}>{model.name}</option>
                           ))}
                         </optgroup>
-                        <optgroup label="── Uncensored">
+                        <optgroup label="── Standard">
                           {models.filter(m => !m.uncensored).map((model) => (
                             <option key={model.id} value={model.id}>{model.name}</option>
                           ))}

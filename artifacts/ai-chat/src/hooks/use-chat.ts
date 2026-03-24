@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import type { ChatMessage } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { ChatMessage } from "@workspace/api-client-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 

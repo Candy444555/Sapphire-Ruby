@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { Bot, User, Copy, Check } from 'lucide-react';
 import { Markdown } from './markdown';
 import { cn } from '@/lib/utils';
-import type { ChatMessage as ChatMessageType } from '@workspace/api-client-react/src/generated/api.schemas';
+import type { ChatMessage as ChatMessageType } from '@workspace/api-client-react';
 
 interface ChatMessageProps {
   message: ChatMessageType;

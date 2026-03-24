@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import type { ChatMessage } from "@workspace/api-client-react/src/generated/api.schemas";
+import type { ChatMessage } from "@workspace/api-client-react";
 
 export type Conversation = {
   id: string;

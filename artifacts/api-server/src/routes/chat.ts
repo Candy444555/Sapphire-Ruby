@@ -52,7 +52,7 @@ async function streamChat(
   res.flushHeaders();
 
   try {
-    const response = await fetch("https://api-inference.huggingface.co/v1/chat/completions", {
+    const response = await fetch("https://router.huggingface.co/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,

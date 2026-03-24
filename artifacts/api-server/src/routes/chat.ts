@@ -56,7 +56,9 @@ async function streamChat(
   if (systemPrompt?.trim()) {
     hfMessages.push({ role: "system", content: systemPrompt });
   }
-  hfMessages.push(...messages);
+  // Strip any empty-content messages (e.g. placeholder assistant messages from the UI)
+  const sanitized = messages.filter((m) => m.content.trim().length > 0);
+  hfMessages.push(...sanitized);
 
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -85,7 +87,8 @@ async function streamChat(
         const parsed = JSON.parse(errorText);
         errorMsg = parsed?.error?.message || parsed?.error || errorText;
       } catch {}
-      res.write(`data: [ERROR] ${errorMsg}\n\n`);
+      console.error(`[HF] ${response.status} for model ${modelId}: ${errorMsg.slice(0, 200)}`);
+      res.write(`data: [ERROR] HF ${response.status}: ${errorMsg}\n\n`);
       res.end();
       return;
     }

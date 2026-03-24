@@ -27,6 +27,19 @@ export const UNCENSORED_MODEL_ENDPOINTS: Record<string, string> = {
   "remm-slerp-l2-13b":     "Undi95/ReMM-SLERP-L2-13b",
 };
 
+// Some models are only available via a specific HF router provider
+const MODEL_PROVIDER_OVERRIDES: Record<string, string> = {
+  "Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2": "featherless-ai",
+};
+
+function getRouterUrl(modelId: string): string {
+  const provider = MODEL_PROVIDER_OVERRIDES[modelId];
+  if (provider) {
+    return `https://router.huggingface.co/${provider}/v1/chat/completions`;
+  }
+  return "https://router.huggingface.co/v1/chat/completions";
+}
+
 async function streamChat(
   modelId: string,
   messages: { role: string; content: string }[],
@@ -52,7 +65,7 @@ async function streamChat(
   res.flushHeaders();
 
   try {
-    const response = await fetch("https://router.huggingface.co/v1/chat/completions", {
+    const response = await fetch(getRouterUrl(modelId), {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,

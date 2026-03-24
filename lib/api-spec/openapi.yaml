@@ -103,7 +103,7 @@ components:
             $ref: "#/components/schemas/ChatMessage"
         systemPrompt:
           type: string
-          description: Optional system prompt
+          description: enforced system prompt
       required:
         - model
         - messages

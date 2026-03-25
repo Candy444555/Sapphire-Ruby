@@ -13,6 +13,7 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
   next();
 });
 
+app.use("/api", router);
 app.use("/", router);
 
 app.use((_req: Request, res: Response) => {

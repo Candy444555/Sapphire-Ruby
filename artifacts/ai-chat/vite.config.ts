@@ -9,8 +9,16 @@ const port = rawPort && !Number.isNaN(Number(rawPort)) ? Number(rawPort) : 3000;
 
 const basePath = process.env.BASE_PATH ?? "/";
 
+const replitDomain = process.env.REPLIT_DEV_DOMAIN;
+const apiBase = replitDomain
+  ? `https://${replitDomain}/api`
+  : `http://localhost:${process.env.API_PORT ?? 8080}/api`;
+
 export default defineConfig({
   base: basePath,
+  define: {
+    "import.meta.env.VITE_API_BASE": JSON.stringify(apiBase),
+  },
   plugins: [
     react(),
     tailwindcss(),
@@ -48,25 +56,6 @@ export default defineConfig({
     fs: {
       strict: true,
       deny: ["**/.*"],
-    },
-    proxy: {
-      "/api": {
-        target: `http://localhost:${process.env.API_PORT ?? 8080}`,
-        changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ""),
-        configure: (proxy) => {
-          proxy.on("proxyReq", (_proxyReq, req) => {
-            console.log(`[proxy] ${req.method} ${req.url}`);
-          });
-          proxy.on("error", (err, _req, res) => {
-            console.error("[proxy error]", err.message);
-            if (!("headersSent" in res && res.headersSent)) {
-              (res as import("http").ServerResponse).writeHead(502, { "Content-Type": "application/json" });
-              (res as import("http").ServerResponse).end(JSON.stringify({ error: "API server unreachable" }));
-            }
-          });
-        },
-      },
     },
   },
   preview: {

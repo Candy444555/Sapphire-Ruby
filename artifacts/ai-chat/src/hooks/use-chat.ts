@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { ChatMessage } from "@workspace/api-client-react";
 
-const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+const API_BASE: string = import.meta.env.VITE_API_BASE || "";
 
 interface UseChatOptions {
   conversationId?: string;
@@ -59,7 +59,7 @@ export function useChat({
       abortControllerRef.current = new AbortController();
 
       try {
-        const res = await fetch(`${BASE}/api/chat`, {
+        const res = await fetch(API_BASE ? `${API_BASE}/chat` : "/api/chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ model, messages: newMessages, systemPrompt }),

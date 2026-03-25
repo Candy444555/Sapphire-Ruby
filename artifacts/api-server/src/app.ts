@@ -13,7 +13,7 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
   next();
 });
 
-app.use("/api", router);
+app.use("/", router);
 
 app.use((_req: Request, res: Response) => {
   res.status(404).json({ error: `Route not found: ${_req.method} ${_req.originalUrl}` });

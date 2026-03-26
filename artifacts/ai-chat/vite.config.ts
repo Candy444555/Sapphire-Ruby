@@ -9,16 +9,8 @@ const port = rawPort && !Number.isNaN(Number(rawPort)) ? Number(rawPort) : 3000;
 
 const basePath = process.env.BASE_PATH ?? "/";
 
-const replitDomain = process.env.REPLIT_DEV_DOMAIN;
-const apiBase = replitDomain
-  ? `https://${replitDomain}/api`
-  : `http://localhost:${process.env.API_PORT ?? 8080}/api`;
-
 export default defineConfig({
   base: basePath,
-  define: {
-    "import.meta.env.VITE_API_BASE": JSON.stringify(apiBase),
-  },
   plugins: [
     react(),
     tailwindcss(),

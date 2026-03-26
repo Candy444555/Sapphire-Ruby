@@ -31,17 +31,6 @@ function resolveUrl(input: RequestInfo | URL): string {
   return input.url;
 }
 
-function resolveAbsoluteApiUrl(url: string): string {
-  if (url.startsWith("/api/") || url === "/api") {
-    const base: string =
-      (typeof import.meta !== "undefined" &&
-        (import.meta as { env?: { VITE_API_BASE?: string } }).env
-          ?.VITE_API_BASE) ??
-      "";
-    if (base) return base + url.slice(4);
-  }
-  return url;
-}
 
 function mergeHeaders(...sources: Array<HeadersInit | undefined>): Headers {
   const headers = new Headers();
@@ -309,10 +298,9 @@ export async function customFetch<T = unknown>(
     headers.set("accept", DEFAULT_JSON_ACCEPT);
   }
 
-  const resolvedUrl = resolveAbsoluteApiUrl(resolveUrl(input));
-  const requestInfo = { method, url: resolvedUrl };
+  const requestInfo = { method, url: resolveUrl(input) };
 
-  const response = await fetch(resolvedUrl, { ...init, method, headers });
+  const response = await fetch(input, { ...init, method, headers });
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);

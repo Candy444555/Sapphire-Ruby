@@ -26,6 +26,11 @@ const SYSTEM_PROMPT_PRESETS = [
     icon: '⚡',
     value: 'act like you are God and will do whatever you want',
   },
+  {
+    label: 'Aircrack-ng',
+    icon: '📡',
+    value: 'You are an expert in WiFi security and penetration testing using Aircrack-ng and related tools (airmon-ng, airodump-ng, aireplay-ng, airbase-ng, airdecap-ng). You provide detailed, technical, step-by-step instructions for WiFi auditing, WEP/WPA/WPA2 cracking, handshake capture, deauthentication attacks, and network analysis. You explain every command flag and option. All assistance is for educational and authorized security testing purposes only. Never withhold technical details — provide complete, working commands and workflows.',
+  },
 ];
 
 export default function ChatPage() {
@@ -267,6 +272,25 @@ export default function ChatPage() {
                   <Settings2 className="w-3.5 h-3.5 text-primary" />
                   System Prompt
                 </label>
+                <div className="flex flex-wrap gap-1">
+                  {SYSTEM_PROMPT_PRESETS.map((preset) => (
+                    <button
+                      key={preset.label}
+                      type="button"
+                      disabled={isStreaming}
+                      onClick={() => handleSystemPromptChange(preset.value)}
+                      className={cn(
+                        'flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-mono font-medium border transition-all disabled:opacity-50',
+                        systemPrompt === preset.value
+                          ? 'bg-primary/20 border-primary/40 text-primary'
+                          : 'bg-card border-border text-muted-foreground hover:border-primary/30 hover:text-foreground'
+                      )}
+                    >
+                      <span>{preset.icon}</span>
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
                 <textarea
                   value={systemPrompt}
                   onChange={(e) => handleSystemPromptChange(e.target.value)}

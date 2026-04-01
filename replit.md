@@ -36,22 +36,40 @@ artifacts-monorepo/
 └── package.json
 ```
 
-## Uncensored AI Chat App
+## NEXUS — Uncensored AI Chat App
 
-The main artifact is the **AI Chat** app at `/`.
+The main artifact is the **AI Chat** app at `/`. Primary AI is **Lexi** (Llama 3.1 8B Lexi Uncensored V2).
 
 ### Features
-- Dark terminal-inspired UI ("NEXUS AI")
+- Dark terminal-inspired UI ("NEXUS")
 - Model selector with uncensored model badges
-- Real-time SSE streaming responses
-- Customizable system prompt
+- Real-time SSE streaming responses from Hugging Face router
+- System prompt presets: Default, God Mode, Aircrack-ng, Kali Linux 🐉
+- Massively detailed Kali Linux system prompt with full tool coverage
 - Markdown rendering with code syntax highlighting
 - Purge/clear conversation
-- Multiple model support
+- **Real terminal emulator** at `/terminal` — persistent bash sessions per browser tab
+
+### Real Kali Linux Tools Installed (50+)
+All tools are installed via Nix and available in the real terminal:
+
+- **Network**: nmap, masscan, hping, tcpdump, tshark, socat, netcat, bettercap, ettercap, dsniff, mitmproxy, arp-scan, nbtscan, netdiscover
+- **Wireless**: aircrack-ng, airmon-ng, airodump-ng, aireplay-ng, wifite, kismet, hcxdumptool, pixiewps
+- **Password**: hydra, john, hashcat, medusa, thc-hydra
+- **Web**: sqlmap, nikto, dirb, gobuster, ffuf, feroxbuster, wfuzz
+- **Exploitation**: msfconsole, msfvenom, searchsploit, evil-winrm, chisel, ligolo-ng
+- **OSINT**: theHarvester, sherlock, recon-ng, amass, subfinder, nuclei, dnsenum, dnsrecon, smbmap, enum4linux-ng
+- **Forensics**: binwalk, foremost, sleuthkit, testdisk, exiftool, steghide
+- **RE**: radare2, gdb, ltrace, strace, strings, hexedit, xxd, binutils
+- **Crypto/Tunnel**: openssl, gnupg, sslscan, proxychains4, tor
+- **Python**: impacket, scapy, pwntools, pycryptodome, python-nmap, paramiko, ldap3, shodan
 
 ### Backend Routes
 - `GET /api/models` — Returns list of models (uncensored + standard)
 - `POST /api/chat` — Streams SSE chat responses from Hugging Face Inference API
+- `POST /api/terminal/session` — Create persistent bash session
+- `POST /api/terminal/exec` — Execute command in session (marker-based completion)
+- `DELETE /api/terminal/session/:id` — Destroy session
 
 ### Uncensored Models Available
 - Hermes 3 Llama 3.1 405B / 70B

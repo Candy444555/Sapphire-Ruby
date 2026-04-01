@@ -131,13 +131,46 @@ export default function TerminalPage() {
       {/* Output area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3 text-sm leading-relaxed">
         {/* Banner */}
-        <div className="text-[#8b949e] text-xs space-y-0.5 mb-2 select-none">
-          <div className="text-[#58a6ff] font-bold text-sm">
-            ┌─ Kali Linux Terminal ─────────────────────────
+        <div className="text-xs space-y-0.5 mb-3 select-none">
+          <div className="text-[#268bd2] font-bold">
+            {`         .;;,.`}<br/>
+            {`        cXMM'`}<br/>
+            {`       ;MMMM:`}<br/>
+            {`     .;M MMM`}<br/>
+            {`    -MMMMMMM+.`}<br/>
+            {`   /MMMMMMMMMMm.`}<br/>
+            {`  /MMMMMMMMMMMMMM.`}
           </div>
-          <div>│  Real shell. Commands execute on the server.</div>
-          <div>│  Ctrl+L clear  ·  ↑↓ history  ·  Ctrl+C cancel input</div>
-          <div className="text-[#3fb950]">└─ Connected</div>
+          <div className="text-[#3fb950] font-bold text-sm mt-1">
+            ██╗  ██╗ █████╗ ██╗     ██╗    ██╗     ██╗███╗   ██╗██╗   ██╗██╗  ██╗
+          </div>
+          <div className="text-[#3fb950]">
+            ██║ ██╔╝██╔══██╗██║     ██║    ██║     ██║████╗  ██║██║   ██║╚██╗██╔╝
+          </div>
+          <div className="text-[#3fb950]">
+            █████╔╝ ███████║██║     ██║    ██║     ██║██╔██╗ ██║██║   ██║ ╚███╔╝
+          </div>
+          <div className="text-[#3fb950]">
+            ██╔═██╗ ██╔══██║██║     ██║    ██║     ██║██║╚██╗██║██║   ██║ ██╔██╗
+          </div>
+          <div className="text-[#3fb950]">
+            ██║  ██╗██║  ██║███████╗██║    ███████╗██║██║ ╚████║╚██████╔╝██╔╝ ██╗
+          </div>
+          <div className="mt-2 text-[#8b949e]">┌──────────────────────────────────────────────────────────────┐</div>
+          <div className="text-[#8b949e]">│  <span className="text-[#58a6ff]">Kali Linux</span> · Integrated Terminal · Real Shell Execution     │</div>
+          <div className="text-[#8b949e]">│  <span className="text-[#3fb950]">50+ tools installed</span> · Ctrl+L clear · ↑↓ history            │</div>
+          <div className="text-[#8b949e]">│  <span className="text-[#d29922]">Network</span>: nmap masscan hping tcpdump tshark socat netcat        │</div>
+          <div className="text-[#8b949e]">│  <span className="text-[#d29922]">Wireless</span>: aircrack-ng airmon-ng airodump-ng aireplay-ng wifite  │</div>
+          <div className="text-[#8b949e]">│  <span className="text-[#d29922]">Password</span>: hydra john hashcat medusa pixiewps hcxdumptool       │</div>
+          <div className="text-[#8b949e]">│  <span className="text-[#d29922]">Web</span>: sqlmap nikto dirb gobuster ffuf feroxbuster wfuzz          │</div>
+          <div className="text-[#8b949e]">│  <span className="text-[#d29922]">Sniff</span>: bettercap ettercap mitmproxy dsniff                      │</div>
+          <div className="text-[#8b949e]">│  <span className="text-[#d29922]">Exploit</span>: msfconsole msfvenom searchsploit evil-winrm chisel     │</div>
+          <div className="text-[#8b949e]">│  <span className="text-[#d29922]">Forensics</span>: binwalk foremost sleuthkit testdisk exiftool         │</div>
+          <div className="text-[#8b949e]">│  <span className="text-[#d29922]">RE</span>: radare2 gdb ltrace strace strings hexedit                   │</div>
+          <div className="text-[#8b949e]">│  <span className="text-[#d29922]">OSINT</span>: theHarvester sherlock recon-ng amass subfinder nuclei     │</div>
+          <div className="text-[#8b949e]">│  <span className="text-[#d29922]">Other</span>: tor proxychains4 sslscan steghide bettercap              │</div>
+          <div className="text-[#8b949e]">│  <span className="text-[#d29922]">Python</span>: impacket scapy pwntools pycryptodome python-nmap        │</div>
+          <div className="text-[#8b949e]">└──────────────────────────────────────────────────────────────┘</div>
         </div>
 
         {isConnecting && (

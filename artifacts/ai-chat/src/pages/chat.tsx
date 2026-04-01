@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import type { ChatMessage as ChatMsg } from '@workspace/api-client-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Link } from 'wouter';
 import {
   Send, Settings2, Trash2, StopCircle,
   ChevronDown, Cpu, Sparkles, TerminalSquare,
@@ -423,6 +424,15 @@ export default function ChatPage() {
           >
             <Settings2 className="w-5 h-5" />
           </button>
+          <Link href="/terminal">
+            <button
+              title="Open Terminal"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card/50 backdrop-blur-md border border-white/5 text-foreground hover:bg-white/10 transition-colors pointer-events-auto shadow-sm text-sm font-mono"
+            >
+              <TerminalSquare className="w-4 h-4 text-primary" />
+              <span className="hidden sm:inline text-xs">Terminal</span>
+            </button>
+          </Link>
         </header>
 
         {/* Messages */}

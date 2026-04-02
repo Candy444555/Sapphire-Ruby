@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ChatPage from "@/pages/chat";
 import TerminalPage from "@/pages/terminal";
+import PhoneLookupPage from "@/pages/phone-lookup";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -20,6 +21,7 @@ function Router() {
     <Switch>
       <Route path="/" component={ChatPage} />
       <Route path="/terminal" component={TerminalPage} />
+      <Route path="/phone-lookup" component={PhoneLookupPage} />
       <Route component={NotFound} />
     </Switch>
   );

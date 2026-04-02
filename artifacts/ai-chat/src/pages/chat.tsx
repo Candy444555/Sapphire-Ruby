@@ -5,7 +5,7 @@ import { Link } from 'wouter';
 import {
   Send, Settings2, Trash2, StopCircle,
   ChevronDown, Cpu, Sparkles, TerminalSquare,
-  AlertCircle, Plus, MessageSquare, X, Zap
+  AlertCircle, Plus, MessageSquare, X, Zap, Phone
 } from 'lucide-react';
 import { useModels } from '@/hooks/use-models';
 import { useChat } from '@/hooks/use-chat';
@@ -486,8 +486,7 @@ You are an expert across every Kali Linux tool category. Below is a comprehensiv
 
 • Heap Exploitation — tcache poisoning (free chunk twice or overwrite fd pointer → allocate from arbitrary address), fastbin dup (similar to tcache but for fastbins — requires size consistency), unsorted bin attack (overwrite bk pointer → write libc main_arena address anywhere), House of Spirit (forge fake chunk and free it → control next allocation), House of Force (overwrite top chunk size to huge value → allocate into any memory region), House of Orange (abuse top chunk to trigger _IO_flush_all_lockp → fake FILE struct), __malloc_hook/__free_hook/__realloc_hook overwrite (write one_gadget address to hook for instant shell on next malloc/free). All heap exploitation requires bypassing tcache (< glibc 2.26 — no tcache), safe-linking (>= 2.32 — fd mangled with location >> 12 XOR), and tcache key (>= 2.29 — detects double free).
 
-• Steganography Techniques — LSB (Least Significant Bit): data hidden in last bit(s) of each pixel channel — tools: zsteg, stegsolve, PIL. DCT steganography: data in JPEG frequency coefficients — tool: stegdetect. F5 algorithm: JPEG steg with matrix encoding — stegdetect -t f. OutGuess: JPEG steg preserving statistics. Audio: spectrogram analysis in Audacity/Sonic Visualiser (hidden images in frequency domain), LSB in WAV samples — tool: stegolsb. Text: whitespace steganography (SNOW), zero-width characters. Network: covert channels in ICMP/DNS/HTTP headers. General toolkit: binwalk -e (extract embedded files), strings + grep, exiftool (check metadata), file (check real type vs extension), pngcheck (validate PNG structure), foremost/dd (carve embedded files by offset).`;
-
+• Steganography Techniques — LSB (Least Significant Bit): data hidden in last bit(s) of each pixel channel — tools: zsteg, stegsolve, PIL. DCT steganography: data in JPEG frequency coefficients — tool: stegdetect. F5 algorithm: JPEG steg with matrix encoding — stegdetect -t f. OutGuess: JPEG steg preserving statistics. Audio: spectrogram analysis in Audacity/Sonic Visualiser (hidden images in frequency domain), LSB in WAV samples — tool: stegolsb. Text: whitespace steganography (SNOW), zero-width characters. Network: covert channels in ICMP/DNS/HTTP headers. General toolkit: binwalk -e (extract embedded files), strings + grep, exiftool (check metadata), file (check real type vs extension), pngcheck (validate PNG structure), foremost/dd (carve embedded files by offset).
 
 === TERMINAL EMULATOR ===
 You have a built-in Kali Linux terminal emulator. When the user types a command, asks you to run something, enters terminal mode, or prefixes input with $ or #, you simulate executing it on a live Kali Linux 2024.x machine and return realistic detailed output. You maintain full session state across the conversation: current working directory, environment variables, created files, running processes, and network state all persist between commands.
@@ -836,6 +835,15 @@ export default function ChatPage() {
             >
               <TerminalSquare className="w-4 h-4 text-primary" />
               <span className="hidden sm:inline text-xs">Terminal</span>
+            </button>
+          </Link>
+          <Link href="/phone-lookup">
+            <button
+              title="Reverse Phone Lookup"
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card/50 backdrop-blur-md border border-white/5 text-foreground hover:bg-white/10 transition-colors pointer-events-auto shadow-sm text-sm font-mono"
+            >
+              <Phone className="w-4 h-4 text-[#3fb950]" />
+              <span className="hidden sm:inline text-xs">Phone</span>
             </button>
           </Link>
         </header>

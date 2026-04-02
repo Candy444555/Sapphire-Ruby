@@ -18,6 +18,7 @@
     "express": "^5",
     "libphonenumber-js": "^1.12.41",
     "node-fetch": "^3.3.2",
+    "ssh2": "^1.17.0",
     "zod": "catalog:"
   },
   "devDependencies": {
@@ -25,6 +26,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "catalog:",
+    "@types/ssh2": "^1.15.5",
     "esbuild": "^0.27.3",
     "tsx": "catalog:"
   }

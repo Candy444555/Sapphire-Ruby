@@ -146,20 +146,119 @@ const EXTRA_KEYS = [
 const TERMUX_MOTD = `Welcome to Termux!
 
 Community forum  : https://termux.dev/community
-Gitter chat      : https://gitter.im/termux/termux
-IRC channel      : #termux on libera.chat
 GitHub           : https://github.com/termux
 
 Working with packages:
+ * Search:   pkg search <query>
+ * Install:  pkg install <package>
+ * List:     pkg list-installed
 
- * Search packages:   pkg search <query>
- * Install a package: pkg install <package>
- * Upgrade packages:  pkg upgrade
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ INSTALLED PACKAGES  (70+)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Subscribed repositories:
- * root-repo  : packages.termux.dev
+ ── SHELL & CORE UTILITIES ──────────────────────────────────────
+  bash        GNU Bourne Again shell — default interactive shell
+  coreutils   ls, cp, mv, rm, cat, echo and 100+ core commands
+  grep        Search text using regular expressions
+  gzip        Compress and decompress .gz files
+  tar         Create and extract .tar archive files
+  zip         Create ZIP-compressed archives
+  unzip       Extract files from ZIP archives
+  p7zip       7-Zip archiver — supports 7z, rar, iso, cab, etc.
+  tree        Display directory contents as a visual tree
+  file        Identify file types by examining content
+  jq          Lightweight JSON processor and query tool
+  fzf         Interactive fuzzy-finder for files, history, etc.
+  ripgrep     Blazing-fast recursive text search (better grep)
+  bat         Cat clone with syntax highlighting and line numbers
+  fd          Simple, fast alternative to the find command
+  xxd         Create hex dumps or reverse them back to binary
+  hexedit     Interactive terminal hex editor
+  screen      Terminal multiplexer — persist sessions over SSH
+  tmux        Modern terminal multiplexer with split panes
+  htop        Interactive process viewer and system monitor
+  lsof        List open files and the processes using them
+  whois       Query WHOIS records for domains and IP addresses
 
-For support see: https://termux.dev/docs/faq`;
+ ── LANGUAGES & COMPILERS ────────────────────────────────────────
+  python      Python 3.12 — general-purpose scripting language
+  nodejs      Node.js 20 — JavaScript runtime for scripts/servers
+  go          Go 1.16 — fast compiled language by Google
+  ruby        Ruby 2.7 — dynamic scripting and automation
+  perl        Perl 5.40 — text processing and system scripting
+  lua         Lua 5.4 — lightweight embeddable scripting language
+  gcc         GNU C/C++ compiler collection version 14
+  make        Build automation tool using Makefiles
+  cmake       Cross-platform build-system generator
+
+ ── NETWORK & CONNECTIVITY ───────────────────────────────────────
+  curl        Transfer data from URLs — HTTP, FTP, SFTP and more
+  wget        Non-interactive network downloader
+  git         Distributed version control system
+  openssh     Secure Shell client, server, and key management
+  openssl     SSL/TLS toolkit — certs, keys, encryption, hashing
+  socat       Multipurpose relay — bidirectional data streams
+  netcat      TCP/UDP networking swiss-army knife
+  nmap        Network mapper — host discovery and port scanning
+  masscan     Fastest TCP port scanner (millions of pkts/sec)
+  hping3      Packet crafting tool for TCP/UDP/ICMP/RAW-IP
+  tcpflow     Capture and analyze TCP streams from network traffic
+  tshark      Wireshark network protocol analyzer (CLI version)
+  tcpdump     Capture and inspect raw network packets
+  sslscan     Test SSL/TLS ciphers and vulnerabilities on servers
+  sshuttle    Transparent proxy server / poor-man's VPN over SSH
+  tor         Anonymity network — route traffic through Tor relays
+
+ ── WEB & OSINT ──────────────────────────────────────────────────
+  sqlmap      Automatic SQL injection and database takeover tool
+  nikto       Web server scanner — checks for dangerous files/CGIs
+  gobuster    Directory/file brute-forcer for web servers
+  dirb        Web content scanner using wordlist-based discovery
+  ffuf        Fast web fuzzer for directories, parameters, VHosts
+  wfuzz       Web application fuzzer for finding hidden resources
+  mitmproxy   Interactive HTTPS traffic interceptor and modifier
+
+ ── PASSWORD & CRYPTO ────────────────────────────────────────────
+  john        John the Ripper — versatile password cracker
+  hydra       Fast network login brute-forcer (SSH, FTP, HTTP…)
+  hashcat     World's fastest GPU-accelerated password recovery
+
+ ── WIRELESS ─────────────────────────────────────────────────────
+  aircrack-ng Full WiFi security auditing suite:
+              aircrack-ng  — WEP/WPA-PSK key cracker
+              airmon-ng    — Enable/disable monitor mode
+              airodump-ng  — 802.11 packet capture and logging
+              aireplay-ng  — Inject and replay 802.11 frames
+              airbase-ng   — Multi-purpose AP attack tool
+
+ ── FORENSICS & REVERSE ENGINEERING ─────────────────────────────
+  binwalk     Firmware analysis and extraction tool
+  foremost    File carver — recover files from disk images
+  sleuthkit   Digital forensics toolkit (mmls, fls, icat…)
+  testdisk    Recover lost partitions and fix boot sectors
+  exiftool    Read/write metadata in images, video, audio files
+  steghide    Hide/extract data in JPEG, BMP, WAV, AU files
+  radare2     Powerful reverse engineering framework and debugger
+  gdb         GNU Project Debugger — debug compiled programs
+  strace      Trace system calls and signals of a process
+  ltrace      Trace library calls made by a running program
+
+ ── PYTHON SECURITY LIBRARIES ────────────────────────────────────
+  scapy       Interactive packet manipulation framework
+  pwntools    CTF framework — exploit development and binary hax
+  impacket    Python implementations of network protocols (SMB…)
+  pycryptodome Cryptographic library — AES, RSA, SHA, DES, etc.
+  paramiko    Python SSH2 protocol library
+  python-nmap Python wrapper around the nmap port scanner
+  requests    Elegant HTTP library for Python
+  cryptography Cryptographic recipes and hazmat primitives
+  dnspython   Full-featured DNS toolkit for Python
+  netaddr     Network address manipulation library for Python
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Type a command below to get started.  SSH/VPS → tap ⋮ menu
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`;
 
 export default function TerminalPage() {
   const local = useTerminal();

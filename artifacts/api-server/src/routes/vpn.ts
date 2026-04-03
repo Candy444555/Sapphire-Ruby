@@ -74,34 +74,40 @@ function sendControlCommand(cmd: string): Promise<string> {
     }
 
     const socket = new net.Socket();
-    let response = "";
+    let buf = "";
+    let authenticated = false;
+    const timer = setTimeout(() => { socket.destroy(); reject(new Error("Control port timeout")); }, 8000);
 
     socket.connect(TOR_CONTROL_PORT, "127.0.0.1", () => {
-      socket.write(Buffer.concat([
-        Buffer.from("AUTHENTICATE "),
-        Buffer.from(cookie.toString("hex")),
-        Buffer.from("\r\n"),
-      ]));
+      socket.write(`AUTHENTICATE ${cookie.toString("hex")}\r\n`);
     });
 
     socket.on("data", (data) => {
-      response += data.toString();
-      if (response.includes("250 OK\r\n")) {
-        if (!response.includes(cmd)) {
+      buf += data.toString();
+      if (!authenticated) {
+        if (buf.includes("250 OK\r\n")) {
+          authenticated = true;
+          buf = "";
           socket.write(`${cmd}\r\n`);
-        } else {
-          socket.end();
-          resolve(response);
+        } else if (buf.includes("515 ") || buf.includes("513 ")) {
+          clearTimeout(timer);
+          socket.destroy();
+          reject(new Error("Tor control authentication failed"));
         }
-      }
-      if (response.includes("515 ") || response.includes("513 ")) {
-        socket.destroy();
-        reject(new Error("Tor control authentication failed"));
+      } else {
+        if (buf.includes("250 OK\r\n")) {
+          clearTimeout(timer);
+          socket.end();
+          resolve(buf);
+        } else if (buf.match(/^5\d\d /m)) {
+          clearTimeout(timer);
+          socket.destroy();
+          reject(new Error(`Tor control error: ${buf.trim()}`));
+        }
       }
     });
 
-    socket.on("error", (err) => reject(err));
-    setTimeout(() => { socket.destroy(); reject(new Error("Control port timeout")); }, 5000);
+    socket.on("error", (err) => { clearTimeout(timer); reject(err); });
   });
 }
 

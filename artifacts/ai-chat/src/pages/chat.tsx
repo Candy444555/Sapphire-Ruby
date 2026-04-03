@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Link } from 'wouter';
 import {
   Send, Settings2, Trash2, StopCircle,
-  ChevronDown, Cpu, Sparkles, TerminalSquare,
+  Cpu, Sparkles, TerminalSquare,
   AlertCircle, Plus, MessageSquare, X, Zap, Phone
 } from 'lucide-react';
 import { useModels } from '@/hooks/use-models';
@@ -730,44 +730,20 @@ export default function ChatPage() {
             {/* Settings Panel */}
             <div className="border-t border-sidebar-border flex-shrink-0 p-4 space-y-4">
 
-              {/* Model Selection */}
+              {/* Model Display */}
               <div className="space-y-2">
                 <label className="flex items-center gap-2 text-xs font-semibold text-foreground/70 uppercase tracking-wider">
                   <Cpu className="w-3.5 h-3.5 text-primary" />
                   Model
                 </label>
-                <div className="relative">
-                  <select
-                    value={selectedModel}
-                    onChange={(e) => handleModelChange(e.target.value)}
-                    disabled={isStreaming || isLoadingModels}
-                    className="w-full appearance-none bg-card border border-border text-foreground rounded-xl px-3 py-2 pr-8 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all disabled:opacity-50 font-mono text-xs"
-                  >
-                    {isLoadingModels ? (
-                      <option>Loading...</option>
-                    ) : (
-                      <>
-                        <optgroup label="⚡ Uncensored">
-                          {models.filter(m => m.uncensored).map((model) => (
-                            <option key={model.id} value={model.id}>{model.name}</option>
-                          ))}
-                        </optgroup>
-                        <optgroup label="── Standard">
-                          {models.filter(m => !m.uncensored).map((model) => (
-                            <option key={model.id} value={model.id}>{model.name}</option>
-                          ))}
-                        </optgroup>
-                      </>
-                    )}
-                  </select>
-                  <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card border border-border font-mono text-xs text-foreground">
+                  <Zap className="w-3 h-3 text-primary flex-shrink-0" />
+                  Lexi Uncensored V2 8B
                 </div>
-                {currentModelInfo?.uncensored && (
-                  <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-destructive/10 text-destructive border border-destructive/20 text-[10px] font-mono font-medium">
-                    <AlertCircle className="w-3 h-3" />
-                    Uncensored Output Enabled
-                  </div>
-                )}
+                <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-destructive/10 text-destructive border border-destructive/20 text-[10px] font-mono font-medium">
+                  <AlertCircle className="w-3 h-3" />
+                  Uncensored Output Enabled
+                </div>
               </div>
 
               {/* System Prompt */}

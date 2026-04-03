@@ -1,5 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { z } from "zod";
+import { SocksProxyAgent } from "socks-proxy-agent";
+import { isTorReady, getTorSocksUrl } from "./vpn";
 
 const router: IRouter = Router();
 
@@ -89,7 +91,8 @@ async function streamChat(
   };
 
   try {
-    const response = await fetch(getRouterUrl(modelId), {
+    const torActive = isTorReady();
+    const fetchOptions: RequestInit & { agent?: unknown } = {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
@@ -100,7 +103,14 @@ async function streamChat(
         messages: hfMessages,
         stream: true,
       }),
-    });
+    };
+
+    if (torActive) {
+      fetchOptions.agent = new SocksProxyAgent(getTorSocksUrl());
+      console.log("[VPN] Routing chat request through Tor");
+    }
+
+    const response = await fetch(getRouterUrl(modelId), fetchOptions);
 
     if (!response.ok) {
       const errorText = await response.text();

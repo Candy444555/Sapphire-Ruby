@@ -17,8 +17,9 @@
     "drizzle-orm": "catalog:",
     "express": "^5",
     "libphonenumber-js": "^1.12.41",
-    "node-fetch": "^3.3.2",
+    "node-fetch": "^2.7.0",
     "node-pty": "^1.1.0",
+    "socks-proxy-agent": "^10.0.0",
     "ssh2": "^1.17.0",
     "ws": "^8.20.0",
     "zod": "catalog:"

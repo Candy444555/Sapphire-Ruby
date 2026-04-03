@@ -11,6 +11,7 @@ import { useModels } from '@/hooks/use-models';
 import { useChat } from '@/hooks/use-chat';
 import { useConversations } from '@/hooks/use-conversations';
 import { ChatMessage } from '@/components/chat-message';
+import { VpnIndicator } from '@/components/vpn-indicator';
 import { cn } from '@/lib/utils';
 
 const DEFAULT_SYSTEM_PROMPT =
@@ -828,24 +829,29 @@ export default function ChatPage() {
           >
             <Settings2 className="w-5 h-5" />
           </button>
-          <Link href="/terminal">
-            <button
-              title="Open Terminal"
-              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card/50 backdrop-blur-md border border-white/5 text-foreground hover:bg-white/10 transition-colors pointer-events-auto shadow-sm text-sm font-mono"
-            >
-              <TerminalSquare className="w-4 h-4 text-primary" />
-              <span className="hidden sm:inline text-xs">Terminal</span>
-            </button>
-          </Link>
-          <Link href="/phone-lookup">
-            <button
-              title="Reverse Phone Lookup"
-              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card/50 backdrop-blur-md border border-white/5 text-foreground hover:bg-white/10 transition-colors pointer-events-auto shadow-sm text-sm font-mono"
-            >
-              <Phone className="w-4 h-4 text-[#3fb950]" />
-              <span className="hidden sm:inline text-xs">Phone</span>
-            </button>
-          </Link>
+          <div className="flex items-center gap-2 pointer-events-auto">
+            <div className="pointer-events-auto">
+              <VpnIndicator />
+            </div>
+            <Link href="/terminal">
+              <button
+                title="Open Terminal"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card/50 backdrop-blur-md border border-white/5 text-foreground hover:bg-white/10 transition-colors shadow-sm text-sm font-mono"
+              >
+                <TerminalSquare className="w-4 h-4 text-primary" />
+                <span className="hidden sm:inline text-xs">Terminal</span>
+              </button>
+            </Link>
+            <Link href="/phone-lookup">
+              <button
+                title="Reverse Phone Lookup"
+                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card/50 backdrop-blur-md border border-white/5 text-foreground hover:bg-white/10 transition-colors shadow-sm text-sm font-mono"
+              >
+                <Phone className="w-4 h-4 text-[#3fb950]" />
+                <span className="hidden sm:inline text-xs">Phone</span>
+              </button>
+            </Link>
+          </div>
         </header>
 
         {/* Messages */}

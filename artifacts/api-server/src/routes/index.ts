@@ -5,9 +5,11 @@ import chatRouter from "./chat";
 import terminalRouter from "./terminal";
 import phoneRouter from "./phone";
 import sshRouter from "./ssh";
+import vpnRouter from "./vpn";
 
 const router: IRouter = Router();
 
+router.use(vpnRouter);
 router.use(modelsRouter);
 router.use(chatRouter);
 router.use(healthRouter);

@@ -46,7 +46,7 @@ export function VpnIndicator() {
   useEffect(() => {
     const id = setInterval(() => {
       setNodeIdx((i) => (i + 1) % EXIT_NODES.length);
-    }, 2000);
+    }, 500);
     return () => clearInterval(id);
   }, []);
 

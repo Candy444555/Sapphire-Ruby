@@ -56,6 +56,61 @@ function startSseResponse(res: Response): NodeJS.Timeout {
   return keepalive;
 }
 
+const BACKEND_MAX_RETRIES = 3;
+const BACKEND_RETRY_DELAY_MS = 1000;
+
+async function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchHuggingFace(
+  modelId: string,
+  hfMessages: { role: string; content: string }[],
+  apiKey: string,
+  attempt: number
+): Promise<Response> {
+  const torActive = isTorReady();
+  const fetchOptions: RequestInit & { agent?: unknown } = {
+    method: "POST",
+    headers: {
+      "Authorization": `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: modelId,
+      messages: hfMessages,
+      stream: true,
+    }),
+  };
+
+  if (torActive) {
+    fetchOptions.agent = new SocksProxyAgent(getTorSocksUrl());
+    if (attempt === 0) console.log("[VPN] Routing chat request through Tor");
+  }
+
+  const response = await fetch(getRouterUrl(modelId), fetchOptions);
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    let errorMsg = errorText;
+    try {
+      const parsed = JSON.parse(errorText);
+      errorMsg = parsed?.error?.message || parsed?.error || errorText;
+    } catch {}
+
+    if (attempt < BACKEND_MAX_RETRIES - 1 && response.status >= 500) {
+      const delay = BACKEND_RETRY_DELAY_MS * Math.pow(2, attempt);
+      console.warn(`[Lexi] Self-heal: retry ${attempt + 1}/${BACKEND_MAX_RETRIES} after HF ${response.status}. Waiting ${delay}ms`);
+      await sleep(delay);
+      return fetchHuggingFace(modelId, hfMessages, apiKey, attempt + 1);
+    }
+
+    throw new Error(`HF ${response.status}: ${errorMsg}`);
+  }
+
+  return response;
+}
+
 async function streamChat(
   modelId: string,
   messages: { role: string; content: string }[],
@@ -91,38 +146,7 @@ async function streamChat(
   };
 
   try {
-    const torActive = isTorReady();
-    const fetchOptions: RequestInit & { agent?: unknown } = {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: modelId,
-        messages: hfMessages,
-        stream: true,
-      }),
-    };
-
-    if (torActive) {
-      fetchOptions.agent = new SocksProxyAgent(getTorSocksUrl());
-      console.log("[VPN] Routing chat request through Tor");
-    }
-
-    const response = await fetch(getRouterUrl(modelId), fetchOptions);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      let errorMsg = errorText;
-      try {
-        const parsed = JSON.parse(errorText);
-        errorMsg = parsed?.error?.message || parsed?.error || errorText;
-      } catch {}
-      console.error(`[HF] ${response.status} for model ${modelId}: ${errorMsg.slice(0, 200)}`);
-      finish(`HF ${response.status}: ${errorMsg}`);
-      return;
-    }
+    const response = await fetchHuggingFace(modelId, hfMessages, apiKey, 0);
 
     if (!response.body) {
       finish("No response body from Hugging Face");
@@ -172,6 +196,7 @@ async function streamChat(
     finish();
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
+    console.error(`[Lexi] Self-heal exhausted retries: ${message}`);
     finish(message);
   }
 }

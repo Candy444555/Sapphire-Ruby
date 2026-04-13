@@ -1,10 +1,45 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { ChatMessage } from "@workspace/api-client-react";
 
+const MAX_RETRIES = 2;
+const RETRY_DELAY_MS = 1500;
+
 interface UseChatOptions {
   conversationId?: string;
   initialMessages?: ChatMessage[];
   onMessagesChange?: (messages: ChatMessage[]) => void;
+}
+
+async function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchChatStream(
+  model: string,
+  messages: ChatMessage[],
+  systemPrompt: string | undefined,
+  signal: AbortSignal,
+  attempt: number
+): Promise<Response> {
+  const res = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model, messages, systemPrompt }),
+    signal,
+  });
+
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    const msg = errData.error || `Server error ${res.status}`;
+    if (attempt < MAX_RETRIES && res.status >= 500) {
+      console.warn(`[Lexi] Auto-healing: retry ${attempt + 1}/${MAX_RETRIES} after error: ${msg}`);
+      await sleep(RETRY_DELAY_MS * (attempt + 1));
+      return fetchChatStream(model, messages, systemPrompt, signal, attempt + 1);
+    }
+    throw new Error(msg);
+  }
+
+  return res;
 }
 
 export function useChat({
@@ -15,13 +50,13 @@ export function useChat({
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isRetrying, setIsRetrying] = useState(false);
 
   const messagesRef = useRef<ChatMessage[]>(initialMessages);
   const abortControllerRef = useRef<AbortController | null>(null);
   const onMessagesChangeRef = useRef(onMessagesChange);
   onMessagesChangeRef.current = onMessagesChange;
 
-  // Only reset when the conversation ID changes (not when messages array updates)
   const prevConversationId = useRef<string | undefined>(conversationId);
   useEffect(() => {
     if (prevConversationId.current === conversationId) return;
@@ -29,7 +64,7 @@ export function useChat({
     messagesRef.current = initialMessages;
     setMessages(initialMessages);
     setError(null);
-  }); // intentionally no dependency array — runs every render but guards with ref
+  });
 
   const updateMessages = useCallback((next: ChatMessage[]) => {
     messagesRef.current = next;
@@ -37,16 +72,28 @@ export function useChat({
   }, []);
 
   const sendMessage = useCallback(
-    async (content: string, model: string, systemPrompt?: string) => {
+    async (
+      content: string,
+      model: string,
+      systemPrompt?: string,
+      attempt = 0
+    ) => {
       if (!content.trim() || !model) return;
 
       setError(null);
       setIsStreaming(true);
+      if (attempt > 0) setIsRetrying(true);
 
       const history = messagesRef.current;
-      const newMessages: ChatMessage[] = [...history, { role: "user", content }];
-      updateMessages(newMessages);
-      onMessagesChangeRef.current?.(newMessages);
+
+      let newMessages: ChatMessage[];
+      if (attempt === 0) {
+        newMessages = [...history, { role: "user", content }];
+        updateMessages(newMessages);
+        onMessagesChangeRef.current?.(newMessages);
+      } else {
+        newMessages = history.filter((m) => m.role !== "assistant" || m.content !== "");
+      }
 
       const withPlaceholder: ChatMessage[] = [
         ...newMessages,
@@ -57,17 +104,13 @@ export function useChat({
       abortControllerRef.current = new AbortController();
 
       try {
-        const res = await fetch("/api/chat", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ model, messages: newMessages, systemPrompt }),
-          signal: abortControllerRef.current.signal,
-        });
-
-        if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.error || `Server error ${res.status}`);
-        }
+        const res = await fetchChatStream(
+          model,
+          newMessages,
+          systemPrompt,
+          abortControllerRef.current.signal,
+          attempt
+        );
 
         const reader = res.body?.getReader();
         if (!reader) throw new Error("No response stream available");
@@ -97,7 +140,16 @@ export function useChat({
             }
 
             if (dataStr.startsWith("[ERROR]")) {
-              throw new Error(dataStr.slice(8));
+              const errMsg = dataStr.slice(8);
+              if (attempt < MAX_RETRIES) {
+                console.warn(`[Lexi] Auto-healing: stream error, retry ${attempt + 1}/${MAX_RETRIES}`);
+                setIsRetrying(true);
+                await sleep(RETRY_DELAY_MS * (attempt + 1));
+                setIsRetrying(false);
+                await sendMessage(content, model, systemPrompt, attempt + 1);
+                return;
+              }
+              throw new Error(errMsg);
             }
 
             try {
@@ -129,7 +181,6 @@ export function useChat({
           }
         }
 
-        // Save completed conversation
         onMessagesChangeRef.current?.(messagesRef.current);
       } catch (err: unknown) {
         if (err instanceof Error && err.name === "AbortError") {
@@ -137,6 +188,16 @@ export function useChat({
         } else {
           const msg =
             err instanceof Error ? err.message : "Failed to generate response";
+
+          if (attempt < MAX_RETRIES) {
+            console.warn(`[Lexi] Auto-healing: caught error, retry ${attempt + 1}/${MAX_RETRIES}: ${msg}`);
+            setIsRetrying(true);
+            await sleep(RETRY_DELAY_MS * (attempt + 1));
+            setIsRetrying(false);
+            await sendMessage(content, model, systemPrompt, attempt + 1);
+            return;
+          }
+
           setError(msg);
           setMessages((prev) => {
             const updated = prev.filter(
@@ -154,6 +215,7 @@ export function useChat({
         }
       } finally {
         setIsStreaming(false);
+        setIsRetrying(false);
         abortControllerRef.current = null;
       }
     },
@@ -165,6 +227,7 @@ export function useChat({
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
       setIsStreaming(false);
+      setIsRetrying(false);
     }
   }, []);
 
@@ -175,5 +238,5 @@ export function useChat({
     setError(null);
   }, [stopStreaming, updateMessages]);
 
-  return { messages, sendMessage, isStreaming, error, clearMessages, stopStreaming };
+  return { messages, sendMessage, isStreaming, isRetrying, error, clearMessages, stopStreaming };
 }

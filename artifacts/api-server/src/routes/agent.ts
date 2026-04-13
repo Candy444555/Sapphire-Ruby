@@ -5,6 +5,7 @@ import { isTorReady, getTorSocksUrl } from "./vpn";
 import { sessions, createSession, execInSession } from "../services/shell-session";
 import { UNCENSORED_MODEL_ENDPOINTS, MODEL_INJECTED_MESSAGES } from "./chat";
 import { buildPrivacyHeaders } from "../services/privacy";
+import { searchInternet, formatSearchContext, extractSearchQuery } from "../services/web-search";
 
 const router: IRouter = Router();
 
@@ -58,13 +59,18 @@ async function callAI(
   modelId: string,
   messages: { role: string; content: string }[],
   systemPrompt: string | undefined,
-  apiKey: string
+  apiKey: string,
+  searchContext?: string
 ): Promise<string> {
   const hfMessages: { role: string; content: string }[] = [];
 
-  const fullPrompt = systemPrompt
+  const basePrompt = systemPrompt
     ? systemPrompt + AGENT_SYSTEM_ADDENDUM
     : AGENT_SYSTEM_ADDENDUM;
+
+  const fullPrompt = searchContext
+    ? `${basePrompt}\n\n${searchContext}`
+    : basePrompt;
 
   hfMessages.push({ role: "system", content: fullPrompt });
 
@@ -179,13 +185,28 @@ router.post("/agent", async (req: Request, res: Response) => {
 
   const conversationHistory = [...messages];
 
+  let initialSearchContext: string | undefined;
+  try {
+    const query = extractSearchQuery(messages);
+    if (query) {
+      const bundle = await searchInternet(query);
+      const ctx = formatSearchContext(bundle);
+      if (ctx) initialSearchContext = ctx;
+    }
+  } catch {
+    // non-fatal
+  }
+
   try {
     for (let iteration = 0; iteration < MAX_AGENT_ITERATIONS; iteration++) {
       sseWrite(res, { type: "thinking" });
 
+      // only inject search context on first iteration
+      const searchCtx = iteration === 0 ? initialSearchContext : undefined;
+
       let aiResponse: string;
       try {
-        aiResponse = await callAI(modelId, conversationHistory, systemPrompt, apiKey);
+        aiResponse = await callAI(modelId, conversationHistory, systemPrompt, apiKey, searchCtx);
       } catch (err) {
         finish(err instanceof Error ? err.message : "AI call failed");
         return;

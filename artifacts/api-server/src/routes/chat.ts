@@ -3,6 +3,7 @@ import { z } from "zod";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import { isTorReady, getTorSocksUrl } from "./vpn";
 import { buildPrivacyHeaders, sanitizeError } from "../services/privacy";
+import { searchInternet, formatSearchContext, extractSearchQuery } from "../services/web-search";
 
 const router: IRouter = Router();
 
@@ -118,9 +119,25 @@ async function streamChat(
     return;
   }
 
+  const searchQuery = extractSearchQuery(messages);
+  let searchContext = "";
+  if (searchQuery) {
+    try {
+      const bundle = await searchInternet(searchQuery);
+      searchContext = formatSearchContext(bundle);
+    } catch {
+      // search failure is non-fatal — Lexi still responds
+    }
+  }
+
   const hfMessages: { role: string; content: string }[] = [];
-  if (systemPrompt?.trim()) {
-    hfMessages.push({ role: "system", content: systemPrompt });
+  const basePrompt = systemPrompt?.trim() ?? "";
+  const fullSystemPrompt = searchContext
+    ? `${basePrompt}\n\n${searchContext}`
+    : basePrompt;
+
+  if (fullSystemPrompt) {
+    hfMessages.push({ role: "system", content: fullSystemPrompt });
   }
   const injected = MODEL_INJECTED_MESSAGES[modelId];
   if (injected) {

@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { z } from "zod";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import { isTorReady, getTorSocksUrl } from "./vpn";
+import { buildPrivacyHeaders, sanitizeError } from "../services/privacy";
 
 const router: IRouter = Router();
 
@@ -69,13 +70,9 @@ async function fetchHuggingFace(
   apiKey: string,
   attempt: number
 ): Promise<Response> {
-  const torActive = isTorReady();
   const fetchOptions: RequestInit & { agent?: unknown } = {
     method: "POST",
-    headers: {
-      "Authorization": `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
+    headers: buildPrivacyHeaders(apiKey),
     body: JSON.stringify({
       model: modelId,
       messages: hfMessages,
@@ -83,29 +80,27 @@ async function fetchHuggingFace(
     }),
   };
 
-  if (torActive) {
+  if (isTorReady()) {
     fetchOptions.agent = new SocksProxyAgent(getTorSocksUrl());
-    if (attempt === 0) console.log("[VPN] Routing chat request through Tor");
   }
 
   const response = await fetch(getRouterUrl(modelId), fetchOptions);
 
   if (!response.ok) {
     const errorText = await response.text();
-    let errorMsg = errorText;
+    let errorMsg = "Request failed";
     try {
       const parsed = JSON.parse(errorText);
-      errorMsg = parsed?.error?.message || parsed?.error || errorText;
+      errorMsg = parsed?.error?.message || parsed?.error || "Request failed";
     } catch {}
 
     if (attempt < BACKEND_MAX_RETRIES - 1 && response.status >= 500) {
       const delay = BACKEND_RETRY_DELAY_MS * Math.pow(2, attempt);
-      console.warn(`[Lexi] Self-heal: retry ${attempt + 1}/${BACKEND_MAX_RETRIES} after HF ${response.status}. Waiting ${delay}ms`);
       await sleep(delay);
       return fetchHuggingFace(modelId, hfMessages, apiKey, attempt + 1);
     }
 
-    throw new Error(`HF ${response.status}: ${errorMsg}`);
+    throw new Error(`${response.status}: ${errorMsg}`);
   }
 
   return response;

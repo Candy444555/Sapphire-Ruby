@@ -4,6 +4,7 @@ import { SocksProxyAgent } from "socks-proxy-agent";
 import { isTorReady, getTorSocksUrl } from "./vpn";
 import { sessions, createSession, execInSession } from "../services/shell-session";
 import { UNCENSORED_MODEL_ENDPOINTS, MODEL_INJECTED_MESSAGES } from "./chat";
+import { buildPrivacyHeaders } from "../services/privacy";
 
 const router: IRouter = Router();
 
@@ -84,13 +85,9 @@ async function callAI(
     ? `https://router.huggingface.co/${provider}/v1/chat/completions`
     : "https://router.huggingface.co/v1/chat/completions";
 
-  const torActive = isTorReady();
   const fetchOptions: RequestInit & { agent?: unknown } = {
     method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
+    headers: buildPrivacyHeaders(apiKey),
     body: JSON.stringify({
       model: modelEndpoint,
       messages: hfMessages,
@@ -98,14 +95,13 @@ async function callAI(
     }),
   };
 
-  if (torActive) {
+  if (isTorReady()) {
     fetchOptions.agent = new SocksProxyAgent(getTorSocksUrl());
   }
 
   const response = await fetch(routerUrl, fetchOptions);
   if (!response.ok) {
-    const txt = await response.text();
-    throw new Error(`HF ${response.status}: ${txt.slice(0, 200)}`);
+    throw new Error(`${response.status}: request failed`);
   }
   if (!response.body) throw new Error("No response body");
 

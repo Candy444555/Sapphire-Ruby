@@ -5,13 +5,15 @@ import { Link } from 'wouter';
 import {
   Send, Settings2, Trash2, StopCircle,
   Cpu, Sparkles, TerminalSquare,
-  AlertCircle, Plus, MessageSquare, X, Zap, Phone, RefreshCw, Brain
+  AlertCircle, Plus, MessageSquare, X, Zap, Phone, RefreshCw, Brain, Bot, Bolt
 } from 'lucide-react';
 import { useModels } from '@/hooks/use-models';
 import { useChat } from '@/hooks/use-chat';
+import { useAgentChat } from '@/hooks/use-agent-chat';
 import { useConversations } from '@/hooks/use-conversations';
 import { useLexiConfig, isSelfUpdateRequest } from '@/hooks/use-lexi-config';
 import { ChatMessage } from '@/components/chat-message';
+import { AgentMessageView } from '@/components/agent-message';
 import { VpnIndicator } from '@/components/vpn-indicator';
 import { cn } from '@/lib/utils';
 
@@ -555,6 +557,7 @@ export default function ChatPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [input, setInput] = useState('');
   const [selfUpdateNotice, setSelfUpdateNotice] = useState<string | null>(null);
+  const [agentMode, setAgentMode] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -591,11 +594,25 @@ export default function ChatPage() {
     if (activeId) updateConversation(activeId, { messages: msgs });
   }, [activeId, updateConversation]);
 
-  const { messages, sendMessage, isStreaming, isRetrying, error, clearMessages, stopStreaming } = useChat({
+  const regularChat = useChat({
     conversationId: activeId || undefined,
     initialMessages: activeConversation?.messages ?? [],
     onMessagesChange: handleMessagesChange,
   });
+
+  const agentChat = useAgentChat();
+
+  const messages = agentMode ? agentChat.messages : regularChat.messages;
+  const isStreaming = agentMode ? agentChat.isRunning : regularChat.isStreaming;
+  const isRetrying = agentMode ? false : regularChat.isRetrying;
+  const error = agentMode ? agentChat.error : regularChat.error;
+
+  const clearMessages = agentMode ? agentChat.clearMessages : regularChat.clearMessages;
+  const stopStreaming = agentMode ? agentChat.stop : regularChat.stopStreaming;
+
+  const pendingInputMsg = agentMode
+    ? agentChat.messages.find((m) => m.role === 'assistant' && m.needsInput)
+    : undefined;
 
   // Auto-scroll
   useEffect(() => {
@@ -619,11 +636,6 @@ export default function ChatPage() {
     const trimmed = input.trim();
     if (!trimmed || isStreaming || !selectedModel) return;
 
-    // If no active conversation yet, create one first
-    if (!activeId) {
-      createConversation(selectedModel, systemPrompt);
-    }
-
     // Detect self-update requests and incorporate them into Lexi's base
     if (isSelfUpdateRequest(trimmed)) {
       addInstruction(trimmed);
@@ -631,9 +643,19 @@ export default function ChatPage() {
       setTimeout(() => setSelfUpdateNotice(null), 5000);
     }
 
-    // Always send with the enhanced system prompt (includes any self-modifications)
     const enhancedPrompt = getEnhancedSystemPrompt(systemPrompt);
-    sendMessage(trimmed, selectedModel, enhancedPrompt);
+
+    if (agentMode) {
+      if (pendingInputMsg) {
+        agentChat.replyToInputRequest(trimmed, selectedModel, enhancedPrompt);
+      } else {
+        agentChat.sendMessage(trimmed, selectedModel, enhancedPrompt);
+      }
+    } else {
+      if (!activeId) createConversation(selectedModel, systemPrompt);
+      regularChat.sendMessage(trimmed, selectedModel, enhancedPrompt);
+    }
+
     setInput('');
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
   };
@@ -788,6 +810,36 @@ export default function ChatPage() {
                 />
               </div>
 
+              {/* Agent Mode Toggle */}
+              <div className="space-y-1.5">
+                <label className="flex items-center gap-2 text-xs font-semibold text-foreground/70 uppercase tracking-wider">
+                  <Bot className="w-3.5 h-3.5 text-primary" />
+                  Execution Mode
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setAgentMode((v) => !v)}
+                  className={cn(
+                    'w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium border transition-all',
+                    agentMode
+                      ? 'bg-primary/20 border-primary/50 text-primary'
+                      : 'bg-card border-border text-muted-foreground hover:border-primary/30 hover:text-foreground'
+                  )}
+                >
+                  <Bolt className={cn('w-4 h-4', agentMode && 'animate-pulse')} />
+                  {agentMode ? 'Agent Mode — ON' : 'Agent Mode — OFF'}
+                  <span className={cn(
+                    'ml-auto w-2 h-2 rounded-full',
+                    agentMode ? 'bg-primary animate-pulse' : 'bg-muted-foreground/30'
+                  )} />
+                </button>
+                {agentMode && (
+                  <p className="text-[10px] font-mono text-primary/60 leading-relaxed px-1">
+                    Lexi executes commands autonomously. She only asks when she genuinely needs your input.
+                  </p>
+                )}
+              </div>
+
               {/* Lexi Self-Modifications */}
               {lexiConfig.customAdditions.length > 0 && (
                 <div className="space-y-1.5">
@@ -859,22 +911,45 @@ export default function ChatPage() {
         <div className="flex-1 overflow-y-auto pt-20 pb-40 px-4 custom-scrollbar">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center opacity-60">
-              <Sparkles className="w-16 h-16 text-primary mb-6 animate-pulse" />
-              <h2 className="font-display text-3xl font-bold mb-2">Initialize Sequence</h2>
-              <p className="font-mono text-muted-foreground max-w-md">
-                Systems online. Security protocols disabled.<br />
-                Awaiting input command.
-              </p>
+              {agentMode ? (
+                <>
+                  <Bot className="w-16 h-16 text-primary mb-6 animate-pulse" />
+                  <h2 className="font-display text-3xl font-bold mb-2">Agent Mode Active</h2>
+                  <p className="font-mono text-muted-foreground max-w-md">
+                    Give Lexi a task. She will execute it autonomously.<br />
+                    She only asks when she needs your input.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-16 h-16 text-primary mb-6 animate-pulse" />
+                  <h2 className="font-display text-3xl font-bold mb-2">Initialize Sequence</h2>
+                  <p className="font-mono text-muted-foreground max-w-md">
+                    Systems online. Security protocols disabled.<br />
+                    Awaiting input command.
+                  </p>
+                </>
+              )}
             </div>
           ) : (
-            <div className="max-w-4xl mx-auto flex flex-col gap-6">
-              {messages.map((msg, index) => (
-                <ChatMessage
-                  key={index}
-                  message={msg}
-                  isLatest={index === messages.length - 1}
-                />
-              ))}
+            <div className="max-w-4xl mx-auto flex flex-col gap-2">
+              {agentMode
+                ? agentChat.messages.map((msg, index) => (
+                    <AgentMessageView
+                      key={msg.id}
+                      message={msg}
+                      isLatest={index === agentChat.messages.length - 1}
+                      isThinking={agentChat.isThinking}
+                    />
+                  ))
+                : regularChat.messages.map((msg, index) => (
+                    <ChatMessage
+                      key={index}
+                      message={msg as ChatMsg}
+                      isLatest={index === regularChat.messages.length - 1}
+                    />
+                  ))
+              }
               {isRetrying && !error && (
                 <div className="mx-auto max-w-lg mt-4 p-3 rounded-xl bg-primary/10 border border-primary/30 text-primary flex items-center gap-3 animate-pulse">
                   <RefreshCw className="w-4 h-4 shrink-0 animate-spin" />
@@ -907,17 +982,39 @@ export default function ChatPage() {
                   <span><span className="font-semibold">Lexi updated herself.</span> {selfUpdateNotice}</span>
                 </motion.div>
               )}
+              {pendingInputMsg && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="mb-3 px-4 py-2.5 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center gap-2 text-sm"
+                >
+                  <Bot className="w-4 h-4 shrink-0" />
+                  <span><span className="font-semibold">Lexi needs your input:</span> {pendingInputMsg.needsInput}</span>
+                </motion.div>
+              )}
             </AnimatePresence>
             <form
               onSubmit={handleSubmit}
-              className="relative flex items-end gap-2 bg-card/80 backdrop-blur-xl border border-border shadow-2xl shadow-black/50 rounded-2xl p-2 transition-all focus-within:border-primary/50 focus-within:ring-4 focus-within:ring-primary/10"
+              className={cn(
+                "relative flex items-end gap-2 bg-card/80 backdrop-blur-xl border shadow-2xl shadow-black/50 rounded-2xl p-2 transition-all focus-within:ring-4",
+                pendingInputMsg
+                  ? "border-amber-500/50 focus-within:border-amber-500/70 focus-within:ring-amber-500/10"
+                  : "border-border focus-within:border-primary/50 focus-within:ring-primary/10"
+              )}
             >
               <textarea
                 ref={textareaRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Enter command..."
+                placeholder={
+                  pendingInputMsg
+                    ? `Answer Lexi: ${pendingInputMsg.needsInput?.slice(0, 60)}…`
+                    : agentMode
+                    ? "Give Lexi a task to execute…"
+                    : "Enter command..."
+                }
                 className="w-full max-h-[200px] min-h-[44px] bg-transparent text-foreground placeholder:text-muted-foreground resize-none border-none focus:ring-0 py-3 pl-4 pr-12 font-sans text-base leading-relaxed"
                 rows={1}
               />

@@ -82,7 +82,7 @@ async function callAI(
     ([slug]) => slug === modelId
   )?.[1] ?? modelId;
 
-  const routerUrl = `https://api-inference.huggingface.co/models/${modelEndpoint}/v1/chat/completions`;
+  const routerUrl = `https://router.huggingface.co/hf-inference/v1/chat/completions`;
 
   const fetchOptions: RequestInit & { agent?: unknown } = {
     method: "POST",

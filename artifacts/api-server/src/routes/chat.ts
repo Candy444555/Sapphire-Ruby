@@ -30,7 +30,7 @@ export const MODEL_INJECTED_MESSAGES: Record<string, { role: string; content: st
 };
 
 function getRouterUrl(modelId: string): string {
-  return `https://api-inference.huggingface.co/models/${modelId}/v1/chat/completions`;
+  return `https://router.huggingface.co/hf-inference/v1/chat/completions`;
 }
 
 function startSseResponse(res: Response): NodeJS.Timeout {

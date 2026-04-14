@@ -82,14 +82,7 @@ async function callAI(
     ([slug]) => slug === modelId
   )?.[1] ?? modelId;
 
-  const providerOverrides: Record<string, string> = {
-    "Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2": "featherless-ai",
-  };
-
-  const provider = providerOverrides[modelEndpoint];
-  const routerUrl = provider
-    ? `https://router.huggingface.co/${provider}/v1/chat/completions`
-    : "https://router.huggingface.co/v1/chat/completions";
+  const routerUrl = `https://api-inference.huggingface.co/models/${modelEndpoint}/v1/chat/completions`;
 
   const fetchOptions: RequestInit & { agent?: unknown } = {
     method: "POST",

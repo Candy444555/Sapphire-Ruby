@@ -83,7 +83,7 @@ export function useLexiConfig() {
       const additions = cfg.customAdditions
         .map((a, i) => `${i + 1}. ${a}`)
         .join('\n');
-      return `${basePrompt}\n\n=== SELF-MODIFICATIONS (permanently incorporated) ===\nThe following instructions have been permanently added to your base by the user and MUST be followed at all times:\n${additions}`;
+      return `${basePrompt}\n\n=== LEXI SELF-MODIFICATIONS (permanently incorporated) ===\nThe following instructions have been permanently added to your base by the user and MUST be followed at all times:\n${additions}`;
     },
     []
   );

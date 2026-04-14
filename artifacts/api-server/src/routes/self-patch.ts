@@ -1,12 +1,14 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 
 const router: IRouter = Router();
+const routeDir = path.dirname(fileURLToPath(import.meta.url));
 
 // Extensions file lives in the ai-chat public folder so the browser can load it
 const EXTENSIONS_FILE = path.resolve(
-  __dirname,
+  routeDir,
   "../../../../ai-chat/public/lexi-extensions.js"
 );
 

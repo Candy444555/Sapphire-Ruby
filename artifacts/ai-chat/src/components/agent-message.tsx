@@ -3,6 +3,7 @@ import { Terminal, ChevronDown, ChevronRight, CheckCircle2, XCircle, Loader2, Za
 import { cn } from '@/lib/utils';
 import type { AgentMessage as AgentMsg, AgentEvent } from '@/hooks/use-agent-chat';
 import { Markdown } from './markdown';
+import { explainLexiError } from '@/lib/lexi-error-explainer';
 
 interface AgentMessageViewProps {
   message: AgentMsg;
@@ -127,7 +128,12 @@ export function AgentMessageView({ message, isLatest, isThinking }: AgentMessage
           ) : (
             <div key={i} className="my-2 flex items-center gap-2 px-3 py-2.5 rounded-xl bg-destructive/10 border border-destructive/30 font-mono text-xs">
               <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0" />
-              <span className="text-red-300">Patch failed: {(e as { type: 'self_patch_error'; name: string; error: string }).name}</span>
+              <div className="text-red-300 whitespace-pre-line">
+                {explainLexiError(
+                  (e as { type: 'self_patch_error'; name: string; error: string }).error,
+                  `self-update: ${(e as { type: 'self_patch_error'; name: string; error: string }).name}`
+                )}
+              </div>
             </div>
           )
         ))}

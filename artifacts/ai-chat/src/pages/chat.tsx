@@ -1002,9 +1002,9 @@ export default function ChatPage() {
                 </div>
               )}
               {error && (
-                <div className="mx-auto max-w-lg mt-4 p-4 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive flex items-center gap-3">
+                <div className="mx-auto max-w-2xl mt-4 p-4 rounded-xl bg-destructive/10 border border-destructive/30 text-destructive flex items-start gap-3">
                   <AlertCircle className="w-5 h-5 shrink-0" />
-                  <p className="text-sm font-medium">{error}</p>
+                  <p className="text-sm font-medium whitespace-pre-line leading-relaxed">{error}</p>
                 </div>
               )}
               <div ref={messagesEndRef} className="h-4" />

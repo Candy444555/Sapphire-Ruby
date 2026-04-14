@@ -1,4 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import { z } from "zod";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import { isTorReady, getTorSocksUrl } from "./vpn";
@@ -9,6 +12,7 @@ import { buildPrivacyHeaders } from "../services/privacy";
 import { searchInternet, formatSearchContext, extractSearchQuery } from "../services/web-search";
 
 const FEATHERLESS_API_URL = "https://api.featherless.ai/v1/chat/completions";
+const routeDir = path.dirname(fileURLToPath(import.meta.url));
 
 async function sleepMs(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -271,11 +275,10 @@ router.post("/agent", async (req: Request, res: Response) => {
         const patchDesc = pm[2]?.trim() ?? "";
         const patchCode = pm[3].trim();
         try {
-          const patchFilePath = require("path").resolve(
-            __dirname,
+          const patchFilePath = path.resolve(
+            routeDir,
             "../../../../ai-chat/public/lexi-extensions.js"
           );
-          const fs = require("fs");
           const slug = patchName.replace(/[^a-zA-Z0-9_]/g, "_").replace(/^_+/, "");
           const timestamp = new Date().toISOString();
           const block = `\n// ============================================================\n// LEXI EXTENSION: ${slug}\n// Added: ${timestamp}\n// Description: ${patchDesc}\n// ============================================================\n(function registerExtension_${slug}() {\n  if (!window.LexiExtensions) window.LexiExtensions = {};\n  if (window.LexiExtensions["${slug}"]) return;\n  try {\n${patchCode.split("\n").map((l: string) => "    " + l).join("\n")}\n    window.LexiExtensions["${slug}"] = { name: "${slug}", description: ${JSON.stringify(patchDesc)}, loadedAt: "${timestamp}" };\n    console.log("[Lexi] Extension loaded: ${slug}");\n    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("${slug}");\n  } catch(e) { console.error("[Lexi] Extension failed:", e); }\n})();\n`;

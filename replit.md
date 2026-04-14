@@ -49,6 +49,7 @@ The main artifact is the **AI Chat** app at `/`. Primary AI is **Lexi** (Llama 3
 - Markdown rendering with code syntax highlighting
 - Purge/clear conversation
 - **Real terminal emulator** at `/terminal` — persistent bash sessions per browser tab
+- Lexi error reports explain what happened, why the error likely appeared, and easy fix steps instead of showing only the raw error
 
 ### Real Kali Linux Tools Installed (50+)
 All tools are installed via Nix and available in the real terminal:

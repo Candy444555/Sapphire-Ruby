@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { ChatMessage } from "@workspace/api-client-react";
+import { explainLexiError } from "@/lib/lexi-error-explainer";
 
 export type AgentEvent =
   | { type: "text"; content: string }
@@ -164,7 +165,7 @@ export function useAgentChat({ onMessagesChange, onSelfPatch }: UseAgentChatOpti
             }
 
             if (parsed.type === "error") {
-              setError(parsed.message);
+              setError(explainLexiError(parsed.message, "agent stream"));
               done = true;
               break;
             }
@@ -207,7 +208,7 @@ export function useAgentChat({ onMessagesChange, onSelfPatch }: UseAgentChatOpti
         if (err instanceof Error && err.name === "AbortError") {
           onChangeRef.current?.(messagesRef.current);
         } else {
-          setError(err instanceof Error ? err.message : "Failed to run agent");
+          setError(explainLexiError(err instanceof Error ? err.message : "Failed to run agent", "agent task"));
         }
       } finally {
         setIsRunning(false);

@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import type { ChatMessage } from "@workspace/api-client-react";
+import { explainLexiError } from "@/lib/lexi-error-explainer";
 
 const MAX_RETRIES = 2;
 const RETRY_DELAY_MS = 1500;
@@ -198,7 +199,7 @@ export function useChat({
             return;
           }
 
-          setError(msg);
+          setError(explainLexiError(msg, "regular chat response"));
           setMessages((prev) => {
             const updated = prev.filter(
               (_, i) =>

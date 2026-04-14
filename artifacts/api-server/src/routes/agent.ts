@@ -77,7 +77,7 @@ async function callAI(
     ([slug]) => slug === modelId
   )?.[1] ?? modelId;
 
-  const routerUrl = `https://router.huggingface.co/cerebras/v1/chat/completions`;
+  const routerUrl = `https://api.featherless.ai/v1/chat/completions`;
 
   const fetchOptions: RequestInit & { agent?: unknown } = {
     method: "POST",
@@ -142,9 +142,9 @@ router.post("/agent", async (req: Request, res: Response) => {
   const { model, messages, systemPrompt, sessionId: requestedSessionId } = parsed.data;
   const modelId = model ?? "lexi-uncensored-v2-8b";
 
-  const apiKey = process.env.HF_TOKEN;
+  const apiKey = process.env.FEATHERLESS_API_KEY;
   if (!apiKey) {
-    res.status(500).json({ error: "HF_TOKEN is not configured" });
+    res.status(500).json({ error: "FEATHERLESS_API_KEY is not configured" });
     return;
   }
 

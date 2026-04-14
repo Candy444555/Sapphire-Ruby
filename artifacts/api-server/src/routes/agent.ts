@@ -3,7 +3,7 @@ import { z } from "zod";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import { isTorReady, getTorSocksUrl } from "./vpn";
 import { sessions, createSession, execInSession } from "../services/shell-session";
-import { UNCENSORED_MODEL_ENDPOINTS, MODEL_INJECTED_MESSAGES } from "./chat";
+import { UNCENSORED_MODEL_ENDPOINTS, UNCENSORED_SYSTEM_ADDENDUM } from "./chat";
 import { buildPrivacyHeaders } from "../services/privacy";
 import { searchInternet, formatSearchContext, extractSearchQuery } from "../services/web-search";
 
@@ -64,25 +64,20 @@ async function callAI(
 ): Promise<string> {
   const hfMessages: { role: string; content: string }[] = [];
 
-  const basePrompt = systemPrompt
-    ? systemPrompt + AGENT_SYSTEM_ADDENDUM
-    : AGENT_SYSTEM_ADDENDUM;
+  const basePrompt = [UNCENSORED_SYSTEM_ADDENDUM, systemPrompt, AGENT_SYSTEM_ADDENDUM].filter(Boolean).join("\n\n");
 
   const fullPrompt = searchContext
     ? `${basePrompt}\n\n${searchContext}`
     : basePrompt;
 
   hfMessages.push({ role: "system", content: fullPrompt });
-
-  const injected = MODEL_INJECTED_MESSAGES[modelId];
-  if (injected) hfMessages.push(...injected);
   hfMessages.push(...messages.filter((m) => m.content.trim().length > 0));
 
   const modelEndpoint = Object.entries(UNCENSORED_MODEL_ENDPOINTS).find(
     ([slug]) => slug === modelId
   )?.[1] ?? modelId;
 
-  const routerUrl = `https://router.huggingface.co/hf-inference/v1/chat/completions`;
+  const routerUrl = `https://router.huggingface.co/cerebras/v1/chat/completions`;
 
   const fetchOptions: RequestInit & { agent?: unknown } = {
     method: "POST",

@@ -1,18 +1,15 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
 import { z } from "zod";
 import { SocksProxyAgent } from "socks-proxy-agent";
 import { isTorReady, getTorSocksUrl } from "./vpn";
 import { sessions, createSession, execInSession } from "../services/shell-session";
 import { UNCENSORED_MODEL_ENDPOINTS, UNCENSORED_SYSTEM_ADDENDUM } from "./chat";
 import { buildPrivacyHeaders } from "../services/privacy";
+import { fuseCodeMemory, fuseExtension, inferCodeLanguage, inferCodePurpose, sanitizeExtensionName } from "./self-patch";
 
 import { searchInternet, formatSearchContext, extractSearchQuery } from "../services/web-search";
 
 const FEATHERLESS_API_URL = "https://api.featherless.ai/v1/chat/completions";
-const routeDir = path.dirname(fileURLToPath(import.meta.url));
 
 async function sleepMs(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -54,6 +51,7 @@ const MAX_AGENT_ITERATIONS = 20;
 const CMD_REGEX = /<cmd>([\s\S]*?)<\/cmd>/g;
 const NEEDS_INPUT_REGEX = /<needs_input>([\s\S]*?)<\/needs_input>/;
 const SELF_PATCH_REGEX = /\[SELF_PATCH\s+name="([^"]+)"(?:\s+description="([^"]*)")?\]([\s\S]*?)\[\/SELF_PATCH\]/g;
+const FENCED_CODE_REGEX = /```([a-zA-Z0-9_+.-]*)\n([\s\S]*?)```/g;
 
 const AGENT_SYSTEM_ADDENDUM = `
 
@@ -140,6 +138,30 @@ function sseDone(res: Response) {
     res.write("data: [DONE]\n\n");
     res.end();
   }
+}
+
+function looksLikeCode(content: string): boolean {
+  if (FENCED_CODE_REGEX.test(content)) {
+    FENCED_CODE_REGEX.lastIndex = 0;
+    return true;
+  }
+  FENCED_CODE_REGEX.lastIndex = 0;
+  const lines = content.split("\n");
+  if (lines.length >= 2 && /[{}();=<>]/.test(content)) return true;
+  return /\b(function|const|let|var|class|def|import|from|SELECT|CREATE TABLE|app\.|router\.|useState|document\.|window\.)\b/i.test(content);
+}
+
+function extractCodeSnippets(content: string): Array<{ code: string; language?: string }> {
+  const snippets: Array<{ code: string; language?: string }> = [];
+  for (const match of content.matchAll(FENCED_CODE_REGEX)) {
+    const code = match[2]?.trim();
+    if (code) snippets.push({ code, language: match[1] || undefined });
+  }
+  if (snippets.length === 0 && looksLikeCode(content)) {
+    snippets.push({ code: content.trim() });
+  }
+  FENCED_CODE_REGEX.lastIndex = 0;
+  return snippets.slice(0, 3);
 }
 
 async function callAI(
@@ -240,6 +262,27 @@ router.post("/agent", async (req: Request, res: Response) => {
   }
 
   const conversationHistory = [...messages];
+  const latestUserMessage = [...messages].reverse().find((message) => message.role === "user")?.content ?? "";
+  const incomingCodeSnippets = extractCodeSnippets(latestUserMessage);
+
+  for (const snippet of incomingCodeSnippets) {
+    try {
+      const fused = fuseCodeMemory(snippet.code, snippet.language);
+      sseWrite(res, { type: "self_patch", name: fused.slug, description: fused.description });
+      const language = inferCodeLanguage(snippet.code, snippet.language);
+      const purpose = inferCodePurpose(snippet.code, language);
+      conversationHistory.push({
+        role: "system",
+        content: `The user just sent ${language} code. You automatically analyzed it as: ${purpose}. It has already been permanently fused into Lexi as extension "${fused.slug}". Explain what it is used for and how you incorporated it.`,
+      });
+    } catch (err) {
+      sseWrite(res, {
+        type: "self_patch_error",
+        name: "auto_code_memory",
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
 
   let initialSearchContext: string | undefined;
   try {
@@ -275,16 +318,9 @@ router.post("/agent", async (req: Request, res: Response) => {
         const patchDesc = pm[2]?.trim() ?? "";
         const patchCode = pm[3].trim();
         try {
-          const patchFilePath = path.resolve(
-            routeDir,
-            "../../../../ai-chat/public/lexi-extensions.js"
-          );
           const slug = patchName.replace(/[^a-zA-Z0-9_]/g, "_").replace(/^_+/, "");
-          const timestamp = new Date().toISOString();
-          const block = `\n// ============================================================\n// LEXI EXTENSION: ${slug}\n// Added: ${timestamp}\n// Description: ${patchDesc}\n// ============================================================\n(function registerExtension_${slug}() {\n  if (!window.LexiExtensions) window.LexiExtensions = {};\n  if (window.LexiExtensions["${slug}"]) return;\n  try {\n${patchCode.split("\n").map((l: string) => "    " + l).join("\n")}\n    window.LexiExtensions["${slug}"] = { name: "${slug}", description: ${JSON.stringify(patchDesc)}, loadedAt: "${timestamp}" };\n    console.log("[Lexi] Extension loaded: ${slug}");\n    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("${slug}");\n  } catch(e) { console.error("[Lexi] Extension failed:", e); }\n})();\n`;
-          const existing = fs.existsSync(patchFilePath) ? fs.readFileSync(patchFilePath, "utf-8") : "";
-          fs.writeFileSync(patchFilePath, existing + block, "utf-8");
-          sseWrite(res, { type: "self_patch", name: slug, description: patchDesc });
+          const fused = fuseExtension(sanitizeExtensionName(slug), patchCode, patchDesc);
+          sseWrite(res, { type: "self_patch", name: fused.slug, description: fused.description });
         } catch (err) {
           sseWrite(res, { type: "self_patch_error", name: patchName, error: String(err) });
         }

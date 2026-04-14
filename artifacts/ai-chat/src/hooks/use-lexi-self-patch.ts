@@ -4,6 +4,8 @@ export interface LexiExtension {
   name: string;
   description: string;
   loadedAt: string;
+  language?: string;
+  source?: string;
 }
 
 const API_BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") + "/api";
@@ -83,7 +85,15 @@ export function useLexiSelfPatch() {
     const list = extensions
       .map((e) => `  • ${e.name}: ${e.description || "(no description)"}`)
       .join("\n");
-    return `=== LEXI PERMANENT EXTENSIONS (${extensions.length} loaded) ===\nYou have fused the following capabilities permanently into yourself:\n${list}\nThese are active now — you may call them in your responses.`;
+    const codeMemory = (window as Record<string, unknown>).LexiCodeMemory as
+      | Record<string, LexiExtension>
+      | undefined;
+    const codeList = codeMemory
+      ? Object.values(codeMemory)
+          .map((memory) => `  • ${memory.name} (${memory.language ?? "code"}): ${memory.description || "(no description)"}\n${memory.source ?? ""}`)
+          .join("\n")
+      : "";
+    return `=== LEXI PERMANENT EXTENSIONS (${extensions.length} loaded) ===\nYou have fused the following capabilities permanently into yourself:\n${list}\nThese are active now — you may call them in your responses.${codeList ? `\n\n=== PERMANENT USER CODE MEMORY ===\nThe user has sent code that you automatically analyzed and incorporated permanently. Use this code as part of your own working memory when relevant:\n${codeList}` : ""}`;
   }, [extensions]);
 
   return {
@@ -91,6 +101,7 @@ export function useLexiSelfPatch() {
     isLoading,
     fuseCode,
     clearExtensions,
+    reloadExtensions: loadExtensionsFile,
     getExtensionsPrompt,
   };
 }

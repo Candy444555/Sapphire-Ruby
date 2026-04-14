@@ -51,6 +51,7 @@ The main artifact is the **AI Chat** app at `/`. Primary AI is **Lexi** (Llama 3
 - **Real terminal emulator** at `/terminal` — persistent bash sessions per browser tab
 - Lexi error reports explain what happened, why the error likely appeared, and easy fix steps instead of showing only the raw error
 - Command input and Lexi answer/code areas support horizontal scrolling so pasted code keeps its original line structure
+- Code sent through Lexi's command box is auto-detected, analyzed for purpose, and fused into permanent Lexi code memory extensions
 
 ### Real Kali Linux Tools Installed (50+)
 All tools are installed via Nix and available in the real terminal:

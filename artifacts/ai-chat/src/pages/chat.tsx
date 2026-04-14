@@ -727,9 +727,9 @@ export default function ChatPage() {
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden selection:bg-primary/30">
 
-      {/* Sidebar */}
+      {/* Sidebar — hidden */}
       <AnimatePresence initial={false}>
-        {isSidebarOpen && (
+        {false && (
           <motion.div
             initial={{ width: 0, opacity: 0 }}
             animate={{ width: 300, opacity: 1 }}
@@ -950,41 +950,8 @@ export default function ChatPage() {
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col relative h-full min-w-0">
 
-        {/* Top bar */}
-        <header className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center z-10 bg-gradient-to-b from-background to-transparent pointer-events-none">
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="p-2.5 rounded-xl bg-card/50 backdrop-blur-md border border-white/5 text-foreground hover:bg-white/10 transition-colors pointer-events-auto shadow-sm"
-          >
-            <Settings2 className="w-5 h-5" />
-          </button>
-          <div className="flex items-center gap-2 pointer-events-auto">
-            <div className="pointer-events-auto">
-              <VpnIndicator />
-            </div>
-            <Link href="/terminal">
-              <button
-                title="Open Terminal"
-                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card/50 backdrop-blur-md border border-white/5 text-foreground hover:bg-white/10 transition-colors shadow-sm text-sm font-mono"
-              >
-                <TerminalSquare className="w-4 h-4 text-primary" />
-                <span className="hidden sm:inline text-xs">Terminal</span>
-              </button>
-            </Link>
-            <Link href="/phone-lookup">
-              <button
-                title="Reverse Phone Lookup"
-                className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card/50 backdrop-blur-md border border-white/5 text-foreground hover:bg-white/10 transition-colors shadow-sm text-sm font-mono"
-              >
-                <Phone className="w-4 h-4 text-[#3fb950]" />
-                <span className="hidden sm:inline text-xs">Phone</span>
-              </button>
-            </Link>
-          </div>
-        </header>
-
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto pt-20 pb-40 px-4 custom-scrollbar">
+        <div className="flex-1 overflow-y-auto pt-6 pb-40 px-4 custom-scrollbar">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center opacity-60">
               {agentMode ? (
@@ -1114,11 +1081,6 @@ export default function ChatPage() {
                 )}
               </div>
             </form>
-            <div className="text-center mt-3">
-              <span className="text-[10px] font-mono text-muted-foreground/60 uppercase tracking-widest">
-                Nexus AI • Output may contain unfiltered content
-              </span>
-            </div>
           </div>
         </div>
       </div>

@@ -741,9 +741,9 @@ export default function ChatPage() {
   return (
     <div className="flex h-screen w-full bg-background overflow-hidden selection:bg-primary/30">
 
-      {/* Sidebar — hidden */}
+      {/* Sidebar */}
       <AnimatePresence initial={false}>
-        {false && (
+        {isSidebarOpen && (
           <motion.div
             initial={{ width: 0, opacity: 0 }}
             animate={{ width: 300, opacity: 1 }}
@@ -774,7 +774,7 @@ export default function ChatPage() {
             </div>
 
             {/* Conversation List */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar px-2 pb-2">
+            <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-2 pb-2">
               {conversations.length === 0 ? (
                 <p className="text-xs text-muted-foreground text-center mt-6 px-4 font-mono">
                   No chats yet. Start a conversation.
@@ -813,7 +813,7 @@ export default function ChatPage() {
             </div>
 
             {/* Settings Panel */}
-            <div className="border-t border-sidebar-border flex-shrink-0 p-4 space-y-4">
+            <div className="border-t border-sidebar-border flex-shrink-0 p-4 space-y-4 max-h-[62vh] overflow-y-auto custom-scrollbar">
 
               {/* Model Display */}
               <div className="space-y-2">
@@ -960,6 +960,17 @@ export default function ChatPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {!isSidebarOpen && (
+        <button
+          type="button"
+          onClick={() => setIsSidebarOpen(true)}
+          className="absolute left-4 top-4 z-30 flex items-center gap-2 rounded-xl border border-border bg-card/90 px-3 py-2 text-xs font-mono text-foreground shadow-lg backdrop-blur hover:border-primary/40 hover:text-primary transition-all"
+        >
+          <TerminalSquare className="w-4 h-4" />
+          Open Sidebar
+        </button>
+      )}
 
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col relative h-full min-w-0">

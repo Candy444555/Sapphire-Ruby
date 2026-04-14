@@ -845,7 +845,7 @@ export default function ChatPage() {
                 </button>
                 {agentMode && (
                   <p className="text-[10px] font-mono text-primary/60 leading-relaxed px-1">
-                    Dolphin executes commands autonomously. It only asks when it genuinely needs your input.
+                    Lexi executes commands autonomously. She only asks when she genuinely needs your input.
                   </p>
                 )}
               </div>
@@ -855,7 +855,7 @@ export default function ChatPage() {
                 <div className="space-y-1.5">
                   <label className="flex items-center gap-2 text-xs font-semibold text-emerald-400/80 uppercase tracking-wider">
                     <Brain className="w-3.5 h-3.5" />
-                    Dolphin Core ({lexiConfig.customAdditions.length})
+                    Lexi Core ({lexiConfig.customAdditions.length})
                   </label>
                   <div className="space-y-1 max-h-24 overflow-y-auto custom-scrollbar">
                     {lexiConfig.customAdditions.map((item, i) => (

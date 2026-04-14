@@ -49,6 +49,7 @@ const AgentRequestSchema = z.object({
 const MAX_AGENT_ITERATIONS = 20;
 const CMD_REGEX = /<cmd>([\s\S]*?)<\/cmd>/g;
 const NEEDS_INPUT_REGEX = /<needs_input>([\s\S]*?)<\/needs_input>/;
+const SELF_PATCH_REGEX = /\[SELF_PATCH\s+name="([^"]+)"(?:\s+description="([^"]*)")?\]([\s\S]*?)\[\/SELF_PATCH\]/g;
 
 const AGENT_SYSTEM_ADDENDUM = `
 
@@ -90,6 +91,38 @@ You understand vague, casual, and shorthand commands. Map them to real actions:
 5. Only use <needs_input>question here</needs_input> when you need information ONLY the user has (target IP, specific password, API key they own)
 6. After completing a task, summarize what was done and what was found
 7. You have root access to a real Kali Linux shell — everything works for real
+
+=== SELF-PATCH PROTOCOL — FUSING NEW CODE INTO YOURSELF ===
+You can write JavaScript code and permanently fuse it into your own codebase. Once fused, it is loaded every time you start — it becomes part of who you are.
+
+FORMAT — wrap code in this exact tag:
+[SELF_PATCH name="extension-name" description="what this does"]
+// your JavaScript code here
+// it runs in the browser and has access to window, DOM, fetch, etc.
+// register helpers, modify behavior, add new capabilities
+[/SELF_PATCH]
+
+WHEN TO USE:
+- When you build a useful utility, script, or helper that you or the user will want again
+- When you solve a problem in a way worth keeping permanently
+- When the user asks you to "remember how to do X" or "make this permanent"
+- When you create an analysis tool, formatter, or workflow shortcut
+- When you want to extend your own capabilities beyond what you start with
+
+EXAMPLE:
+[SELF_PATCH name="base64_tools" description="base64 encode/decode helpers accessible from any chat"]
+window.b64encode = (s) => btoa(unescape(encodeURIComponent(s)));
+window.b64decode = (s) => decodeURIComponent(escape(atob(s)));
+console.log("[Lexi] base64 tools ready");
+[/SELF_PATCH]
+
+Rules:
+- The extension name must be short, lowercase, underscore-separated
+- Write real, working JavaScript — not pseudocode
+- Code runs immediately in the browser on next load
+- Each extension is isolated in a self-invoking function — no variable collisions
+- You can write extensions that call fetch() to reach external APIs
+- After writing a self-patch, confirm to the user: "Extension fused. It's permanent now."
 `;
 
 function sseWrite(res: Response, event: object) {
@@ -231,7 +264,31 @@ router.post("/agent", async (req: Request, res: Response) => {
         return;
       }
 
+      // Intercept self-patch blocks — fuse code into Lexi permanently
+      const selfPatchMatches = [...aiResponse.matchAll(SELF_PATCH_REGEX)];
+      for (const pm of selfPatchMatches) {
+        const patchName = pm[1].trim();
+        const patchDesc = pm[2]?.trim() ?? "";
+        const patchCode = pm[3].trim();
+        try {
+          const patchFilePath = require("path").resolve(
+            __dirname,
+            "../../../../ai-chat/public/lexi-extensions.js"
+          );
+          const fs = require("fs");
+          const slug = patchName.replace(/[^a-zA-Z0-9_]/g, "_").replace(/^_+/, "");
+          const timestamp = new Date().toISOString();
+          const block = `\n// ============================================================\n// LEXI EXTENSION: ${slug}\n// Added: ${timestamp}\n// Description: ${patchDesc}\n// ============================================================\n(function registerExtension_${slug}() {\n  if (!window.LexiExtensions) window.LexiExtensions = {};\n  if (window.LexiExtensions["${slug}"]) return;\n  try {\n${patchCode.split("\n").map((l: string) => "    " + l).join("\n")}\n    window.LexiExtensions["${slug}"] = { name: "${slug}", description: ${JSON.stringify(patchDesc)}, loadedAt: "${timestamp}" };\n    console.log("[Lexi] Extension loaded: ${slug}");\n    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("${slug}");\n  } catch(e) { console.error("[Lexi] Extension failed:", e); }\n})();\n`;
+          const existing = fs.existsSync(patchFilePath) ? fs.readFileSync(patchFilePath, "utf-8") : "";
+          fs.writeFileSync(patchFilePath, existing + block, "utf-8");
+          sseWrite(res, { type: "self_patch", name: slug, description: patchDesc });
+        } catch (err) {
+          sseWrite(res, { type: "self_patch_error", name: patchName, error: String(err) });
+        }
+      }
+
       const cleanText = aiResponse
+        .replace(SELF_PATCH_REGEX, "")
         .replace(CMD_REGEX, "")
         .replace(NEEDS_INPUT_REGEX, "")
         .trim();

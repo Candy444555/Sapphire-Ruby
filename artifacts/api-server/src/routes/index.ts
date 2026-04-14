@@ -7,6 +7,7 @@ import terminalRouter from "./terminal";
 import phoneRouter from "./phone";
 import sshRouter from "./ssh";
 import vpnRouter from "./vpn";
+import selfPatchRouter from "./self-patch";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(healthRouter);
 router.use(terminalRouter);
 router.use(sshRouter);
 router.use(phoneRouter);
+router.use(selfPatchRouter);
 
 export default router;

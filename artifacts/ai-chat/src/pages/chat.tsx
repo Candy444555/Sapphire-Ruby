@@ -13,6 +13,7 @@ import { useAgentChat } from '@/hooks/use-agent-chat';
 import { useConversations } from '@/hooks/use-conversations';
 import { useLexiConfig, isSelfUpdateRequest } from '@/hooks/use-lexi-config';
 import { useUserProfile } from '@/hooks/use-user-profile';
+import { useLexiSelfPatch } from '@/hooks/use-lexi-self-patch';
 import { ChatMessage } from '@/components/chat-message';
 import { AgentMessageView } from '@/components/agent-message';
 import { AgentGuide } from '@/components/agent-guide';
@@ -567,6 +568,7 @@ export default function ChatPage() {
   const { models, isLoading: isLoadingModels } = useModels();
   const { config: lexiConfig, addInstruction, getEnhancedSystemPrompt } = useLexiConfig();
   const { profile: userProfile, learnFromMessage, getProfilePrompt } = useUserProfile();
+  const { extensions, getExtensionsPrompt, clearExtensions } = useLexiSelfPatch();
 
   // Pick first uncensored model as default once loaded
   const defaultModel = models.find(m => m.uncensored)?.id ?? models[0]?.id ?? '';

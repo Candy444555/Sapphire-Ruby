@@ -6,6 +6,8 @@ export type AgentEvent =
   | { type: "cmd_start"; command: string }
   | { type: "cmd_result"; command: string; output: string; exitCode: number; cwd: string }
   | { type: "needs_input"; question: string }
+  | { type: "self_patch"; name: string; description: string }
+  | { type: "self_patch_error"; name: string; error: string }
   | { type: "thinking" }
   | { type: "done" }
   | { type: "error"; message: string };
@@ -22,6 +24,7 @@ export interface AgentMessage {
 interface UseAgentChatOptions {
   conversationId?: string;
   onMessagesChange?: (messages: AgentMessage[]) => void;
+  onSelfPatch?: (name: string, description: string) => void;
 }
 
 let msgCounter = 0;
@@ -29,7 +32,7 @@ function makeId() {
   return `amsg-${Date.now()}-${msgCounter++}`;
 }
 
-export function useAgentChat({ onMessagesChange }: UseAgentChatOptions = {}) {
+export function useAgentChat({ onMessagesChange, onSelfPatch }: UseAgentChatOptions = {}) {
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
@@ -40,6 +43,8 @@ export function useAgentChat({ onMessagesChange }: UseAgentChatOptions = {}) {
   const abortRef = useRef<AbortController | null>(null);
   const onChangeRef = useRef(onMessagesChange);
   onChangeRef.current = onMessagesChange;
+  const onSelfPatchRef = useRef(onSelfPatch);
+  onSelfPatchRef.current = onSelfPatch;
   const sessionIdRef = useRef<string | null>(null);
 
   const updateMessages = useCallback((next: AgentMessage[]) => {
@@ -176,6 +181,11 @@ export function useAgentChat({ onMessagesChange }: UseAgentChatOptions = {}) {
                 updatedLast.events!.push(parsed!);
               } else if (parsed!.type === "needs_input") {
                 updatedLast.needsInput = parsed!.question;
+                updatedLast.events!.push(parsed!);
+              } else if (parsed!.type === "self_patch") {
+                updatedLast.events!.push(parsed!);
+                onSelfPatchRef.current?.(parsed!.name, parsed!.description);
+              } else if (parsed!.type === "self_patch_error") {
                 updatedLast.events!.push(parsed!);
               } else if (
                 parsed!.type === "cmd_start" ||

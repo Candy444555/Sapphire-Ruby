@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Terminal, ChevronDown, ChevronRight, CheckCircle2, XCircle, Loader2 } from 'lucide-react';
+import { Terminal, ChevronDown, ChevronRight, CheckCircle2, XCircle, Loader2, Zap, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { AgentMessage as AgentMsg, AgentEvent } from '@/hooks/use-agent-chat';
 import { Markdown } from './markdown';
@@ -111,6 +111,25 @@ export function AgentMessageView({ message, isLatest, isThinking }: AgentMessage
 
         {cmdStartEvents.map(({ key, event }) => (
           <CommandBlock key={key} event={event} result={resultsByCmd.get(key)} />
+        ))}
+
+        {events.filter(e => e.type === 'self_patch' || e.type === 'self_patch_error').map((e, i) => (
+          e.type === 'self_patch' ? (
+            <div key={i} className="my-2 flex items-center gap-2 px-3 py-2.5 rounded-xl bg-violet-500/10 border border-violet-500/30 font-mono text-xs">
+              <Zap className="w-3.5 h-3.5 text-violet-400 shrink-0 animate-pulse" />
+              <div className="flex-1 min-w-0">
+                <span className="text-violet-300 font-semibold">FUSED: </span>
+                <span className="text-violet-200">{e.name}</span>
+                {e.description && <span className="text-violet-400/70 ml-2">— {e.description}</span>}
+              </div>
+              <span className="text-[10px] text-violet-400/60 uppercase tracking-wider">permanent</span>
+            </div>
+          ) : (
+            <div key={i} className="my-2 flex items-center gap-2 px-3 py-2.5 rounded-xl bg-destructive/10 border border-destructive/30 font-mono text-xs">
+              <AlertTriangle className="w-3.5 h-3.5 text-destructive shrink-0" />
+              <span className="text-red-300">Patch failed: {(e as { type: 'self_patch_error'; name: string; error: string }).name}</span>
+            </div>
+          )
         ))}
 
         {message.content && (

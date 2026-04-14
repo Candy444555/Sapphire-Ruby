@@ -6,42 +6,30 @@ import { sessions, createSession, execInSession } from "../services/shell-sessio
 import { UNCENSORED_MODEL_ENDPOINTS, UNCENSORED_SYSTEM_ADDENDUM } from "./chat";
 import { buildPrivacyHeaders } from "../services/privacy";
 
-const AGENT_FALLBACK_MODELS: string[] = [
-  "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
-  "nousresearch/hermes-3-llama-3.1-405b:free",
-  "meta-llama/llama-3.3-70b-instruct:free",
-  "qwen/qwen3-coder:free",
-];
 import { searchInternet, formatSearchContext, extractSearchQuery } from "../services/web-search";
+
+const FEATHERLESS_API_URL = "https://api.featherless.ai/v1/chat/completions";
 
 async function sleepMs(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function fetchWithFallback(
+async function fetchFeatherless(
   hfMessages: { role: string; content: string }[],
   modelEndpoint: string,
-  apiKey: string,
-  fallbackIndex: number = 0
+  apiKey: string
 ): Promise<Response> {
-  const model = fallbackIndex === 0 ? modelEndpoint : AGENT_FALLBACK_MODELS[fallbackIndex];
-
   const fetchOptions: RequestInit & { agent?: unknown } = {
     method: "POST",
     headers: buildPrivacyHeaders(apiKey),
-    body: JSON.stringify({ model, messages: hfMessages, stream: true }),
+    body: JSON.stringify({ model: modelEndpoint, messages: hfMessages, stream: true }),
   };
   if (isTorReady()) {
     fetchOptions.agent = new SocksProxyAgent(getTorSocksUrl());
   }
 
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", fetchOptions);
+  const response = await fetch(FEATHERLESS_API_URL, fetchOptions);
   if (!response.ok) {
-    if (response.status === 429 && fallbackIndex < AGENT_FALLBACK_MODELS.length - 1) {
-      console.log(`[Agent] Rate limited on ${model}, trying fallback ${fallbackIndex + 1}`);
-      await sleepMs(500);
-      return fetchWithFallback(hfMessages, modelEndpoint, apiKey, fallbackIndex + 1);
-    }
     throw new Error(`${response.status}: request failed`);
   }
   return response;
@@ -115,9 +103,9 @@ async function callAI(
 
   const modelEndpoint = Object.entries(UNCENSORED_MODEL_ENDPOINTS).find(
     ([slug]) => slug === modelId
-  )?.[1] ?? AGENT_FALLBACK_MODELS[0];
+  )?.[1] ?? modelId;
 
-  const response = await fetchWithFallback(hfMessages, modelEndpoint, apiKey, 0);
+  const response = await fetchFeatherless(hfMessages, modelEndpoint, apiKey);
   if (!response.body) throw new Error("No response body");
 
   const reader = response.body.getReader();
@@ -161,11 +149,11 @@ router.post("/agent", async (req: Request, res: Response) => {
   }
 
   const { model, messages, systemPrompt, sessionId: requestedSessionId } = parsed.data;
-  const modelId = model ?? "dolphin-uncensored-24b";
+  const modelId = model ?? "lexi-uncensored-v2-8b";
 
-  const apiKey = process.env.OPENROUTER_API_KEY;
+  const apiKey = process.env.FEATHERLESS_API_KEY;
   if (!apiKey) {
-    res.status(500).json({ error: "OPENROUTER_API_KEY is not configured" });
+    res.status(500).json({ error: "FEATHERLESS_API_KEY is not configured" });
     return;
   }
 

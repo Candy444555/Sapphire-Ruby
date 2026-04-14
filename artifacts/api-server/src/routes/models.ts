@@ -4,9 +4,9 @@ const router: IRouter = Router();
 
 const MODELS = [
   {
-    id: "Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2",
-    name: "Lexi Uncensored V2 8B",
-    description: "Llama 3.1 8B fine-tune with all censorship and restrictions removed",
+    id: "qwen-uncensored-7b",
+    name: "Qwen 2.5 7B Uncensored",
+    description: "Qwen 2.5 7B with all refusals and restrictions abliterated — fully uncensored",
     uncensored: true,
   },
 ];

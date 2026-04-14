@@ -105,7 +105,7 @@ export function AgentMessageView({ message, isLatest, isThinking }: AgentMessage
         {isEmpty && isLatest && isThinking && (
           <div className="flex items-center gap-2 text-muted-foreground text-sm py-1">
             <Loader2 className="w-4 h-4 animate-spin text-primary" />
-            <span>Lexi is thinking…</span>
+            <span>Qwen is thinking…</span>
           </div>
         )}
 
@@ -121,7 +121,7 @@ export function AgentMessageView({ message, isLatest, isThinking }: AgentMessage
 
         {message.needsInput && (
           <div className="mt-3 px-3 py-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-sm">
-            <span className="font-semibold">Lexi needs your input: </span>
+            <span className="font-semibold">Qwen needs your input: </span>
             {message.needsInput}
           </div>
         )}

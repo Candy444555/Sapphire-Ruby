@@ -140,7 +140,7 @@ router.post("/agent", async (req: Request, res: Response) => {
   }
 
   const { model, messages, systemPrompt, sessionId: requestedSessionId } = parsed.data;
-  const modelId = model ?? "lexi-uncensored-v2-8b";
+  const modelId = model ?? "qwen-uncensored-7b";
 
   const apiKey = process.env.FEATHERLESS_API_KEY;
   if (!apiKey) {

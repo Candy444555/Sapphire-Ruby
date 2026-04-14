@@ -32,7 +32,7 @@ async function fetchChatStream(
     const errData = await res.json().catch(() => ({}));
     const msg = errData.error || `Server error ${res.status}`;
     if (attempt < MAX_RETRIES && res.status >= 500) {
-      console.warn(`[Lexi] Auto-healing: retry ${attempt + 1}/${MAX_RETRIES} after error: ${msg}`);
+      console.warn(`[Qwen] Auto-healing: retry ${attempt + 1}/${MAX_RETRIES} after error: ${msg}`);
       await sleep(RETRY_DELAY_MS * (attempt + 1));
       return fetchChatStream(model, messages, systemPrompt, signal, attempt + 1);
     }
@@ -142,7 +142,7 @@ export function useChat({
             if (dataStr.startsWith("[ERROR]")) {
               const errMsg = dataStr.slice(8);
               if (attempt < MAX_RETRIES) {
-                console.warn(`[Lexi] Auto-healing: stream error, retry ${attempt + 1}/${MAX_RETRIES}`);
+                console.warn(`[Qwen] Auto-healing: stream error, retry ${attempt + 1}/${MAX_RETRIES}`);
                 setIsRetrying(true);
                 await sleep(RETRY_DELAY_MS * (attempt + 1));
                 setIsRetrying(false);
@@ -190,7 +190,7 @@ export function useChat({
             err instanceof Error ? err.message : "Failed to generate response";
 
           if (attempt < MAX_RETRIES) {
-            console.warn(`[Lexi] Auto-healing: caught error, retry ${attempt + 1}/${MAX_RETRIES}: ${msg}`);
+            console.warn(`[Qwen] Auto-healing: caught error, retry ${attempt + 1}/${MAX_RETRIES}: ${msg}`);
             setIsRetrying(true);
             await sleep(RETRY_DELAY_MS * (attempt + 1));
             setIsRetrying(false);

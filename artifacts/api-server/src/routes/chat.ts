@@ -19,7 +19,7 @@ const ChatRequestSchema = z.object({
 });
 
 export const UNCENSORED_MODEL_ENDPOINTS: Record<string, string> = {
-  "lexi-uncensored-v2-8b": "Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2",
+  "qwen-uncensored-7b": "huihui-ai/Qwen2.5-7B-Instruct-abliterated",
   "hermes-2-pro-llama3-8b": "NousResearch/Hermes-2-Pro-Llama-3-8B",
 };
 
@@ -194,7 +194,7 @@ async function streamChat(
     finish();
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
-    console.error(`[Lexi] Self-heal exhausted retries: ${message}`);
+    console.error(`[Chat] Self-heal exhausted retries: ${message}`);
     finish(message);
   }
 }

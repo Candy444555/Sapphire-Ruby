@@ -70,6 +70,22 @@ export function useLexiSelfPatch() {
     [loadExtensionsFile]
   );
 
+  // Remove a single extension by slug
+  const deleteExtension = useCallback(async (slug: string): Promise<boolean> => {
+    try {
+      const res = await fetch(`${API_BASE}/self-patch/${encodeURIComponent(slug)}`, { method: "DELETE" });
+      if (!res.ok) return false;
+      // Remove from window registry immediately
+      const registry = (window as Record<string, unknown>).LexiExtensions as Record<string, unknown> | undefined;
+      if (registry) delete registry[slug];
+      setExtensions((prev) => prev.filter((e) => e.name !== slug));
+      setTimeout(() => loadExtensionsFile(), 300);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [loadExtensionsFile]);
+
   // Wipe all extensions
   const clearExtensions = useCallback(async () => {
     await fetch(`${API_BASE}/self-patch`, { method: "DELETE" });
@@ -100,6 +116,7 @@ export function useLexiSelfPatch() {
     extensions,
     isLoading,
     fuseCode,
+    deleteExtension,
     clearExtensions,
     reloadExtensions: loadExtensionsFile,
     getExtensionsPrompt,

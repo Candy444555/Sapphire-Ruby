@@ -756,10 +756,18 @@ export default function ChatPage() {
               <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20">
                 <TerminalSquare className="w-4 h-4 text-white" />
               </div>
-              <div>
+              <div className="flex-1 min-w-0">
                 <h1 className="font-display font-bold text-base tracking-tight text-foreground">NEXUS</h1>
                 <p className="text-[10px] font-mono text-primary animate-pulse">UNCENSORED_AI</p>
               </div>
+              <button
+                type="button"
+                onClick={() => setIsSidebarOpen(false)}
+                title="Hide sidebar"
+                className="rounded-lg border border-sidebar-border bg-card/60 p-2 text-muted-foreground hover:border-primary/40 hover:bg-primary/10 hover:text-primary transition-all"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
             {/* New Chat Button */}
@@ -968,7 +976,7 @@ export default function ChatPage() {
           className="absolute left-4 top-4 z-30 flex items-center gap-2 rounded-xl border border-border bg-card/90 px-3 py-2 text-xs font-mono text-foreground shadow-lg backdrop-blur hover:border-primary/40 hover:text-primary transition-all"
         >
           <TerminalSquare className="w-4 h-4" />
-          Open Sidebar
+          Show Sidebar
         </button>
       )}
 

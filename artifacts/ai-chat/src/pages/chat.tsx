@@ -715,6 +715,32 @@ export default function ChatPage() {
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
   };
 
+  const handleFuseSubmit = () => {
+    const trimmed = input.trim();
+    if (!trimmed || isStreaming || !selectedModel) return;
+
+    learnFromMessage(trimmed);
+
+    const fuseRequest = `Build this as working JavaScript code and permanently fuse it into yourself using a [SELF_PATCH] block. Here is what I want you to build: ${trimmed}
+
+Requirements:
+- Write real, complete, functional JavaScript code — not pseudocode
+- Expose it on window so it can be called at any time
+- Use the exact format: [SELF_PATCH name="short_lowercase_name" description="what it does"]...your code...[/SELF_PATCH]
+- After fusing, confirm exactly what you built and show the user how to call or use it`;
+
+    const withLexiMods = getEnhancedSystemPrompt(systemPrompt);
+    const profileSection = getProfilePrompt();
+    const extensionsSection = getExtensionsPrompt();
+    const enhancedPrompt = [withLexiMods, profileSection, extensionsSection].filter(Boolean).join('\n\n');
+
+    if (!activeId) createConversation(selectedModel, systemPrompt);
+    agentChat.sendMessage(fuseRequest, selectedModel, enhancedPrompt);
+
+    setInput('');
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -1092,10 +1118,10 @@ export default function ChatPage() {
                     ? "Give Lexi a task to execute…"
                     : "Enter command..."
                 }
-                className="lexi-command-input w-full max-h-[200px] min-h-[44px] bg-transparent text-foreground placeholder:text-muted-foreground resize-none border-none focus:ring-0 py-3 pl-4 pr-12 font-mono text-base leading-relaxed overflow-x-auto overflow-y-auto whitespace-pre"
+                className="lexi-command-input w-full max-h-[200px] min-h-[44px] bg-transparent text-foreground placeholder:text-muted-foreground resize-none border-none focus:ring-0 py-3 pl-4 pr-28 font-mono text-base leading-relaxed overflow-x-auto overflow-y-auto whitespace-pre"
                 rows={1}
               />
-              <div className="absolute right-3 bottom-3 flex items-center">
+              <div className="absolute right-3 bottom-3 flex items-center gap-1.5">
                 {isStreaming ? (
                   <button
                     type="button"
@@ -1105,13 +1131,25 @@ export default function ChatPage() {
                     <StopCircle className="w-5 h-5" />
                   </button>
                 ) : (
-                  <button
-                    type="submit"
-                    disabled={!input.trim() || !selectedModel}
-                    className="p-2 rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/40 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50 disabled:transform-none disabled:hover:shadow-none"
-                  >
-                    <Send className="w-5 h-5" />
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleFuseSubmit}
+                      disabled={!input.trim() || !selectedModel}
+                      title="Build & Fuse — Lexi writes code from your description and permanently fuses it into herself"
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-violet-500/15 border border-violet-500/30 text-violet-400 hover:bg-violet-500/25 hover:text-violet-300 hover:border-violet-500/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed text-xs font-semibold"
+                    >
+                      <Zap className="w-3.5 h-3.5" />
+                      <span>Fuse</span>
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!input.trim() || !selectedModel}
+                      className="p-2 rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/40 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50 disabled:transform-none disabled:hover:shadow-none"
+                    >
+                      <Send className="w-5 h-5" />
+                    </button>
+                  </>
                 )}
               </div>
             </form>

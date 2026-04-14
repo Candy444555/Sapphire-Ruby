@@ -42,7 +42,7 @@ function CommandBlock({ event, result }: {
       </button>
       {expanded && result && (
         <div className={cn(
-          "px-3 py-2 text-[11px] leading-relaxed whitespace-pre-wrap break-all max-h-64 overflow-y-auto",
+          "px-3 py-2 text-[11px] leading-relaxed whitespace-pre max-h-64 overflow-auto",
           success ? "bg-zinc-950/60 text-zinc-300" : "bg-destructive/5 text-red-300"
         )}>
           {result.output || <span className="text-muted-foreground italic">(no output)</span>}

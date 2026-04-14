@@ -127,16 +127,23 @@
 
 /* Markdown Styles Override */
 .prose pre {
-  @apply bg-[#1e1e1e] border border-border rounded-xl p-0 my-4 overflow-hidden;
+  @apply bg-[#1e1e1e] border border-border rounded-xl p-0 my-4 overflow-x-auto overflow-y-hidden;
+}
+.prose {
+  overflow-wrap: normal;
 }
 .prose code {
   @apply bg-muted/50 px-1.5 py-0.5 rounded-md text-[0.875em] text-foreground font-mono font-medium before:content-none after:content-none;
 }
 .prose pre code {
-  @apply bg-transparent p-0 text-[0.875em] text-inherit border-none;
+  @apply bg-transparent p-0 text-[0.875em] text-inherit border-none whitespace-pre;
 }
 .prose p {
   @apply leading-relaxed tracking-wide mb-4 last:mb-0;
+}
+.lexi-command-input {
+  overflow-wrap: normal;
+  word-break: normal;
 }
 .prose ul, .prose ol {
   @apply my-4 pl-6;

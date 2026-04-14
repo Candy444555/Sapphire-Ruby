@@ -1053,6 +1053,7 @@ export default function ChatPage() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
+                wrap="off"
                 placeholder={
                   pendingInputMsg
                     ? `Answer Lexi: ${pendingInputMsg.needsInput?.slice(0, 60)}…`
@@ -1060,7 +1061,7 @@ export default function ChatPage() {
                     ? "Give Lexi a task to execute…"
                     : "Enter command..."
                 }
-                className="w-full max-h-[200px] min-h-[44px] bg-transparent text-foreground placeholder:text-muted-foreground resize-none border-none focus:ring-0 py-3 pl-4 pr-12 font-sans text-base leading-relaxed"
+                className="lexi-command-input w-full max-h-[200px] min-h-[44px] bg-transparent text-foreground placeholder:text-muted-foreground resize-none border-none focus:ring-0 py-3 pl-4 pr-12 font-mono text-base leading-relaxed overflow-x-auto overflow-y-auto whitespace-pre"
                 rows={1}
               />
               <div className="absolute right-3 bottom-3 flex items-center">

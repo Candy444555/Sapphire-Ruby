@@ -13,7 +13,7 @@ interface MarkdownProps {
 
 export const Markdown = React.memo(({ content, className }: MarkdownProps) => {
   return (
-    <div className={cn("prose prose-invert max-w-none break-words", className)}>
+    <div className={cn("prose prose-invert max-w-none overflow-x-auto", className)}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
@@ -24,7 +24,7 @@ export const Markdown = React.memo(({ content, className }: MarkdownProps) => {
 
             if (!inline && match) {
               return (
-                <div className="relative group rounded-xl overflow-hidden mt-4 mb-6 shadow-lg shadow-black/20 border border-white/10">
+                <div className="relative group rounded-xl overflow-x-auto mt-4 mb-6 shadow-lg shadow-black/20 border border-white/10">
                   <div className="flex items-center justify-between px-4 py-2 bg-[#1e1e1e] border-b border-white/5">
                     <span className="text-xs font-mono text-muted-foreground uppercase tracking-wider">{language}</span>
                     <CopyButton text={codeString} />
@@ -39,6 +39,9 @@ export const Markdown = React.memo(({ content, className }: MarkdownProps) => {
                       background: '#121212',
                       fontSize: '0.875rem',
                       lineHeight: '1.5',
+                      overflowX: 'auto',
+                      whiteSpace: 'pre',
+                      wordBreak: 'normal',
                     }}
                     {...props}
                   >

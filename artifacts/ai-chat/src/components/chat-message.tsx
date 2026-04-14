@@ -31,7 +31,7 @@ export const ChatMessage = React.memo(({ message, isLatest }: ChatMessageProps) 
       )}
     >
       <div className={cn(
-        "flex max-w-[85%] sm:max-w-[80%] md:max-w-[75%] gap-4",
+        "flex max-w-[85%] sm:max-w-[80%] md:max-w-[75%] gap-4 min-w-0",
         isUser ? "flex-row-reverse" : "flex-row"
       )}>
         
@@ -47,7 +47,7 @@ export const ChatMessage = React.memo(({ message, isLatest }: ChatMessageProps) 
 
         {/* Message Bubble */}
         <div className={cn(
-          "relative flex flex-col min-w-0 rounded-2xl px-5 py-4 shadow-sm",
+          "relative flex flex-col min-w-0 overflow-x-auto rounded-2xl px-5 py-4 shadow-sm",
           isUser 
             ? "bg-card border border-white/5 text-foreground rounded-tr-sm" 
             : "bg-transparent text-foreground pt-2"

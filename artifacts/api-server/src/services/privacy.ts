@@ -50,6 +50,7 @@ export function sanitizeError(err: unknown): string {
     return err.message.replace(/Bearer\s+\S+/gi, "Bearer [REDACTED]")
       .replace(/hf_[A-Za-z0-9]+/gi, "[REDACTED]")
       .replace(/fl_[A-Za-z0-9]+/gi, "[REDACTED]")
+      .replace(/sk-or-[A-Za-z0-9-]+/gi, "[REDACTED]")
       .slice(0, 120);
   }
   return "Request failed";

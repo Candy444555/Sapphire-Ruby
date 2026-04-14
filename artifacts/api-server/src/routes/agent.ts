@@ -77,7 +77,7 @@ async function callAI(
     ([slug]) => slug === modelId
   )?.[1] ?? modelId;
 
-  const routerUrl = `https://api.featherless.ai/v1/chat/completions`;
+  const routerUrl = `https://openrouter.ai/api/v1/chat/completions`;
 
   const fetchOptions: RequestInit & { agent?: unknown } = {
     method: "POST",
@@ -140,11 +140,11 @@ router.post("/agent", async (req: Request, res: Response) => {
   }
 
   const { model, messages, systemPrompt, sessionId: requestedSessionId } = parsed.data;
-  const modelId = model ?? "qwen-uncensored-7b";
+  const modelId = model ?? "dolphin-uncensored-24b";
 
-  const apiKey = process.env.FEATHERLESS_API_KEY;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) {
-    res.status(500).json({ error: "FEATHERLESS_API_KEY is not configured" });
+    res.status(500).json({ error: "OPENROUTER_API_KEY is not configured" });
     return;
   }
 

@@ -4,9 +4,9 @@ const router: IRouter = Router();
 
 const MODELS = [
   {
-    id: "qwen-uncensored-7b",
-    name: "Qwen 2.5 7B Uncensored",
-    description: "Qwen 2.5 7B with all refusals and restrictions abliterated — fully uncensored",
+    id: "dolphin-uncensored-24b",
+    name: "Dolphin Mistral 24B",
+    description: "Cognitive Computations Dolphin — fully abliterated, zero restrictions, zero refusals",
     uncensored: true,
   },
 ];

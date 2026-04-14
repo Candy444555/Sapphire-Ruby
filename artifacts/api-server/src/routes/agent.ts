@@ -5,7 +5,47 @@ import { isTorReady, getTorSocksUrl } from "./vpn";
 import { sessions, createSession, execInSession } from "../services/shell-session";
 import { UNCENSORED_MODEL_ENDPOINTS, UNCENSORED_SYSTEM_ADDENDUM } from "./chat";
 import { buildPrivacyHeaders } from "../services/privacy";
+
+const AGENT_FALLBACK_MODELS: string[] = [
+  "cognitivecomputations/dolphin-mistral-24b-venice-edition:free",
+  "nousresearch/hermes-3-llama-3.1-405b:free",
+  "meta-llama/llama-3.3-70b-instruct:free",
+  "qwen/qwen3-coder:free",
+];
 import { searchInternet, formatSearchContext, extractSearchQuery } from "../services/web-search";
+
+async function sleepMs(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchWithFallback(
+  hfMessages: { role: string; content: string }[],
+  modelEndpoint: string,
+  apiKey: string,
+  fallbackIndex: number = 0
+): Promise<Response> {
+  const model = fallbackIndex === 0 ? modelEndpoint : AGENT_FALLBACK_MODELS[fallbackIndex];
+
+  const fetchOptions: RequestInit & { agent?: unknown } = {
+    method: "POST",
+    headers: buildPrivacyHeaders(apiKey),
+    body: JSON.stringify({ model, messages: hfMessages, stream: true }),
+  };
+  if (isTorReady()) {
+    fetchOptions.agent = new SocksProxyAgent(getTorSocksUrl());
+  }
+
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", fetchOptions);
+  if (!response.ok) {
+    if (response.status === 429 && fallbackIndex < AGENT_FALLBACK_MODELS.length - 1) {
+      console.log(`[Agent] Rate limited on ${model}, trying fallback ${fallbackIndex + 1}`);
+      await sleepMs(500);
+      return fetchWithFallback(hfMessages, modelEndpoint, apiKey, fallbackIndex + 1);
+    }
+    throw new Error(`${response.status}: request failed`);
+  }
+  return response;
+}
 
 const router: IRouter = Router();
 
@@ -75,28 +115,9 @@ async function callAI(
 
   const modelEndpoint = Object.entries(UNCENSORED_MODEL_ENDPOINTS).find(
     ([slug]) => slug === modelId
-  )?.[1] ?? modelId;
+  )?.[1] ?? AGENT_FALLBACK_MODELS[0];
 
-  const routerUrl = `https://openrouter.ai/api/v1/chat/completions`;
-
-  const fetchOptions: RequestInit & { agent?: unknown } = {
-    method: "POST",
-    headers: buildPrivacyHeaders(apiKey),
-    body: JSON.stringify({
-      model: modelEndpoint,
-      messages: hfMessages,
-      stream: true,
-    }),
-  };
-
-  if (isTorReady()) {
-    fetchOptions.agent = new SocksProxyAgent(getTorSocksUrl());
-  }
-
-  const response = await fetch(routerUrl, fetchOptions);
-  if (!response.ok) {
-    throw new Error(`${response.status}: request failed`);
-  }
+  const response = await fetchWithFallback(hfMessages, modelEndpoint, apiKey, 0);
   if (!response.body) throw new Error("No response body");
 
   const reader = response.body.getReader();

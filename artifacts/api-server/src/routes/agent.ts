@@ -15,25 +15,40 @@ async function sleepMs(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const AI_CALL_TIMEOUT_MS = 90_000;
+
 async function fetchFeatherless(
   hfMessages: { role: string; content: string }[],
   modelEndpoint: string,
   apiKey: string
 ): Promise<Response> {
+  const timeoutController = new AbortController();
+  const timer = setTimeout(() => timeoutController.abort(), AI_CALL_TIMEOUT_MS);
+
   const fetchOptions: RequestInit & { agent?: unknown } = {
     method: "POST",
     headers: buildPrivacyHeaders(apiKey),
     body: JSON.stringify({ model: modelEndpoint, messages: hfMessages, stream: true }),
+    signal: timeoutController.signal,
   };
   if (isTorReady()) {
     fetchOptions.agent = new SocksProxyAgent(getTorSocksUrl());
   }
 
-  const response = await fetch(FEATHERLESS_API_URL, fetchOptions);
-  if (!response.ok) {
-    throw new Error(`${response.status}: request failed`);
+  try {
+    const response = await fetch(FEATHERLESS_API_URL, fetchOptions);
+    clearTimeout(timer);
+    if (!response.ok) {
+      throw new Error(`${response.status}: request failed`);
+    }
+    return response;
+  } catch (err) {
+    clearTimeout(timer);
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error("AI request timed out after 90 seconds — try again");
+    }
+    throw err;
   }
-  return response;
 }
 
 const router: IRouter = Router();

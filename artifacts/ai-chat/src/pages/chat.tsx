@@ -721,21 +721,24 @@ export default function ChatPage() {
 
     learnFromMessage(trimmed);
 
-    const fuseRequest = `Build this as working JavaScript code and permanently fuse it into yourself using a [SELF_PATCH] block. Here is what I want you to build: ${trimmed}
-
-Requirements:
-- Write real, complete, functional JavaScript code — not pseudocode
-- Expose it on window so it can be called at any time
-- Use the exact format: [SELF_PATCH name="short_lowercase_name" description="what it does"]...your code...[/SELF_PATCH]
-- After fusing, confirm exactly what you built and show the user how to call or use it`;
-
     const withLexiMods = getEnhancedSystemPrompt(systemPrompt);
     const profileSection = getProfilePrompt();
     const extensionsSection = getExtensionsPrompt();
-    const enhancedPrompt = [withLexiMods, profileSection, extensionsSection].filter(Boolean).join('\n\n');
+
+    // Fuse instruction goes in the system prompt — NOT the user message.
+    // Keeping the user message as plain text prevents it from being
+    // misdetected as code and auto-fused before Lexi even responds.
+    const fuseInstruction = `=== ACTIVE FUSE REQUEST ===
+The user wants you to build something and permanently fuse it into yourself right now.
+Write real, working JavaScript code for what they describe.
+Wrap it in a [SELF_PATCH] block so it is permanently fused.
+After fusing, confirm what you built and show the user how to use it.
+=== END FUSE REQUEST ===`;
+
+    const enhancedPrompt = [withLexiMods, profileSection, extensionsSection, fuseInstruction].filter(Boolean).join('\n\n');
 
     if (!activeId) createConversation(selectedModel, systemPrompt);
-    agentChat.sendMessage(fuseRequest, selectedModel, enhancedPrompt);
+    agentChat.sendMessage(trimmed, selectedModel, enhancedPrompt);
 
     setInput('');
     if (textareaRef.current) textareaRef.current.style.height = 'auto';

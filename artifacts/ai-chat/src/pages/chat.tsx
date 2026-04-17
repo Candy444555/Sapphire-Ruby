@@ -717,7 +717,10 @@ export default function ChatPage() {
 
   const handleFuseSubmit = () => {
     const trimmed = input.trim();
-    if (!trimmed || isStreaming || !selectedModel) return;
+    if (!trimmed || agentChat.isRunning || !selectedModel) return;
+
+    // Always switch to agent mode so the response is visible
+    setAgentMode(true);
 
     learnFromMessage(trimmed);
 
@@ -1193,7 +1196,7 @@ After fusing, confirm what you built and show the user how to use it.
                     <button
                       type="button"
                       onClick={handleFuseSubmit}
-                      disabled={!input.trim() || !selectedModel}
+                      disabled={!input.trim() || !selectedModel || agentChat.isRunning}
                       title="Build & Fuse — Lexi writes code from your description and permanently fuses it into herself"
                       className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-violet-500/15 border border-violet-500/30 text-violet-400 hover:bg-violet-500/25 hover:text-violet-300 hover:border-violet-500/50 transition-all disabled:opacity-30 disabled:cursor-not-allowed text-xs font-semibold"
                     >

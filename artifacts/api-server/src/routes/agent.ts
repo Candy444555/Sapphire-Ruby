@@ -161,9 +161,12 @@ function looksLikeCode(content: string): boolean {
     return true;
   }
   FENCED_CODE_REGEX.lastIndex = 0;
-  const lines = content.split("\n");
-  if (lines.length >= 2 && /[{}();=<>]/.test(content)) return true;
-  return /\b(function|const|let|var|class|def|import|from|SELECT|CREATE TABLE|app\.|router\.|useState|document\.|window\.)\b/i.test(content);
+  const lines = content.split("\n").filter((l) => l.trim().length > 0);
+  // Require at least 3 non-empty lines AND a code-structural character
+  if (lines.length >= 3 && /[{}();]/.test(content)) return true;
+  // Strong code keywords with structural markers only (not plain English phrases)
+  if (lines.length >= 2 && /^\s*(function\s+\w+|const\s+\w+\s*=|let\s+\w+\s*=|var\s+\w+\s*=|class\s+\w+|def\s+\w+\(|import\s+\w|from\s+\w+\s+import|SELECT\s+\*|CREATE\s+TABLE)/m.test(content)) return true;
+  return false;
 }
 
 function extractCodeSnippets(content: string): Array<{ code: string; language?: string }> {
@@ -374,10 +377,13 @@ router.post("/agent", async (req: Request, res: Response) => {
         const command = match[1].trim();
         sseWrite(res, { type: "cmd_start", command });
 
-        const session = sessions.get(sessionId!);
+        let session = sessions.get(sessionId!);
         if (!session) {
-          finish("Shell session expired");
-          return;
+          // Session expired — transparently recreate it and continue
+          const newSession = createSession();
+          sessionId = newSession.id;
+          sseWrite(res, { type: "session", sessionId });
+          session = sessions.get(sessionId)!;
         }
 
         let result: { output: string; exitCode: number; cwd: string };

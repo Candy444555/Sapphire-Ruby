@@ -736,6 +736,9 @@ The user wants you to build something and permanently fuse it into yourself righ
 Write real, working JavaScript code for what they describe.
 Wrap it in a [SELF_PATCH] block so it is permanently fused.
 After fusing, confirm what you built and show the user how to use it.
+CRITICAL: Fused extensions run in the BROWSER (window/document context), NOT in bash.
+Do NOT use <cmd> tags to test browser JS — shell commands cannot run browser JavaScript.
+Just write and fuse the code, then explain how the user can call it from the browser console.
 === END FUSE REQUEST ===`;
 
     const enhancedPrompt = [withLexiMods, profileSection, extensionsSection, fuseInstruction].filter(Boolean).join('\n\n');

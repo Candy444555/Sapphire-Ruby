@@ -10,6 +10,7 @@ import vpnRouter from "./vpn";
 import selfPatchRouter from "./self-patch";
 import projectsRouter from "./projects";
 import apkBuildRouter from "./apk-build";
+import uploadRouter from "./upload";
 
 const router: IRouter = Router();
 
@@ -24,5 +25,6 @@ router.use(phoneRouter);
 router.use(selfPatchRouter);
 router.use(projectsRouter);
 router.use(apkBuildRouter);
+router.use(uploadRouter);
 
 export default router;

@@ -5,7 +5,8 @@ import { Link } from 'wouter';
 import {
   Send, Settings2, Trash2, StopCircle,
   Cpu, Sparkles, TerminalSquare,
-  AlertCircle, Plus, MessageSquare, X, Zap, Phone, RefreshCw, Brain, Bot, Bolt, BookOpen, User, FileCode2
+  AlertCircle, Plus, MessageSquare, X, Zap, Phone, RefreshCw, Brain, Bot, Bolt, BookOpen, User, FileCode2,
+  Paperclip, Loader2 as UploadLoader, XCircle
 } from 'lucide-react';
 import { useModels } from '@/hooks/use-models';
 import { useChat } from '@/hooks/use-chat';
@@ -602,7 +603,11 @@ export default function ChatPage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const selfUpdateNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const [attachedFiles, setAttachedFiles] = useState<Array<{ name: string; serverPath: string; size: number }>>([]);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Set default model once models load
   useEffect(() => {
@@ -695,10 +700,31 @@ export default function ChatPage() {
     createConversation(selectedModel, systemPrompt);
   };
 
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setIsUploading(true);
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+      const form = new FormData();
+      form.append('file', file);
+      const res = await fetch(`${base}/api/upload`, { method: 'POST', body: form });
+      if (!res.ok) throw new Error('Upload failed');
+      const data = await res.json();
+      setAttachedFiles((prev) => [...prev, { name: file.name, serverPath: data.path, size: file.size }]);
+    } catch {
+      // silent — user can retry
+    } finally {
+      setIsUploading(false);
+    }
+  }, []);
+
   const handleSubmit = (e?: React.FormEvent) => {
     e?.preventDefault();
     const trimmed = input.trim();
-    if (!trimmed || isStreaming || !selectedModel) return;
+    if (!trimmed && attachedFiles.length === 0) return;
+    if (isStreaming || !selectedModel) return;
 
     // Learn from the user's message — Lexi adapts to how they talk
     learnFromMessage(trimmed);
@@ -720,15 +746,25 @@ export default function ChatPage() {
 
     const shouldUseAgent = agentMode;
 
+    // Append uploaded file paths so Lexi can access them from the shell
+    let messageWithFiles = trimmed;
+    if (attachedFiles.length > 0) {
+      const fileLines = attachedFiles.map(f => `  - ${f.name} → ${f.serverPath}`).join('\n');
+      messageWithFiles = trimmed
+        ? `${trimmed}\n\n[Attached files — accessible on disk:]\n${fileLines}`
+        : `[Attached files — accessible on disk:]\n${fileLines}`;
+      setAttachedFiles([]);
+    }
+
     if (shouldUseAgent) {
       if (pendingInputMsg) {
-        agentChat.replyToInputRequest(trimmed, selectedModel, enhancedPrompt);
+        agentChat.replyToInputRequest(messageWithFiles, selectedModel, enhancedPrompt);
       } else {
-        agentChat.sendMessage(trimmed, selectedModel, enhancedPrompt);
+        agentChat.sendMessage(messageWithFiles, selectedModel, enhancedPrompt);
       }
     } else {
       if (!activeId) createConversation(selectedModel, systemPrompt);
-      regularChat.sendMessage(trimmed, selectedModel, enhancedPrompt);
+      regularChat.sendMessage(messageWithFiles, selectedModel, enhancedPrompt);
     }
 
     setInput('');
@@ -1229,6 +1265,25 @@ Just write and fuse the code, then explain how the user can call it from the bro
                 </motion.div>
               )}
             </AnimatePresence>
+            {/* Attached files chips */}
+            {attachedFiles.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2">
+                {attachedFiles.map((f, i) => (
+                  <div key={i} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-primary/10 border border-primary/30 text-xs text-primary font-mono">
+                    <Paperclip className="w-3 h-3 shrink-0" />
+                    <span className="truncate max-w-[160px]">{f.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setAttachedFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                      className="ml-0.5 hover:text-destructive transition-colors"
+                    >
+                      <XCircle className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <form
               onSubmit={handleSubmit}
               className={cn(
@@ -1238,6 +1293,12 @@ Just write and fuse the code, then explain how the user can call it from the bro
                   : "border-border focus-within:border-primary/50 focus-within:ring-primary/10"
               )}
             >
+              <input
+                ref={fileInputRef}
+                type="file"
+                className="hidden"
+                onChange={handleFileChange}
+              />
               <textarea
                 ref={textareaRef}
                 value={input}
@@ -1267,6 +1328,19 @@ Just write and fuse the code, then explain how the user can call it from the bro
                   <>
                     <button
                       type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isUploading || isStreaming}
+                      title="Attach a file — Lexi will be able to access it from the shell"
+                      className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-white/10 transition-colors disabled:opacity-40"
+                    >
+                      {isUploading ? (
+                        <UploadLoader className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Paperclip className="w-4 h-4" />
+                      )}
+                    </button>
+                    <button
+                      type="button"
                       onClick={handleFuseSubmit}
                       disabled={!input.trim() || !selectedModel || agentChat.isRunning}
                       title="Build & Fuse — Lexi writes code from your description and permanently fuses it into herself"
@@ -1277,7 +1351,7 @@ Just write and fuse the code, then explain how the user can call it from the bro
                     </button>
                     <button
                       type="submit"
-                      disabled={!input.trim() || !selectedModel}
+                      disabled={(!input.trim() && attachedFiles.length === 0) || !selectedModel}
                       className="p-2 rounded-xl bg-primary text-primary-foreground shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/40 hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50 disabled:transform-none disabled:hover:shadow-none"
                     >
                       <Send className="w-5 h-5" />

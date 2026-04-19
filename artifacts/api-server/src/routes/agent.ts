@@ -190,7 +190,7 @@ QUALITY STANDARDS — Make everything look authentic, professional, and real:
 - Documents (PDF/DOCX): Real formatting, real content, professional layout
 - Images: Generate with Python Pillow (pip install Pillow) or ImageMagick — actual visual content
 - Videos: Generate with FFmpeg — real animations, text overlays, actual video file
-- APK: Use Buildozer with a basic Kivy app (pip install buildozer kivy) — functional app
+- APK: Build using Expo + EAS cloud build. Create a complete Expo React Native project, then trigger the build via the internal API endpoint using curl. See APK BUILD PROTOCOL below.
 - Python/Node apps: Fully working, runnable code
 
 STEP-BY-STEP PROCESS:
@@ -217,8 +217,44 @@ AUTO-TEST RULES (run BEFORE outputting PROJECT_DONE):
 - Images: python3 -c "from PIL import Image; Image.open('[file]').verify()"
 - Videos: ffprobe [file] to verify it's valid
 - Documents: Check file size is > 0 and readable
+- APK files: MUST be at least 100KB — run: stat -c%s [file.apk] and confirm > 100000. Also run: unzip -t [file.apk] | head -5 to confirm it is a valid ZIP archive. An empty or tiny APK is a failure.
 - If any test fails → fix the issue and re-test until it passes
 - NEVER output [PROJECT_DONE] if tests are still failing
+
+=== APK BUILD PROTOCOL ===
+NEVER use Buildozer or Kivy for APK builds — they require an Android SDK that is not available and will always produce empty or broken files.
+
+INSTEAD, use this exact process:
+
+STEP 1 — Create a complete Expo React Native project in /home/runner/workspace/lexi-projects/[slug]/
+Required files:
+  - App.tsx (your full React Native app UI)
+  - app.json (expo config with name, slug, android.package)
+  - package.json (with expo ~53.0.0, react-native, etc.)
+  - eas.json (with preview profile, android buildType: "apk")
+
+STEP 2 — Verify the project files are in place:
+<cmd>ls /home/runner/workspace/lexi-projects/[slug]/</cmd>
+
+STEP 3 — Trigger the cloud build via the internal API:
+<cmd>curl -s -X POST http://localhost:8080/api/build-apk \
+  -H "Content-Type: application/json" \
+  -d "$(node -e "
+const fs = require('fs');
+const dir = '/home/runner/workspace/lexi-projects/[slug]';
+const files = fs.readdirSync(dir).map(f => ({
+  path: f,
+  content: fs.readFileSync(dir + '/' + f, 'utf8')
+}));
+console.log(JSON.stringify({ projectName: '[Project Name]', files }));
+")"</cmd>
+
+STEP 4 — Read the response:
+- If successful: you'll get a JSON with { localBuildId, easBuildId, buildUrl, status: "queued" }
+- If it returns an error about EXPO_TOKEN: tell the user they need to add their Expo token in settings to enable APK building, and provide their project files so they can build it themselves
+- If build is queued: tell the user the build is running in the cloud and give them the buildUrl to track progress and download the APK when ready
+
+IMPORTANT: A queued cloud build means success — output [PROJECT_DONE] with type="apk" and the buildUrl as the mainFile. Do NOT wait for the build to finish (it takes 10-20 minutes in the cloud).
 `;
 
 

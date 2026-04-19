@@ -4,6 +4,7 @@ title = "Lexi - AI Phone Assistant"
 version = "1.0.0"
 id = "artifacts/lexi-mobile"
 router = "expo-domain"
+hideBadge = true
 
 [[integratedSkills]]
 name = "expo"

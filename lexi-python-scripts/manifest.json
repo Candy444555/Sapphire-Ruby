@@ -1,0 +1,14 @@
+{
+  "lexi_app": {
+    "slug": "lexi_app",
+    "description": "Kivy app that runs Lexi's code",
+    "filePath": "/home/runner/workspace/lexi-python-scripts/lexi_app.py",
+    "addedAt": "2026-04-19T20:44:03.484Z"
+  },
+  "apk_generator": {
+    "slug": "apk_generator",
+    "description": "Python code that generates the APK file",
+    "filePath": "/home/runner/workspace/lexi-python-scripts/apk_generator.py",
+    "addedAt": "2026-04-19T20:44:49.240Z"
+  }
+}

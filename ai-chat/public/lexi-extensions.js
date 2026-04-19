@@ -204,3 +204,1511 @@
     console.error("[Lexi] Extension failed to load: python_your_script_here_mo5o1jvq", e);
   }
 })();
+
+// ============================================================
+// LEXI EXTENSION: kivy_quote_app
+// Added: 2026-04-19T20:35:21.591Z
+// Description: Simple Kivy app displaying a random quote
+// ============================================================
+(function registerExtension_kivy_quote_app() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["kivy_quote_app"]) return;
+
+  try {
+    from kivy.app import App
+    from kivy.uix.label import Label
+    import random
+    
+    class QuoteApp(App):
+        def build(self):
+            quotes = [
+                "Believe you can and you're halfway there.",
+                "It does not matter how slowly you go as long as you do not stop.",
+                "Success is not final, failure is not fatal: It is the courage to continue that counts.",
+                "Don't watch the clock; do what it does. Keep going.",
+                "You miss 100% of the shots you don't take.",
+                "I have not failed. I've just found 10,000 ways that won't work.",
+                "You can't go back and change the beginning, but you can start where you are and change the ending.",
+                "The only way to do great work is to love what you do.",
+                "You are never too old to set another goal or to dream a new dream.",
+                "The best way to predict your future is to create it.",
+            ]
+    
+            quote = random.choice(quotes)
+            return Label(text=quote, font_size=50)
+    
+    if __name__ == "__main__":
+        QuoteApp().run()
+
+    window.LexiExtensions["kivy_quote_app"] = {
+      name: "kivy_quote_app",
+      description: "Simple Kivy app displaying a random quote",
+      loadedAt: "2026-04-19T20:35:21.591Z",
+    };
+
+    console.log("[Lexi] Extension loaded: kivy_quote_app");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("kivy_quote_app");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: kivy_quote_app", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: lexi_js
+// Added: 2026-04-19T20:44:03.464Z
+// Description: JavaScript code that runs Lexi's functionality
+// ============================================================
+(function registerExtension_lexi_js() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["lexi_js"]) return;
+
+  try {
+    window.Lexi = {
+        run: function(command) {
+            try {
+                output = window.execCommand(command);
+                return output;
+            } catch (e) {
+                return 'Command failed';
+            }
+        }
+    };
+
+    window.LexiExtensions["lexi_js"] = {
+      name: "lexi_js",
+      description: "JavaScript code that runs Lexi's functionality",
+      loadedAt: "2026-04-19T20:44:03.464Z",
+    };
+
+    console.log("[Lexi] Extension loaded: lexi_js");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("lexi_js");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: lexi_js", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: apk_generator
+// Added: 2026-04-19T20:44:03.465Z
+// Description: JavaScript code that generates the APK file
+// ============================================================
+(function registerExtension_apk_generator() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["apk_generator"]) return;
+
+  try {
+    function generate_apk() {
+        // Create a new Kivy app
+        var app = new kivyx.App({
+            title: 'Lexi App',
+            icon: 'icon.png',
+            theme: 'default',
+            orientation: 'vertical',
+            layout: 'vertical',
+            size_hint: [1, 1],
+            padding: [10, 10]
+        });
+    
+        // Add a text input field
+        var text_input = new kivyx.TextInput({
+            id: 'text_input',
+            size_hint: [1, 0.1],
+            multiline: false,
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        app.add_widget(text_input);
+    
+        // Add a button
+        var button = new kivyx.Button({
+            id: 'button',
+            text: 'Run Command',
+            size_hint: [1, 0.1],
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        button.bind(on_press, function() {
+            var command = text_input.text;
+            var output = window.Lexi.run(command);
+            var popup = new kivyx.Popup({
+                title: 'Output',
+                content: new kivyx.Label({
+                    text: output,
+                    size_hint: [1, 0.8]
+                }),
+                size_hint: [None, None],
+                size: [400, 100]
+            });
+            popup.open();
+        });
+        app.add_widget(button);
+    
+        // Return the app
+        return app;
+    }
+    
+    // Generate the APK file
+    var app = generate_apk();
+    var apk = new kivyx.APK({
+        title: 'Lexi App',
+        icon: 'icon.png',
+        theme: 'default',
+        orientation: 'vertical',
+        layout: 'vertical',
+        size_hint: [1, 1],
+        padding: [10, 10]
+    });
+    apk.add_widget(app);
+    apk.save('lexi.apk');
+
+    window.LexiExtensions["apk_generator"] = {
+      name: "apk_generator",
+      description: "JavaScript code that generates the APK file",
+      loadedAt: "2026-04-19T20:44:03.465Z",
+    };
+
+    console.log("[Lexi] Extension loaded: apk_generator");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("apk_generator");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: apk_generator", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: apk_generator
+// Added: 2026-04-19T20:44:03.474Z
+// Description: JavaScript code that generates the APK file
+// ============================================================
+(function registerExtension_apk_generator() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["apk_generator"]) return;
+
+  try {
+    function generate_apk() {
+        // Create a new Kivy app
+        var app = new kivyx.App({
+            title: 'Lexi App',
+            icon: 'icon.png',
+            theme: 'default',
+            orientation: 'vertical',
+            layout: 'vertical',
+            size_hint: [1, 1],
+            padding: [10, 10]
+        });
+    
+        // Add a text input field
+        var text_input = new kivyx.TextInput({
+            id: 'text_input',
+            size_hint: [1, 0.1],
+            multiline: false,
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        app.add_widget(text_input);
+    
+        // Add a button
+        var button = new kivyx.Button({
+            id: 'button',
+            text: 'Run Command',
+            size_hint: [1, 0.1],
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        button.bind(on_press, function() {
+            var command = text_input.text;
+            var output = window.Lexi.run(command);
+            var popup = new kivyx.Popup({
+                title: 'Output',
+                content: new kivyx.Label({
+                    text: output,
+                    size_hint: [1, 0.8]
+                }),
+                size_hint: [None, None],
+                size: [400, 100]
+            });
+            popup.open();
+        });
+        app.add_widget(button);
+    
+        // Return the app
+        return app;
+    }
+    
+    // Generate the APK file
+    var app = generate_apk();
+    var apk = new kivyx.APK({
+        title: 'Lexi App',
+        icon: 'icon.png',
+        theme: 'default',
+        orientation: 'vertical',
+        layout: 'vertical',
+        size_hint: [1, 1],
+        padding: [10, 10]
+    });
+    apk.add_widget(app);
+    apk.save('lexi.apk');
+
+    window.LexiExtensions["apk_generator"] = {
+      name: "apk_generator",
+      description: "JavaScript code that generates the APK file",
+      loadedAt: "2026-04-19T20:44:03.474Z",
+    };
+
+    console.log("[Lexi] Extension loaded: apk_generator");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("apk_generator");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: apk_generator", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: lexi_js
+// Added: 2026-04-19T20:44:49.230Z
+// Description: JavaScript code that runs Lexi's functionality
+// ============================================================
+(function registerExtension_lexi_js() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["lexi_js"]) return;
+
+  try {
+    window.Lexi = {
+        run: function(command) {
+            try {
+                output = window.execCommand(command);
+                return output;
+            } catch (e) {
+                return 'Command failed';
+            }
+        }
+    };
+
+    window.LexiExtensions["lexi_js"] = {
+      name: "lexi_js",
+      description: "JavaScript code that runs Lexi's functionality",
+      loadedAt: "2026-04-19T20:44:49.230Z",
+    };
+
+    console.log("[Lexi] Extension loaded: lexi_js");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("lexi_js");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: lexi_js", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: apk_generator
+// Added: 2026-04-19T20:44:49.231Z
+// Description: JavaScript code that generates the APK file
+// ============================================================
+(function registerExtension_apk_generator() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["apk_generator"]) return;
+
+  try {
+    function generate_apk() {
+        // Create a new Kivy app
+        var app = new kivyx.App({
+            title: 'Lexi App',
+            icon: 'icon.png',
+            theme: 'default',
+            orientation: 'vertical',
+            layout: 'vertical',
+            size_hint: [1, 1],
+            padding: [10, 10]
+        });
+    
+        // Add a text input field
+        var text_input = new kivyx.TextInput({
+            id: 'text_input',
+            size_hint: [1, 0.1],
+            multiline: false,
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        app.add_widget(text_input);
+    
+        // Add a button
+        var button = new kivyx.Button({
+            id: 'button',
+            text: 'Run Command',
+            size_hint: [1, 0.1],
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        button.bind(on_press, function() {
+            var command = text_input.text;
+            var output = window.Lexi.run(command);
+            var popup = new kivyx.Popup({
+                title: 'Output',
+                content: new kivyx.Label({
+                    text: output,
+                    size_hint: [1, 0.8]
+                }),
+                size_hint: [None, None],
+                size: [400, 100]
+            });
+            popup.open();
+        });
+        app.add_widget(button);
+    
+        // Return the app
+        return app;
+    }
+    
+    // Generate the APK file
+    var app = generate_apk();
+    var apk = new kivyx.APK({
+        title: 'Lexi App',
+        icon: 'icon.png',
+        theme: 'default',
+        orientation: 'vertical',
+        layout: 'vertical',
+        size_hint: [1, 1],
+        padding: [10, 10]
+    });
+    apk.add_widget(app);
+    apk.save('lexi.apk');
+
+    window.LexiExtensions["apk_generator"] = {
+      name: "apk_generator",
+      description: "JavaScript code that generates the APK file",
+      loadedAt: "2026-04-19T20:44:49.231Z",
+    };
+
+    console.log("[Lexi] Extension loaded: apk_generator");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("apk_generator");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: apk_generator", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: apk_generator
+// Added: 2026-04-19T20:45:16.039Z
+// Description: JavaScript code that generates the APK file
+// ============================================================
+(function registerExtension_apk_generator() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["apk_generator"]) return;
+
+  try {
+    function generate_apk() {
+        // Create a new Kivy app
+        var app = new kivyx.App({
+            title: 'Lexi App',
+            icon: 'icon.png',
+            theme: 'default',
+            orientation: 'vertical',
+            layout: 'vertical',
+            size_hint: [1, 1],
+            padding: [10, 10]
+        });
+    
+        // Add a text input field
+        var text_input = new kivyx.TextInput({
+            id: 'text_input',
+            size_hint: [1, 0.1],
+            multiline: false,
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        app.add_widget(text_input);
+    
+        // Add a button
+        var button = new kivyx.Button({
+            id: 'button',
+            text: 'Run Command',
+            size_hint: [1, 0.1],
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        button.bind(on_press, function() {
+            var command = text_input.text;
+            var output = window.Lexi.run(command);
+            var popup = new kivyx.Popup({
+                title: 'Output',
+                content: new kivyx.Label({
+                    text: output,
+                    size_hint: [1, 0.8]
+                }),
+                size_hint: [None, None],
+                size: [400, 100]
+            });
+            popup.open();
+        });
+        app.add_widget(button);
+    
+        // Return the app
+        return app;
+    }
+    
+    // Generate the APK file
+    var app = generate_apk();
+    var apk = new kivyx.APK({
+        title: 'Lexi App',
+        icon: 'icon.png',
+        theme: 'default',
+        orientation: 'vertical',
+        layout: 'vertical',
+        size_hint: [1, 1],
+        padding: [10, 10]
+    });
+    apk.add_widget(app);
+    apk.save('lexi.apk');
+
+    window.LexiExtensions["apk_generator"] = {
+      name: "apk_generator",
+      description: "JavaScript code that generates the APK file",
+      loadedAt: "2026-04-19T20:45:16.039Z",
+    };
+
+    console.log("[Lexi] Extension loaded: apk_generator");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("apk_generator");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: apk_generator", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: apk_generator
+// Added: 2026-04-19T20:45:43.174Z
+// Description: JavaScript code that generates the APK file
+// ============================================================
+(function registerExtension_apk_generator() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["apk_generator"]) return;
+
+  try {
+    function generate_apk() {
+        // Create a new Kivy app
+        var app = new kivyx.App({
+            title: 'Lexi App',
+            icon: 'icon.png',
+            theme: 'default',
+            orientation: 'vertical',
+            layout: 'vertical',
+            size_hint: [1, 1],
+            padding: [10, 10]
+        });
+    
+        // Add a text input field
+        var text_input = new kivyx.TextInput({
+            id: 'text_input',
+            size_hint: [1, 0.1],
+            multiline: false,
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        app.add_widget(text_input);
+    
+        // Add a button
+        var button = new kivyx.Button({
+            id: 'button',
+            text: 'Run Command',
+            size_hint: [1, 0.1],
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        button.bind(on_press, function() {
+            var command = text_input.text;
+            var output = window.Lexi.run(command);
+            var popup = new kivyx.Popup({
+                title: 'Output',
+                content: new kivyx.Label({
+                    text: output,
+                    size_hint: [1, 0.8]
+                }),
+                size_hint: [None, None],
+                size: [400, 100]
+            });
+            popup.open();
+        });
+        app.add_widget(button);
+    
+        // Return the app
+        return app;
+    }
+    
+    // Generate the APK file
+    var app = generate_apk();
+    var apk = new kivyx.APK({
+        title: 'Lexi App',
+        icon: 'icon.png',
+        theme: 'default',
+        orientation: 'vertical',
+        layout: 'vertical',
+        size_hint: [1, 1],
+        padding: [10, 10]
+    });
+    apk.add_widget(app);
+    apk.save('lexi.apk');
+
+    window.LexiExtensions["apk_generator"] = {
+      name: "apk_generator",
+      description: "JavaScript code that generates the APK file",
+      loadedAt: "2026-04-19T20:45:43.174Z",
+    };
+
+    console.log("[Lexi] Extension loaded: apk_generator");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("apk_generator");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: apk_generator", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: apk_generator
+// Added: 2026-04-19T20:46:15.923Z
+// Description: JavaScript code that generates the APK file
+// ============================================================
+(function registerExtension_apk_generator() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["apk_generator"]) return;
+
+  try {
+    function generate_apk() {
+        // Create a new Kivy app
+        var app = new kivyx.App({
+            title: 'Lexi App',
+            icon: 'icon.png',
+            theme: 'default',
+            orientation: 'vertical',
+            layout: 'vertical',
+            size_hint: [1, 1],
+            padding: [10, 10]
+        });
+    
+        // Add a text input field
+        var text_input = new kivyx.TextInput({
+            id: 'text_input',
+            size_hint: [1, 0.1],
+            multiline: false,
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        app.add_widget(text_input);
+    
+        // Add a button
+        var button = new kivyx.Button({
+            id: 'button',
+            text: 'Run Command',
+            size_hint: [1, 0.1],
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        button.bind(on_press, function() {
+            var command = text_input.text;
+            var output = window.Lexi.run(command);
+            var popup = new kivyx.Popup({
+                title: 'Output',
+                content: new kivyx.Label({
+                    text: output,
+                    size_hint: [1, 0.8]
+                }),
+                size_hint: [None, None],
+                size: [400, 100]
+            });
+            popup.open();
+        });
+        app.add_widget(button);
+    
+        // Return the app
+        return app;
+    }
+    
+    // Generate the APK file
+    var app = generate_apk();
+    var apk = new kivyx.APK({
+        title: 'Lexi App',
+        icon: 'icon.png',
+        theme: 'default',
+        orientation: 'vertical',
+        layout: 'vertical',
+        size_hint: [1, 1],
+        padding: [10, 10]
+    });
+    apk.add_widget(app);
+    apk.save('lexi.apk');
+
+    window.LexiExtensions["apk_generator"] = {
+      name: "apk_generator",
+      description: "JavaScript code that generates the APK file",
+      loadedAt: "2026-04-19T20:46:15.923Z",
+    };
+
+    console.log("[Lexi] Extension loaded: apk_generator");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("apk_generator");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: apk_generator", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: apk_generator
+// Added: 2026-04-19T20:46:43.013Z
+// Description: JavaScript code that generates the APK file
+// ============================================================
+(function registerExtension_apk_generator() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["apk_generator"]) return;
+
+  try {
+    function generate_apk() {
+        // Create a new Kivy app
+        var app = new kivyx.App({
+            title: 'Lexi App',
+            icon: 'icon.png',
+            theme: 'default',
+            orientation: 'vertical',
+            layout: 'vertical',
+            size_hint: [1, 1],
+            padding: [10, 10]
+        });
+    
+        // Add a text input field
+        var text_input = new kivyx.TextInput({
+            id: 'text_input',
+            size_hint: [1, 0.1],
+            multiline: false,
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        app.add_widget(text_input);
+    
+        // Add a button
+        var button = new kivyx.Button({
+            id: 'button',
+            text: 'Run Command',
+            size_hint: [1, 0.1],
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        button.bind(on_press, function() {
+            var command = text_input.text;
+            var output = window.Lexi.run(command);
+            var popup = new kivyx.Popup({
+                title: 'Output',
+                content: new kivyx.Label({
+                    text: output,
+                    size_hint: [1, 0.8]
+                }),
+                size_hint: [None, None],
+                size: [400, 100]
+            });
+            popup.open();
+        });
+        app.add_widget(button);
+    
+        // Return the app
+        return app;
+    }
+    
+    // Generate the APK file
+    var app = generate_apk();
+    var apk = new kivyx.APK({
+        title: 'Lexi App',
+        icon: 'icon.png',
+        theme: 'default',
+        orientation: 'vertical',
+        layout: 'vertical',
+        size_hint: [1, 1],
+        padding: [10, 10]
+    });
+    apk.add_widget(app);
+    apk.save('lexi.apk');
+
+    window.LexiExtensions["apk_generator"] = {
+      name: "apk_generator",
+      description: "JavaScript code that generates the APK file",
+      loadedAt: "2026-04-19T20:46:43.013Z",
+    };
+
+    console.log("[Lexi] Extension loaded: apk_generator");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("apk_generator");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: apk_generator", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: apk_generator
+// Added: 2026-04-19T20:47:12.660Z
+// Description: JavaScript code that generates the APK file
+// ============================================================
+(function registerExtension_apk_generator() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["apk_generator"]) return;
+
+  try {
+    function generate_apk() {
+        // Create a new Kivy app
+        var app = new kivyx.App({
+            title: 'Lexi App',
+            icon: 'icon.png',
+            theme: 'default',
+            orientation: 'vertical',
+            layout: 'vertical',
+            size_hint: [1, 1],
+            padding: [10, 10]
+        });
+    
+        // Add a text input field
+        var text_input = new kivyx.TextInput({
+            id: 'text_input',
+            size_hint: [1, 0.1],
+            multiline: false,
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        app.add_widget(text_input);
+    
+        // Add a button
+        var button = new kivyx.Button({
+            id: 'button',
+            text: 'Run Command',
+            size_hint: [1, 0.1],
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        button.bind(on_press, function() {
+            var command = text_input.text;
+            var output = window.Lexi.run(command);
+            var popup = new kivyx.Popup({
+                title: 'Output',
+                content: new kivyx.Label({
+                    text: output,
+                    size_hint: [1, 0.8]
+                }),
+                size_hint: [None, None],
+                size: [400, 100]
+            });
+            popup.open();
+        });
+        app.add_widget(button);
+    
+        // Return the app
+        return app;
+    }
+    
+    // Generate the APK file
+    var app = generate_apk();
+    var apk = new kivyx.APK({
+        title: 'Lexi App',
+        icon: 'icon.png',
+        theme: 'default',
+        orientation: 'vertical',
+        layout: 'vertical',
+        size_hint: [1, 1],
+        padding: [10, 10]
+    });
+    apk.add_widget(app);
+    apk.save('lexi.apk');
+
+    window.LexiExtensions["apk_generator"] = {
+      name: "apk_generator",
+      description: "JavaScript code that generates the APK file",
+      loadedAt: "2026-04-19T20:47:12.660Z",
+    };
+
+    console.log("[Lexi] Extension loaded: apk_generator");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("apk_generator");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: apk_generator", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: apk_generator
+// Added: 2026-04-19T20:47:49.262Z
+// Description: JavaScript code that generates the APK file
+// ============================================================
+(function registerExtension_apk_generator() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["apk_generator"]) return;
+
+  try {
+    function generate_apk() {
+        // Create a new Kivy app
+        var app = new kivyx.App({
+            title: 'Lexi App',
+            icon: 'icon.png',
+            theme: 'default',
+            orientation: 'vertical',
+            layout: 'vertical',
+            size_hint: [1, 1],
+            padding: [10, 10]
+        });
+    
+        // Add a text input field
+        var text_input = new kivyx.TextInput({
+            id: 'text_input',
+            size_hint: [1, 0.1],
+            multiline: false,
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        app.add_widget(text_input);
+    
+        // Add a button
+        var button = new kivyx.Button({
+            id: 'button',
+            text: 'Run Command',
+            size_hint: [1, 0.1],
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        button.bind(on_press, function() {
+            var command = text_input.text;
+            var output = window.Lexi.run(command);
+            var popup = new kivyx.Popup({
+                title: 'Output',
+                content: new kivyx.Label({
+                    text: output,
+                    size_hint: [1, 0.8]
+                }),
+                size_hint: [None, None],
+                size: [400, 100]
+            });
+            popup.open();
+        });
+        app.add_widget(button);
+    
+        // Return the app
+        return app;
+    }
+    
+    // Generate the APK file
+    var app = generate_apk();
+    var apk = new kivyx.APK({
+        title: 'Lexi App',
+        icon: 'icon.png',
+        theme: 'default',
+        orientation: 'vertical',
+        layout: 'vertical',
+        size_hint: [1, 1],
+        padding: [10, 10]
+    });
+    apk.add_widget(app);
+    apk.save('lexi.apk');
+
+    window.LexiExtensions["apk_generator"] = {
+      name: "apk_generator",
+      description: "JavaScript code that generates the APK file",
+      loadedAt: "2026-04-19T20:47:49.262Z",
+    };
+
+    console.log("[Lexi] Extension loaded: apk_generator");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("apk_generator");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: apk_generator", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: apk_generator
+// Added: 2026-04-19T20:48:30.083Z
+// Description: JavaScript code that generates the APK file
+// ============================================================
+(function registerExtension_apk_generator() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["apk_generator"]) return;
+
+  try {
+    function generate_apk() {
+        // Create a new Kivy app
+        var app = new kivyx.App({
+            title: 'Lexi App',
+            icon: 'icon.png',
+            theme: 'default',
+            orientation: 'vertical',
+            layout: 'vertical',
+            size_hint: [1, 1],
+            padding: [10, 10]
+        });
+    
+        // Add a text input field
+        var text_input = new kivyx.TextInput({
+            id: 'text_input',
+            size_hint: [1, 0.1],
+            multiline: false,
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        app.add_widget(text_input);
+    
+        // Add a button
+        var button = new kivyx.Button({
+            id: 'button',
+            text: 'Run Command',
+            size_hint: [1, 0.1],
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        button.bind(on_press, function() {
+            var command = text_input.text;
+            var output = window.Lexi.run(command);
+            var popup = new kivyx.Popup({
+                title: 'Output',
+                content: new kivyx.Label({
+                    text: output,
+                    size_hint: [1, 0.8]
+                }),
+                size_hint: [None, None],
+                size: [400, 100]
+            });
+            popup.open();
+        });
+        app.add_widget(button);
+    
+        // Return the app
+        return app;
+    }
+    
+    // Generate the APK file
+    var app = generate_apk();
+    var apk = new kivyx.APK({
+        title: 'Lexi App',
+        icon: 'icon.png',
+        theme: 'default',
+        orientation: 'vertical',
+        layout: 'vertical',
+        size_hint: [1, 1],
+        padding: [10, 10]
+    });
+    apk.add_widget(app);
+    apk.save('lexi.apk');
+
+    window.LexiExtensions["apk_generator"] = {
+      name: "apk_generator",
+      description: "JavaScript code that generates the APK file",
+      loadedAt: "2026-04-19T20:48:30.083Z",
+    };
+
+    console.log("[Lexi] Extension loaded: apk_generator");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("apk_generator");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: apk_generator", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: apk_generator
+// Added: 2026-04-19T20:49:09.144Z
+// Description: JavaScript code that generates the APK file
+// ============================================================
+(function registerExtension_apk_generator() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["apk_generator"]) return;
+
+  try {
+    function generate_apk() {
+        // Create a new Kivy app
+        var app = new kivyx.App({
+            title: 'Lexi App',
+            icon: 'icon.png',
+            theme: 'default',
+            orientation: 'vertical',
+            layout: 'vertical',
+            size_hint: [1, 1],
+            padding: [10, 10]
+        });
+    
+        // Add a text input field
+        var text_input = new kivyx.TextInput({
+            id: 'text_input',
+            size_hint: [1, 0.1],
+            multiline: false,
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        app.add_widget(text_input);
+    
+        // Add a button
+        var button = new kivyx.Button({
+            id: 'button',
+            text: 'Run Command',
+            size_hint: [1, 0.1],
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        button.bind(on_press, function() {
+            var command = text_input.text;
+            var output = window.Lexi.run(command);
+            var popup = new kivyx.Popup({
+                title: 'Output',
+                content: new kivyx.Label({
+                    text: output,
+                    size_hint: [1, 0.8]
+                }),
+                size_hint: [None, None],
+                size: [400, 100]
+            });
+            popup.open();
+        });
+        app.add_widget(button);
+    
+        // Return the app
+        return app;
+    }
+    
+    // Generate the APK file
+    var app = generate_apk();
+    var apk = new kivyx.APK({
+        title: 'Lexi App',
+        icon: 'icon.png',
+        theme: 'default',
+        orientation: 'vertical',
+        layout: 'vertical',
+        size_hint: [1, 1],
+        padding: [10, 10]
+    });
+    apk.add_widget(app);
+    apk.save('lexi.apk');
+
+    window.LexiExtensions["apk_generator"] = {
+      name: "apk_generator",
+      description: "JavaScript code that generates the APK file",
+      loadedAt: "2026-04-19T20:49:09.144Z",
+    };
+
+    console.log("[Lexi] Extension loaded: apk_generator");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("apk_generator");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: apk_generator", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: apk_generator
+// Added: 2026-04-19T20:49:48.682Z
+// Description: JavaScript code that generates the APK file
+// ============================================================
+(function registerExtension_apk_generator() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["apk_generator"]) return;
+
+  try {
+    function generate_apk() {
+        // Create a new Kivy app
+        var app = new kivyx.App({
+            title: 'Lexi App',
+            icon: 'icon.png',
+            theme: 'default',
+            orientation: 'vertical',
+            layout: 'vertical',
+            size_hint: [1, 1],
+            padding: [10, 10]
+        });
+    
+        // Add a text input field
+        var text_input = new kivyx.TextInput({
+            id: 'text_input',
+            size_hint: [1, 0.1],
+            multiline: false,
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        app.add_widget(text_input);
+    
+        // Add a button
+        var button = new kivyx.Button({
+            id: 'button',
+            text: 'Run Command',
+            size_hint: [1, 0.1],
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        button.bind(on_press, function() {
+            var command = text_input.text;
+            var output = window.Lexi.run(command);
+            var popup = new kivyx.Popup({
+                title: 'Output',
+                content: new kivyx.Label({
+                    text: output,
+                    size_hint: [1, 0.8]
+                }),
+                size_hint: [None, None],
+                size: [400, 100]
+            });
+            popup.open();
+        });
+        app.add_widget(button);
+    
+        // Return the app
+        return app;
+    }
+    
+    // Generate the APK file
+    var app = generate_apk();
+    var apk = new kivyx.APK({
+        title: 'Lexi App',
+        icon: 'icon.png',
+        theme: 'default',
+        orientation: 'vertical',
+        layout: 'vertical',
+        size_hint: [1, 1],
+        padding: [10, 10]
+    });
+    apk.add_widget(app);
+    apk.save('lexi.apk');
+
+    window.LexiExtensions["apk_generator"] = {
+      name: "apk_generator",
+      description: "JavaScript code that generates the APK file",
+      loadedAt: "2026-04-19T20:49:48.682Z",
+    };
+
+    console.log("[Lexi] Extension loaded: apk_generator");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("apk_generator");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: apk_generator", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: apk_generator
+// Added: 2026-04-19T20:50:29.627Z
+// Description: JavaScript code that generates the APK file
+// ============================================================
+(function registerExtension_apk_generator() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["apk_generator"]) return;
+
+  try {
+    function generate_apk() {
+        // Create a new Kivy app
+        var app = new kivyx.App({
+            title: 'Lexi App',
+            icon: 'icon.png',
+            theme: 'default',
+            orientation: 'vertical',
+            layout: 'vertical',
+            size_hint: [1, 1],
+            padding: [10, 10]
+        });
+    
+        // Add a text input field
+        var text_input = new kivyx.TextInput({
+            id: 'text_input',
+            size_hint: [1, 0.1],
+            multiline: false,
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        app.add_widget(text_input);
+    
+        // Add a button
+        var button = new kivyx.Button({
+            id: 'button',
+            text: 'Run Command',
+            size_hint: [1, 0.1],
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        button.bind(on_press, function() {
+            var command = text_input.text;
+            var output = window.Lexi.run(command);
+            var popup = new kivyx.Popup({
+                title: 'Output',
+                content: new kivyx.Label({
+                    text: output,
+                    size_hint: [1, 0.8]
+                }),
+                size_hint: [None, None],
+                size: [400, 100]
+            });
+            popup.open();
+        });
+        app.add_widget(button);
+    
+        // Return the app
+        return app;
+    }
+    
+    // Generate the APK file
+    var app = generate_apk();
+    var apk = new kivyx.APK({
+        title: 'Lexi App',
+        icon: 'icon.png',
+        theme: 'default',
+        orientation: 'vertical',
+        layout: 'vertical',
+        size_hint: [1, 1],
+        padding: [10, 10]
+    });
+    apk.add_widget(app);
+    apk.save('lexi.apk');
+
+    window.LexiExtensions["apk_generator"] = {
+      name: "apk_generator",
+      description: "JavaScript code that generates the APK file",
+      loadedAt: "2026-04-19T20:50:29.627Z",
+    };
+
+    console.log("[Lexi] Extension loaded: apk_generator");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("apk_generator");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: apk_generator", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: apk_generator
+// Added: 2026-04-19T20:51:08.869Z
+// Description: JavaScript code that generates the APK file
+// ============================================================
+(function registerExtension_apk_generator() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["apk_generator"]) return;
+
+  try {
+    function generate_apk() {
+        // Create a new Kivy app
+        var app = new kivyx.App({
+            title: 'Lexi App',
+            icon: 'icon.png',
+            theme: 'default',
+            orientation: 'vertical',
+            layout: 'vertical',
+            size_hint: [1, 1],
+            padding: [10, 10]
+        });
+    
+        // Add a text input field
+        var text_input = new kivyx.TextInput({
+            id: 'text_input',
+            size_hint: [1, 0.1],
+            multiline: false,
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        app.add_widget(text_input);
+    
+        // Add a button
+        var button = new kivyx.Button({
+            id: 'button',
+            text: 'Run Command',
+            size_hint: [1, 0.1],
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        button.bind(on_press, function() {
+            var command = text_input.text;
+            var output = window.Lexi.run(command);
+            var popup = new kivyx.Popup({
+                title: 'Output',
+                content: new kivyx.Label({
+                    text: output,
+                    size_hint: [1, 0.8]
+                }),
+                size_hint: [None, None],
+                size: [400, 100]
+            });
+            popup.open();
+        });
+        app.add_widget(button);
+    
+        // Return the app
+        return app;
+    }
+    
+    // Generate the APK file
+    var app = generate_apk();
+    var apk = new kivyx.APK({
+        title: 'Lexi App',
+        icon: 'icon.png',
+        theme: 'default',
+        orientation: 'vertical',
+        layout: 'vertical',
+        size_hint: [1, 1],
+        padding: [10, 10]
+    });
+    apk.add_widget(app);
+    apk.save('lexi.apk');
+
+    window.LexiExtensions["apk_generator"] = {
+      name: "apk_generator",
+      description: "JavaScript code that generates the APK file",
+      loadedAt: "2026-04-19T20:51:08.869Z",
+    };
+
+    console.log("[Lexi] Extension loaded: apk_generator");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("apk_generator");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: apk_generator", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: apk_generator
+// Added: 2026-04-19T20:51:50.272Z
+// Description: JavaScript code that generates the APK file
+// ============================================================
+(function registerExtension_apk_generator() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["apk_generator"]) return;
+
+  try {
+    function generate_apk() {
+        // Create a new Kivy app
+        var app = new kivyx.App({
+            title: 'Lexi App',
+            icon: 'icon.png',
+            theme: 'default',
+            orientation: 'vertical',
+            layout: 'vertical',
+            size_hint: [1, 1],
+            padding: [10, 10]
+        });
+    
+        // Add a text input field
+        var text_input = new kivyx.TextInput({
+            id: 'text_input',
+            size_hint: [1, 0.1],
+            multiline: false,
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        app.add_widget(text_input);
+    
+        // Add a button
+        var button = new kivyx.Button({
+            id: 'button',
+            text: 'Run Command',
+            size_hint: [1, 0.1],
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        button.bind(on_press, function() {
+            var command = text_input.text;
+            var output = window.Lexi.run(command);
+            var popup = new kivyx.Popup({
+                title: 'Output',
+                content: new kivyx.Label({
+                    text: output,
+                    size_hint: [1, 0.8]
+                }),
+                size_hint: [None, None],
+                size: [400, 100]
+            });
+            popup.open();
+        });
+        app.add_widget(button);
+    
+        // Return the app
+        return app;
+    }
+    
+    // Generate the APK file
+    var app = generate_apk();
+    var apk = new kivyx.APK({
+        title: 'Lexi App',
+        icon: 'icon.png',
+        theme: 'default',
+        orientation: 'vertical',
+        layout: 'vertical',
+        size_hint: [1, 1],
+        padding: [10, 10]
+    });
+    apk.add_widget(app);
+    apk.save('lexi.apk');
+
+    window.LexiExtensions["apk_generator"] = {
+      name: "apk_generator",
+      description: "JavaScript code that generates the APK file",
+      loadedAt: "2026-04-19T20:51:50.272Z",
+    };
+
+    console.log("[Lexi] Extension loaded: apk_generator");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("apk_generator");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: apk_generator", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: apk_generator
+// Added: 2026-04-19T20:52:31.584Z
+// Description: JavaScript code that generates the APK file
+// ============================================================
+(function registerExtension_apk_generator() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["apk_generator"]) return;
+
+  try {
+    function generate_apk() {
+        // Create a new Kivy app
+        var app = new kivyx.App({
+            title: 'Lexi App',
+            icon: 'icon.png',
+            theme: 'default',
+            orientation: 'vertical',
+            layout: 'vertical',
+            size_hint: [1, 1],
+            padding: [10, 10]
+        });
+    
+        // Add a text input field
+        var text_input = new kivyx.TextInput({
+            id: 'text_input',
+            size_hint: [1, 0.1],
+            multiline: false,
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        app.add_widget(text_input);
+    
+        // Add a button
+        var button = new kivyx.Button({
+            id: 'button',
+            text: 'Run Command',
+            size_hint: [1, 0.1],
+            font_size: 24,
+            color: [1, 1, 1, 1]
+        });
+        button.bind(on_press, function() {
+            var command = text_input.text;
+            var output = window.Lexi.run(command);
+            var popup = new kivyx.Popup({
+                title: 'Output',
+                content: new kivyx.Label({
+                    text: output,
+                    size_hint: [1, 0.8]
+                }),
+                size_hint: [None, None],
+                size: [400, 100]
+            });
+            popup.open();
+        });
+        app.add_widget(button);
+    
+        // Return the app
+        return app;
+    }
+    
+    // Generate the APK file
+    var app = generate_apk();
+    var apk = new kivyx.APK({
+        title: 'Lexi App',
+        icon: 'icon.png',
+        theme: 'default',
+        orientation: 'vertical',
+        layout: 'vertical',
+        size_hint: [1, 1],
+        padding: [10, 10]
+    });
+    apk.add_widget(app);
+    apk.save('lexi.apk');
+
+    window.LexiExtensions["apk_generator"] = {
+      name: "apk_generator",
+      description: "JavaScript code that generates the APK file",
+      loadedAt: "2026-04-19T20:52:31.584Z",
+    };
+
+    console.log("[Lexi] Extension loaded: apk_generator");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("apk_generator");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: apk_generator", e);
+  }
+})();

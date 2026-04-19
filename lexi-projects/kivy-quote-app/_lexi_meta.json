@@ -1,0 +1,6 @@
+{
+  "name": "Kivy Quote App",
+  "type": "apk",
+  "mainFile": "main.py",
+  "path": "/home/runner/workspace/lexi-projects/kivy-quote-app"
+}

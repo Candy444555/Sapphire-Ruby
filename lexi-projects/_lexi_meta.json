@@ -1,0 +1,6 @@
+{
+  "name": "My APK App",
+  "type": "apk",
+  "mainFile": "main.py",
+  "path": "/home/runner/workspace/lexi-projects/my-apk-app/"
+}

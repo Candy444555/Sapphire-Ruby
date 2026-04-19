@@ -249,7 +249,11 @@ async function callAI(
 router.post("/agent", async (req: Request, res: Response) => {
   const parsed = AgentRequestSchema.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request body" });
+    const detail = parsed.error.issues.map(i => `${i.path.join(".")}: ${i.message}`).join("; ");
+    console.error("[agent] Zod validation failed:", detail);
+    console.error("[agent] req.body type:", typeof req.body, "keys:", req.body ? Object.keys(req.body) : "none");
+    if (req.body?.messages) console.error("[agent] messages[0]:", JSON.stringify(req.body.messages[0]));
+    res.status(400).json({ error: `Invalid request body — ${detail}` });
     return;
   }
 

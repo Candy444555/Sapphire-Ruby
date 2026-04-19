@@ -104,16 +104,19 @@ export function useAgentChat({ onMessagesChange, onSelfPatch }: UseAgentChatOpti
 
       abortRef.current = new AbortController();
 
+      const requestBody = {
+        model,
+        messages: historyForApi,
+        systemPrompt,
+        sessionId: sessionIdRef.current,
+      };
+      console.log("[agent] sending request — model:", model, "messages:", historyForApi.length, "first role:", historyForApi[0]?.role);
+
       try {
         const res = await fetch("/api/agent", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model,
-            messages: historyForApi,
-            systemPrompt,
-            sessionId: sessionIdRef.current,
-          }),
+          body: JSON.stringify(requestBody),
           signal: abortRef.current.signal,
         });
 

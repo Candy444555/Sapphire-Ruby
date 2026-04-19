@@ -867,6 +867,14 @@ export default function LexiScreen() {
             <PermDot on={perms.contacts} icon="users" />
             <PermDot on={perms.notifications} icon="bell" />
           </View>
+          <Pressable style={styles.codeBtn} onPress={pickFile}>
+            <Feather name="upload" size={18} color={attachedFiles.length > 0 ? "#a580ff" : "#9080d0"} />
+            {attachedFiles.length > 0 && (
+              <View style={styles.extBadge}>
+                <Text style={styles.extBadgeText}>{attachedFiles.length}</Text>
+              </View>
+            )}
+          </Pressable>
           <Pressable style={styles.codeBtn} onPress={() => setShowCodeModal(true)}>
             <Feather name="code" size={18} color="#9080d0" />
             {extensions.length > 0 && (

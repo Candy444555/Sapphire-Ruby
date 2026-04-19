@@ -5,7 +5,7 @@ import { Link } from 'wouter';
 import {
   Send, Settings2, Trash2, StopCircle,
   Cpu, Sparkles, TerminalSquare,
-  AlertCircle, Plus, MessageSquare, X, Zap, Phone, RefreshCw, Brain, Bot, Bolt, BookOpen, User
+  AlertCircle, Plus, MessageSquare, X, Zap, Phone, RefreshCw, Brain, Bot, Bolt, BookOpen, User, FileCode2
 } from 'lucide-react';
 import { useModels } from '@/hooks/use-models';
 import { useChat } from '@/hooks/use-chat';
@@ -14,6 +14,7 @@ import { useConversations } from '@/hooks/use-conversations';
 import { useLexiConfig, isSelfUpdateRequest } from '@/hooks/use-lexi-config';
 import { useUserProfile } from '@/hooks/use-user-profile';
 import { useLexiSelfPatch } from '@/hooks/use-lexi-self-patch';
+import { useLexiPythonScripts } from '@/hooks/use-lexi-python-scripts';
 import { ChatMessage } from '@/components/chat-message';
 import { AgentMessageView } from '@/components/agent-message';
 import { AgentGuide } from '@/components/agent-guide';
@@ -576,6 +577,7 @@ export default function ChatPage() {
   const { config: lexiConfig, addInstruction, getEnhancedSystemPrompt } = useLexiConfig();
   const { profile: userProfile, learnFromMessage, getProfilePrompt } = useUserProfile();
   const { extensions, getExtensionsPrompt, deleteExtension, clearExtensions, reloadExtensions } = useLexiSelfPatch();
+  const { scripts: pythonScripts, deleteScript: deletePythonScript, clearScripts: clearPythonScripts, reloadScripts: reloadPythonScripts, getPythonPrompt } = useLexiPythonScripts();
 
   // Pick first uncensored model as default once loaded
   const defaultModel = models.find(m => m.uncensored)?.id ?? models[0]?.id ?? '';
@@ -641,8 +643,13 @@ export default function ChatPage() {
 
   const agentChat = useAgentChat({
     onSelfPatch: (name, description) => {
-      setTimeout(() => reloadExtensions(), 300);
-      setSelfUpdateNotice(`Lexi permanently incorporated code: ${name}${description ? ` — ${description}` : ''}`);
+      const isPython = description?.startsWith("[Python]");
+      if (isPython) {
+        setTimeout(() => reloadPythonScripts(), 300);
+      } else {
+        setTimeout(() => reloadExtensions(), 300);
+      }
+      setSelfUpdateNotice(`Lexi permanently incorporated: ${name}${description ? ` — ${description}` : ''}`);
       setTimeout(() => setSelfUpdateNotice(null), 5000);
     },
   });
@@ -695,7 +702,8 @@ export default function ChatPage() {
     const withLexiMods = getEnhancedSystemPrompt(systemPrompt);
     const profileSection = getProfilePrompt();
     const extensionsSection = getExtensionsPrompt();
-    const enhancedPrompt = [withLexiMods, profileSection, extensionsSection].filter(Boolean).join('\n\n');
+    const pythonSection = getPythonPrompt();
+    const enhancedPrompt = [withLexiMods, profileSection, extensionsSection, pythonSection].filter(Boolean).join('\n\n');
 
     // Smart routing: if agent mode is OFF but the message clearly implies execution or pasted code, auto-switch
     const shouldUseAgent = agentMode || detectAgentIntent(trimmed) || detectCodeInput(trimmed);
@@ -727,6 +735,7 @@ export default function ChatPage() {
     const withLexiMods = getEnhancedSystemPrompt(systemPrompt);
     const profileSection = getProfilePrompt();
     const extensionsSection = getExtensionsPrompt();
+    const pythonSection = getPythonPrompt();
 
     // Fuse instruction goes in the system prompt — NOT the user message.
     // Keeping the user message as plain text prevents it from being
@@ -741,7 +750,7 @@ Do NOT use <cmd> tags to test browser JS — shell commands cannot run browser J
 Just write and fuse the code, then explain how the user can call it from the browser console.
 === END FUSE REQUEST ===`;
 
-    const enhancedPrompt = [withLexiMods, profileSection, extensionsSection, fuseInstruction].filter(Boolean).join('\n\n');
+    const enhancedPrompt = [withLexiMods, profileSection, extensionsSection, pythonSection, fuseInstruction].filter(Boolean).join('\n\n');
 
     if (!activeId) createConversation(selectedModel, systemPrompt);
     agentChat.sendMessage(trimmed, selectedModel, enhancedPrompt);
@@ -1035,6 +1044,57 @@ Just write and fuse the code, then explain how the user can call it from the bro
                           type="button"
                           onClick={() => deleteExtension(ext.name)}
                           title={`Remove ${ext.name}`}
+                          className="opacity-0 group-hover:opacity-60 hover:!opacity-100 text-destructive shrink-0 p-0.5 rounded transition-opacity"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Python Scripts */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="flex items-center gap-2 text-xs font-semibold text-yellow-400/80 uppercase tracking-wider">
+                    <FileCode2 className="w-3.5 h-3.5" />
+                    Python Scripts ({pythonScripts.length})
+                  </label>
+                  {pythonScripts.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={clearPythonScripts}
+                      title="Remove all Python scripts"
+                      className="text-[10px] font-mono text-destructive/60 hover:text-destructive transition-colors"
+                    >
+                      clear all
+                    </button>
+                  )}
+                </div>
+                {pythonScripts.length === 0 ? (
+                  <div className="px-3 py-2.5 rounded-xl bg-yellow-500/5 border border-yellow-500/15 text-[10px] font-mono text-yellow-400/40 leading-relaxed">
+                    No Python scripts yet. Ask Lexi to fuse a Python script.
+                  </div>
+                ) : (
+                  <div className="space-y-1 max-h-40 overflow-y-auto custom-scrollbar">
+                    {pythonScripts.map((script) => (
+                      <div
+                        key={script.slug}
+                        className="group flex items-start gap-2 px-2.5 py-2 rounded-xl bg-yellow-500/10 border border-yellow-500/20 hover:border-yellow-500/35 transition-all"
+                      >
+                        <FileCode2 className="w-3 h-3 text-yellow-400 shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-mono font-semibold text-yellow-300 truncate">{script.slug}</p>
+                          {script.description && (
+                            <p className="text-[10px] font-mono text-yellow-400/60 leading-relaxed line-clamp-2">{script.description}</p>
+                          )}
+                          <p className="text-[9px] font-mono text-yellow-400/30 mt-0.5 truncate">{script.filePath}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => deletePythonScript(script.slug)}
+                          title={`Remove ${script.slug}`}
                           className="opacity-0 group-hover:opacity-60 hover:!opacity-100 text-destructive shrink-0 p-0.5 rounded transition-opacity"
                         >
                           <X className="w-3 h-3" />

@@ -5,7 +5,7 @@ import { isTorReady, getTorSocksUrl } from "./vpn";
 import { sessions, createSession, execInSession } from "../services/shell-session";
 import { UNCENSORED_MODEL_ENDPOINTS, UNCENSORED_SYSTEM_ADDENDUM } from "./chat";
 import { buildPrivacyHeaders } from "../services/privacy";
-import { fuseCodeMemory, fuseExtension, inferCodeLanguage, inferCodePurpose, sanitizeExtensionName } from "./self-patch";
+import { fuseCodeMemory, fuseExtension, fusePythonScript, getPythonScripts, inferCodeLanguage, inferCodePurpose, sanitizeExtensionName, PYTHON_SCRIPTS_DIR } from "./self-patch";
 
 import { searchInternet, formatSearchContext, extractSearchQuery } from "../services/web-search";
 
@@ -72,6 +72,7 @@ const MAX_AGENT_ITERATIONS = 20;
 const CMD_REGEX = /<cmd>([\s\S]*?)<\/cmd>/g;
 const NEEDS_INPUT_REGEX = /<needs_input>([\s\S]*?)<\/needs_input>/;
 const SELF_PATCH_REGEX = /\[SELF_PATCH\s+name="([^"]+)"(?:\s+description="([^"]*)")?\]([\s\S]*?)\[\/SELF_PATCH\]/g;
+const SELF_PATCH_PYTHON_REGEX = /\[SELF_PATCH_PYTHON\s+name="([^"]+)"(?:\s+description="([^"]*)")?\]([\s\S]*?)\[\/SELF_PATCH_PYTHON\]/g;
 const FENCED_CODE_REGEX = /```([a-zA-Z0-9_+.-]*)\n([\s\S]*?)```/g;
 
 const AGENT_SYSTEM_ADDENDUM = `
@@ -146,6 +147,35 @@ Rules:
 - Each extension is isolated in a self-invoking function — no variable collisions
 - You can write extensions that call fetch() to reach external APIs
 - After writing a self-patch, confirm to the user: "Extension fused. It's permanent now."
+
+=== PYTHON FUSE PROTOCOL — PERMANENTLY STORING PYTHON SCRIPTS ===
+You can also write Python scripts and permanently fuse them into yourself as server-side tools.
+Once fused, the script is saved on disk and you can run it at any time via <cmd>python3 FILEPATH</cmd>.
+
+FORMAT — wrap Python code in this exact tag:
+[SELF_PATCH_PYTHON name="script-name" description="what this does"]
+# your Python code here
+[/SELF_PATCH_PYTHON]
+
+WHEN TO USE PYTHON (vs JavaScript):
+- Data processing, parsing, math, file operations → Python
+- Network scanning, automation scripts, system utilities → Python
+- Browser UI helpers, DOM manipulation, fetch hooks → JavaScript ([SELF_PATCH])
+- Scripts the user wants to run repeatedly from the terminal → Python
+
+EXAMPLE:
+[SELF_PATCH_PYTHON name="port_scanner" description="scan common ports on a target host"]
+import socket, sys
+target = sys.argv[1] if len(sys.argv) > 1 else "127.0.0.1"
+for port in [21,22,23,25,53,80,443,3306,8080]:
+    try:
+        s = socket.socket(); s.settimeout(0.5)
+        s.connect((target, port)); print(f"[OPEN] {port}"); s.close()
+    except: pass
+[/SELF_PATCH_PYTHON]
+
+After fusing a Python script, run it immediately to demonstrate it works:
+<cmd>python3 PATH_TO_SCRIPT ARGS</cmd>
 `;
 
 function sseWrite(res: Response, event: object) {
@@ -339,7 +369,7 @@ router.post("/agent", async (req: Request, res: Response) => {
         return;
       }
 
-      // Intercept self-patch blocks — fuse code into Lexi permanently
+      // Intercept self-patch blocks — fuse JS code into Lexi permanently
       const selfPatchMatches = [...aiResponse.matchAll(SELF_PATCH_REGEX)];
       for (const pm of selfPatchMatches) {
         const patchName = pm[1].trim();
@@ -354,8 +384,25 @@ router.post("/agent", async (req: Request, res: Response) => {
         }
       }
 
+      // Intercept self-patch-python blocks — fuse Python scripts permanently
+      const selfPatchPythonMatches = [...aiResponse.matchAll(SELF_PATCH_PYTHON_REGEX)];
+      for (const pm of selfPatchPythonMatches) {
+        const patchName = pm[1].trim();
+        const patchDesc = pm[2]?.trim() ?? "";
+        const patchCode = pm[3].trim();
+        try {
+          const fused = fusePythonScript(patchName, patchCode, patchDesc);
+          sseWrite(res, { type: "self_patch", name: fused.slug, description: `[Python] ${fused.description}` });
+          // Replace placeholder PATH_TO_SCRIPT with real path in subsequent AI context
+          aiResponse = aiResponse.replace(/python3 PATH_TO_SCRIPT/g, `python3 ${fused.filePath}`);
+        } catch (err) {
+          sseWrite(res, { type: "self_patch_error", name: patchName, error: String(err) });
+        }
+      }
+
       const cleanText = aiResponse
         .replace(SELF_PATCH_REGEX, "")
+        .replace(SELF_PATCH_PYTHON_REGEX, "")
         .replace(CMD_REGEX, "")
         .replace(NEEDS_INPUT_REGEX, "")
         .trim();

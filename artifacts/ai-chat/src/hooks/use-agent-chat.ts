@@ -90,10 +90,13 @@ export function useAgentChat({ onMessagesChange, onSelfPatch }: UseAgentChatOpti
         timestamp: Date.now(),
       };
 
+      // Capture prior history BEFORE updateMessages mutates messagesRef.current
+      const priorMessages = messagesRef.current;
+
       const next = [...messagesRef.current, userMsg, assistantMsg];
       updateMessages(next);
 
-      const historyForApi: ChatMessage[] = messagesRef.current
+      const historyForApi: ChatMessage[] = priorMessages
         .filter((m) => m.role === "user" || (m.role === "assistant" && m.content))
         .map((m) => ({ role: m.role, content: m.content }));
 

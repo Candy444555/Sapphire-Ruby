@@ -39,7 +39,13 @@ async function fetchFeatherless(
     const response = await fetch(FEATHERLESS_API_URL, fetchOptions);
     clearTimeout(timer);
     if (!response.ok) {
-      throw new Error(`${response.status}: request failed`);
+      const errorText = await response.text().catch(() => "");
+      let errorMsg = "request failed";
+      try {
+        const parsed = JSON.parse(errorText);
+        errorMsg = parsed?.error?.message || parsed?.error || parsed?.detail || "request failed";
+      } catch { /* use raw text if not JSON */ if (errorText) errorMsg = errorText.slice(0, 200); }
+      throw new Error(`${response.status}: ${errorMsg}`);
     }
     return response;
   } catch (err) {

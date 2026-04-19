@@ -817,16 +817,25 @@ export default function LexiScreen() {
               </View>
             );
           })()}
-          {!item.projectFiles && item.role === "assistant" && item.content.includes("```") && (
+          {!item.projectFiles && item.role === "assistant" && !!item.content && (
             <Pressable
               style={styles.codeDownloadBtn}
               onPress={() => {
-                const codeMatch = item.content.match(/```(?:\w+)?\n([\s\S]*?)```/);
-                if (codeMatch) downloadCodeBlock(codeMatch[1], "lexi-output.txt");
+                const codeMatch = item.content.match(/```(?:\w+)?\n([\s\S]*?)```/g);
+                if (codeMatch && codeMatch.length > 0) {
+                  const allCode = codeMatch.map((block: string) => block.replace(/```(?:\w+)?\n/, "").replace(/```$/, "")).join("\n\n---\n\n");
+                  const extMatch = item.content.match(/```(\w+)/);
+                  const ext = extMatch ? extMatch[1] : "txt";
+                  const knownExts = ["js","ts","tsx","jsx","py","html","css","json","sh","md","java","kt","swift","go","rs","cpp","c","rb","php"];
+                  const finalExt = knownExts.includes(ext) ? ext : "txt";
+                  downloadCodeBlock(allCode, `lexi-output.${finalExt}`);
+                } else {
+                  downloadCodeBlock(item.content, "lexi-output.txt");
+                }
               }}
             >
               <Feather name="download" size={13} color="#a580ff" />
-              <Text style={styles.codeDownloadText}>Download code</Text>
+              <Text style={styles.codeDownloadText}>Download</Text>
             </Pressable>
           )}
         </View>

@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "extra": {
+      "eas": {
+        "projectId": "a189950b-932b-4f10-b981-7c7fa4c445ab"
+      }
+    },
+    "android": {
+      "package": "com.rubywilliam444.workspace"
+    }
+  }
+}

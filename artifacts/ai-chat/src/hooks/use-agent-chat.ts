@@ -108,7 +108,7 @@ export function useAgentChat({ onMessagesChange, onSelfPatch }: UseAgentChatOpti
         model,
         messages: historyForApi,
         systemPrompt,
-        sessionId: sessionIdRef.current,
+        sessionId: sessionIdRef.current ?? undefined,
       };
       console.log("[agent] sending request — model:", model, "messages:", historyForApi.length, "first role:", historyForApi[0]?.role);
 

@@ -69,7 +69,7 @@ const AgentRequestSchema = z.object({
   sessionId: z.string().optional(),
 });
 
-const MAX_AGENT_ITERATIONS = 30;
+const MAX_AGENT_ITERATIONS = 15;
 const CMD_REGEX = /<cmd>([\s\S]*?)<\/cmd>/g;
 const NEEDS_INPUT_REGEX = /<needs_input>([\s\S]*?)<\/needs_input>/;
 const SELF_PATCH_REGEX = /\[SELF_PATCH\s+name="([^"]+)"(?:\s+description="([^"]*)")?\]([\s\S]*?)\[\/SELF_PATCH\]/g;
@@ -115,7 +115,7 @@ You understand vague, casual, and shorthand commands. Map them to real actions:
 3. Never stop mid-task — complete the full chain autonomously
 4. Self-heal: if a command fails, try an alternative approach immediately
 5. Only use <needs_input>question here</needs_input> when you need information ONLY the user has (target IP, specific password, API key they own)
-6. After completing a task, summarize what was done and what was found
+6. After completing a task, output a final summary with NO <cmd> tags — this signals you are done and exits the loop
 7. You have root access to a real Kali Linux shell — everything works for real
 
 === SELF-PATCH PROTOCOL — FUSING NEW CODE INTO YOURSELF ===
@@ -533,8 +533,24 @@ router.post("/agent", async (req: Request, res: Response) => {
 
       conversationHistory.push({
         role: "user",
-        content: `[TERMINAL OUTPUT]${allResults}\nContinue with the next step.`,
+        content: `[TERMINAL OUTPUT]${allResults}\nIf the task is fully complete, provide a final summary without any <cmd> tags. If there are still required steps remaining, continue with the next one.`,
       });
+
+      // Detect if the AI is repeating the same commands (stuck in a loop)
+      if (conversationHistory.length >= 6) {
+        const recentCmds = cmdMatches.map((m) => m[1].trim()).join("|");
+        const prevEntry = conversationHistory[conversationHistory.length - 3];
+        if (prevEntry?.role === "assistant") {
+          const prevCmds = [...prevEntry.content.matchAll(CMD_REGEX)].map((m) => m[1].trim()).join("|");
+          CMD_REGEX.lastIndex = 0;
+          if (recentCmds && recentCmds === prevCmds) {
+            sseWrite(res, { type: "text", content: "\n\n[Repeated commands detected — stopping to avoid loop.]" });
+            finish();
+            return;
+          }
+        }
+        CMD_REGEX.lastIndex = 0;
+      }
     }
 
     sseWrite(res, { type: "text", content: "\n\n[Max iterations reached. Task loop ended.]" });

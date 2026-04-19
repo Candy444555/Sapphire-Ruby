@@ -708,8 +708,7 @@ export default function ChatPage() {
     const pythonSection = getPythonPrompt();
     const enhancedPrompt = [withLexiMods, profileSection, extensionsSection, pythonSection].filter(Boolean).join('\n\n');
 
-    // Smart routing: if agent mode is OFF but the message clearly implies execution or pasted code, auto-switch
-    const shouldUseAgent = agentMode || detectAgentIntent(trimmed) || detectCodeInput(trimmed);
+    const shouldUseAgent = agentMode;
 
     if (shouldUseAgent) {
       if (pendingInputMsg) {
@@ -729,9 +728,6 @@ export default function ChatPage() {
   const handleFuseSubmit = () => {
     const trimmed = input.trim();
     if (!trimmed || agentChat.isRunning || !selectedModel) return;
-
-    // Always switch to agent mode so the response is visible
-    setAgentMode(true);
 
     learnFromMessage(trimmed);
 

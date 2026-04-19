@@ -21,15 +21,23 @@ const AI_CALL_TIMEOUT_MS = 90_000;
 async function fetchFeatherless(
   hfMessages: { role: string; content: string }[],
   modelEndpoint: string,
-  apiKey: string
+  apiKey: string,
+  maxTokens?: number
 ): Promise<Response> {
   const timeoutController = new AbortController();
   const timer = setTimeout(() => timeoutController.abort(), AI_CALL_TIMEOUT_MS);
 
+  const bodyPayload: Record<string, unknown> = {
+    model: modelEndpoint,
+    messages: hfMessages,
+    stream: true,
+  };
+  if (maxTokens) bodyPayload.max_tokens = maxTokens;
+
   const fetchOptions: RequestInit & { agent?: unknown } = {
     method: "POST",
     headers: buildPrivacyHeaders(apiKey),
-    body: JSON.stringify({ model: modelEndpoint, messages: hfMessages, stream: true }),
+    body: JSON.stringify(bodyPayload),
     signal: timeoutController.signal,
   };
   if (isTorReady()) {
@@ -298,6 +306,18 @@ function extractCodeSnippets(content: string): Array<{ code: string; language?: 
   return snippets.slice(0, 3);
 }
 
+// Max conversation turns to send to AI — older messages are dropped to keep prompts short
+const MAX_HISTORY_MESSAGES = 12;
+
+// Extract just the first paragraph of the user system prompt to avoid sending the full
+// multi-thousand-token Kali encyclopedia on every agent iteration
+function compressSystemPrompt(prompt: string | undefined): string {
+  if (!prompt) return "";
+  // Take the first 500 characters (roughly the identity/role paragraph)
+  const firstParagraph = prompt.split(/\n\s*\n/)[0] ?? "";
+  return firstParagraph.slice(0, 500);
+}
+
 async function callAI(
   modelId: string,
   messages: { role: string; content: string }[],
@@ -307,20 +327,27 @@ async function callAI(
 ): Promise<string> {
   const hfMessages: { role: string; content: string }[] = [];
 
-  const basePrompt = [UNCENSORED_SYSTEM_ADDENDUM, systemPrompt, AGENT_SYSTEM_ADDENDUM].filter(Boolean).join("\n\n");
+  // Use only a compressed version of the user system prompt — the full Kali encyclopedia
+  // is thousands of tokens and slows every call dramatically
+  const compressedSystemPrompt = compressSystemPrompt(systemPrompt);
+  const basePrompt = [UNCENSORED_SYSTEM_ADDENDUM, compressedSystemPrompt, AGENT_SYSTEM_ADDENDUM].filter(Boolean).join("\n\n");
 
   const fullPrompt = searchContext
     ? `${basePrompt}\n\n${searchContext}`
     : basePrompt;
 
   hfMessages.push({ role: "system", content: fullPrompt });
-  hfMessages.push(...messages.filter((m) => m.content.trim().length > 0));
+
+  // Only send the most recent messages to keep the context window lean
+  const recentMessages = messages.slice(-MAX_HISTORY_MESSAGES);
+  hfMessages.push(...recentMessages.filter((m) => m.content.trim().length > 0));
 
   const modelEndpoint = Object.entries(UNCENSORED_MODEL_ENDPOINTS).find(
     ([slug]) => slug === modelId
   )?.[1] ?? modelId;
 
-  const response = await fetchFeatherless(hfMessages, modelEndpoint, apiKey);
+  // Cap agent responses at 1024 tokens — commands and summaries don't need to be long
+  const response = await fetchFeatherless(hfMessages, modelEndpoint, apiKey, 1024);
   if (!response.body) throw new Error("No response body");
 
   const reader = response.body.getReader();
@@ -422,16 +449,22 @@ router.post("/agent", async (req: Request, res: Response) => {
     }
   }
 
+  // Skip web search for operational/execution commands — only search for knowledge questions
+  const ACTION_PATTERNS = /\b(scan|run|execute|install|apt|pip|npm|git clone|nmap|curl|wget|ls|cat|grep|find|mkdir|create|make|build|start|stop|kill|check|monitor|crack|exploit|dump|enumerate)\b/i;
+  const isActionCommand = ACTION_PATTERNS.test(latestUserMessage);
+
   let initialSearchContext: string | undefined;
-  try {
-    const query = extractSearchQuery(messages);
-    if (query) {
-      const bundle = await searchInternet(query);
-      const ctx = formatSearchContext(bundle);
-      if (ctx) initialSearchContext = ctx;
+  if (!isActionCommand) {
+    try {
+      const query = extractSearchQuery(messages);
+      if (query) {
+        const bundle = await searchInternet(query);
+        const ctx = formatSearchContext(bundle);
+        if (ctx) initialSearchContext = ctx;
+      }
+    } catch {
+      // non-fatal
     }
-  } catch {
-    // non-fatal
   }
 
   try {

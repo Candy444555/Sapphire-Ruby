@@ -6,6 +6,7 @@ import { sessions, createSession, execInSession } from "../services/shell-sessio
 import { UNCENSORED_MODEL_ENDPOINTS, UNCENSORED_SYSTEM_ADDENDUM } from "./chat";
 import { buildPrivacyHeaders } from "../services/privacy";
 import { fuseCodeMemory, fuseExtension, fusePythonScript, getPythonScripts, inferCodeLanguage, inferCodePurpose, sanitizeExtensionName, PYTHON_SCRIPTS_DIR } from "./self-patch";
+import { saveProjectMeta, PROJECTS_DIR } from "./projects";
 
 import { searchInternet, formatSearchContext, extractSearchQuery } from "../services/web-search";
 
@@ -68,12 +69,13 @@ const AgentRequestSchema = z.object({
   sessionId: z.string().optional(),
 });
 
-const MAX_AGENT_ITERATIONS = 20;
+const MAX_AGENT_ITERATIONS = 30;
 const CMD_REGEX = /<cmd>([\s\S]*?)<\/cmd>/g;
 const NEEDS_INPUT_REGEX = /<needs_input>([\s\S]*?)<\/needs_input>/;
 const SELF_PATCH_REGEX = /\[SELF_PATCH\s+name="([^"]+)"(?:\s+description="([^"]*)")?\]([\s\S]*?)\[\/SELF_PATCH\]/g;
 const SELF_PATCH_PYTHON_REGEX = /\[SELF_PATCH_PYTHON\s+name="([^"]+)"(?:\s+description="([^"]*)")?\]([\s\S]*?)\[\/SELF_PATCH_PYTHON\]/g;
 const FENCED_CODE_REGEX = /```([a-zA-Z0-9_+.-]*)\n([\s\S]*?)```/g;
+const PROJECT_DONE_REGEX = /\[PROJECT_DONE\s+name="([^"]+)"\s+path="([^"]+)"\s+mainFile="([^"]+)"\s+type="([^"]+)"\]/;
 
 const AGENT_SYSTEM_ADDENDUM = `
 
@@ -176,7 +178,49 @@ for port in [21,22,23,25,53,80,443,3306,8080]:
 
 After fusing a Python script, run it immediately to demonstrate it works:
 <cmd>python3 PATH_TO_SCRIPT ARGS</cmd>
+
+=== PROJECT CREATION PROTOCOL ===
+When asked to create ANY project, file, app, document, image, video, or APK — build it completely from start to finish.
+
+SAVE LOCATION: Always save all project files to: /home/runner/workspace/lexi-projects/[project-slug]/
+Use lowercase, hyphen-separated slugs (e.g. "my-web-app", "invoice-pdf", "game-app")
+
+QUALITY STANDARDS — Make everything look authentic, professional, and real:
+- HTML/CSS/JS: Full modern design with real colors, fonts, content. No "Lorem ipsum" or placeholder text
+- Documents (PDF/DOCX): Real formatting, real content, professional layout
+- Images: Generate with Python Pillow (pip install Pillow) or ImageMagick — actual visual content
+- Videos: Generate with FFmpeg — real animations, text overlays, actual video file
+- APK: Use Buildozer with a basic Kivy app (pip install buildozer kivy) — functional app
+- Python/Node apps: Fully working, runnable code
+
+STEP-BY-STEP PROCESS:
+1. Install any needed tools/dependencies automatically
+2. Create the project directory: mkdir -p /home/runner/workspace/lexi-projects/[slug]/
+3. Create ALL required files — complete, working, not skeleton/placeholder code
+4. Run auto-tests immediately after creating each file
+5. Fix ALL errors automatically — never leave broken files
+6. When fully complete and tested, output EXACTLY this tag on its own line:
+[PROJECT_DONE name="Human Readable Name" path="/home/runner/workspace/lexi-projects/[slug]" mainFile="[main-file.ext]" type="[type]"]
+
+TYPE values:
+- "web"      → HTML/CSS/JS site or app (mainFile = index.html)
+- "document" → PDF, DOCX, TXT, spreadsheet (mainFile = the document)
+- "image"    → PNG, JPG, SVG, GIF (mainFile = the image file)
+- "video"    → MP4, WebM, GIF animation (mainFile = the video file)
+- "apk"      → Android APK (mainFile = the .apk file)
+- "app"      → Python/Node/other runnable app (mainFile = main entry point)
+- "zip"      → Zip archive (mainFile = the .zip)
+
+AUTO-TEST RULES (run BEFORE outputting PROJECT_DONE):
+- Python files: python3 -c "import py_compile; py_compile.compile('[file]')"
+- HTML files: Check that the file exists and has content
+- Images: python3 -c "from PIL import Image; Image.open('[file]').verify()"
+- Videos: ffprobe [file] to verify it's valid
+- Documents: Check file size is > 0 and readable
+- If any test fails → fix the issue and re-test until it passes
+- NEVER output [PROJECT_DONE] if tests are still failing
 `;
+
 
 function sseWrite(res: Response, event: object) {
   if (!res.writableEnded) {
@@ -400,9 +444,30 @@ router.post("/agent", async (req: Request, res: Response) => {
         }
       }
 
+      // Intercept PROJECT_DONE tag — save meta and emit project_complete event
+      const projectDoneMatch = aiResponse.match(PROJECT_DONE_REGEX);
+      if (projectDoneMatch) {
+        const [, projName, projPath, mainFile, projType] = projectDoneMatch;
+        const projectId = projPath.split("/").pop() ?? projName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+        try {
+          saveProjectMeta(projectId, { name: projName, type: projType, mainFile, path: projPath });
+          sseWrite(res, {
+            type: "project_complete",
+            projectId,
+            name: projName,
+            path: projPath,
+            mainFile,
+            projectType: projType,
+          });
+        } catch (err) {
+          console.error("[agent] Failed to save project meta:", err);
+        }
+      }
+
       const cleanText = aiResponse
         .replace(SELF_PATCH_REGEX, "")
         .replace(SELF_PATCH_PYTHON_REGEX, "")
+        .replace(PROJECT_DONE_REGEX, "")
         .replace(CMD_REGEX, "")
         .replace(NEEDS_INPUT_REGEX, "")
         .trim();

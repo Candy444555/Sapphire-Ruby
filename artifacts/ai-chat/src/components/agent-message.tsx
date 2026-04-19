@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils';
 import type { AgentMessage as AgentMsg, AgentEvent } from '@/hooks/use-agent-chat';
 import { Markdown } from './markdown';
 import { explainLexiError } from '@/lib/lexi-error-explainer';
+import { ProjectCard } from './project-card';
 
 interface AgentMessageViewProps {
   message: AgentMsg;
@@ -112,6 +113,18 @@ export function AgentMessageView({ message, isLatest, isThinking }: AgentMessage
 
         {cmdStartEvents.map(({ key, event }) => (
           <CommandBlock key={key} event={event} result={resultsByCmd.get(key)} />
+        ))}
+
+        {events.filter(e => e.type === 'project_complete').map((e, i) => (
+          e.type === 'project_complete' ? (
+            <ProjectCard
+              key={i}
+              projectId={e.projectId}
+              name={e.name}
+              mainFile={e.mainFile}
+              projectType={e.projectType}
+            />
+          ) : null
         ))}
 
         {events.filter(e => e.type === 'self_patch' || e.type === 'self_patch_error').map((e, i) => (

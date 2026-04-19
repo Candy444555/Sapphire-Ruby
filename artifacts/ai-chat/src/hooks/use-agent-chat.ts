@@ -9,6 +9,7 @@ export type AgentEvent =
   | { type: "needs_input"; question: string }
   | { type: "self_patch"; name: string; description: string }
   | { type: "self_patch_error"; name: string; error: string }
+  | { type: "project_complete"; projectId: string; name: string; path: string; mainFile: string; projectType: string }
   | { type: "thinking" }
   | { type: "done" }
   | { type: "error"; message: string };
@@ -193,6 +194,8 @@ export function useAgentChat({ onMessagesChange, onSelfPatch }: UseAgentChatOpti
                 updatedLast.events!.push(parsed!);
                 onSelfPatchRef.current?.(parsed!.name, parsed!.description);
               } else if (parsed!.type === "self_patch_error") {
+                updatedLast.events!.push(parsed!);
+              } else if (parsed!.type === "project_complete") {
                 updatedLast.events!.push(parsed!);
               } else if (
                 parsed!.type === "cmd_start" ||

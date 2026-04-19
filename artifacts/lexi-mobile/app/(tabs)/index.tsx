@@ -12,6 +12,7 @@ import {
   ActivityIndicator,
   FlatList,
   Image,
+  Linking,
   Modal,
   Platform,
   Pressable,
@@ -86,6 +87,14 @@ interface ProjectFile {
   path: string;
   content: string;
   lang: string;
+}
+
+interface ApkBuildState {
+  status: "submitting" | "queued" | "in-progress" | "finished" | "errored" | "canceled" | "new";
+  easBuildId?: string;
+  buildUrl?: string;
+  apkUrl?: string;
+  error?: string;
 }
 
 interface Message {
@@ -177,6 +186,8 @@ export default function LexiScreen() {
   });
 
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
+  const [apkBuilds, setApkBuilds] = useState<Record<string, ApkBuildState>>({});
+  const pollTimers = useRef<Record<string, ReturnType<typeof setInterval>>>({});
 
   // Code editor state
   const [showCodeModal, setShowCodeModal] = useState(false);
@@ -402,6 +413,86 @@ export default function LexiScreen() {
       }
     } catch (err) {
       console.error("Download failed:", err);
+    }
+  }
+
+  function stopPolling(msgId: string) {
+    if (pollTimers.current[msgId]) {
+      clearInterval(pollTimers.current[msgId]);
+      delete pollTimers.current[msgId];
+    }
+  }
+
+  async function pollBuildStatus(msgId: string, easBuildId: string) {
+    try {
+      const res = await fetch(`https://${DOMAIN}/api/build-apk/${easBuildId}/status`);
+      if (!res.ok) return;
+      const data = await res.json() as { status: string; apkUrl?: string; buildUrl?: string };
+      const done = ["finished", "errored", "canceled"].includes(data.status);
+      setApkBuilds((prev) => ({
+        ...prev,
+        [msgId]: {
+          ...(prev[msgId] ?? {}),
+          status: data.status as ApkBuildState["status"],
+          apkUrl: data.apkUrl ?? prev[msgId]?.apkUrl,
+          buildUrl: data.buildUrl ?? prev[msgId]?.buildUrl,
+        },
+      }));
+      if (done) stopPolling(msgId);
+    } catch {}
+  }
+
+  async function buildApkForInstall(msgId: string, files: ProjectFile[], projectName: string) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setApkBuilds((prev) => ({ ...prev, [msgId]: { status: "submitting" } }));
+    try {
+      const res = await fetch(`https://${DOMAIN}/api/build-apk`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          files: files.map((f) => ({ path: f.path, content: f.content })),
+          projectName,
+        }),
+      });
+      const data = await res.json() as { easBuildId?: string; buildUrl?: string; status?: string; error?: string; setupUrl?: string };
+      if (!res.ok || data.error) {
+        setApkBuilds((prev) => ({ ...prev, [msgId]: { status: "errored", error: data.error ?? "Failed to start build." } }));
+        return;
+      }
+      const { easBuildId, buildUrl } = data;
+      setApkBuilds((prev) => ({ ...prev, [msgId]: { status: "queued", easBuildId, buildUrl } }));
+      if (easBuildId) {
+        stopPolling(msgId);
+        pollTimers.current[msgId] = setInterval(() => pollBuildStatus(msgId, easBuildId), 30000);
+        pollBuildStatus(msgId, easBuildId);
+      }
+    } catch (err: any) {
+      setApkBuilds((prev) => ({ ...prev, [msgId]: { status: "errored", error: err?.message ?? "Network error." } }));
+    }
+  }
+
+  async function installApk(apkUrl: string, projectName: string) {
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (Platform.OS === "web") {
+        await Linking.openURL(apkUrl);
+        return;
+      }
+      const filename = `${projectName.replace(/[^a-zA-Z0-9]/g, "-")}.apk`;
+      const dest = `${FileSystem.cacheDirectory}${filename}`;
+      const dl = await FileSystem.downloadAsync(apkUrl, dest);
+      const canShare = await Sharing.isAvailableAsync();
+      if (canShare) {
+        await Sharing.shareAsync(dl.uri, {
+          mimeType: "application/vnd.android.package-archive",
+          dialogTitle: `Install ${projectName}`,
+          UTI: "com.android.package-archive",
+        });
+      } else {
+        await Linking.openURL(dl.uri);
+      }
+    } catch {
+      await Linking.openURL(apkUrl);
     }
   }
 
@@ -648,37 +739,84 @@ export default function LexiScreen() {
               </Text>
             </View>
           )}
-          {!!item.projectFiles && item.projectFiles.length > 0 && (
-            <View style={styles.projectCard}>
-              <View style={styles.projectCardHeader}>
-                <View style={styles.projectIconWrap}>
-                  <Feather name="package" size={16} color="#7c5af0" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.projectCardTitle}>{item.projectName ?? "Generated Project"}</Text>
-                  <Text style={styles.projectCardSub}>{item.projectFiles.length} file{item.projectFiles.length !== 1 ? "s" : ""} ready</Text>
-                </View>
-              </View>
-              <View style={styles.projectFileList}>
-                {item.projectFiles.slice(0, 5).map((f, i) => (
-                  <View key={i} style={styles.projectFileLine}>
-                    <Feather name="file-text" size={11} color="#50508a" />
-                    <Text style={styles.projectFileName} numberOfLines={1}>{f.path}</Text>
+          {!!item.projectFiles && item.projectFiles.length > 0 && (() => {
+            const build = apkBuilds[item.id];
+            const isBuilding = build && ["submitting", "queued", "in-progress", "new"].includes(build.status);
+            const isReady = build?.status === "finished" && !!build.apkUrl;
+            const isFailed = build?.status === "errored" || build?.status === "canceled";
+            return (
+              <View style={styles.projectCard}>
+                <View style={styles.projectCardHeader}>
+                  <View style={styles.projectIconWrap}>
+                    <Feather name="package" size={16} color="#7c5af0" />
                   </View>
-                ))}
-                {item.projectFiles.length > 5 && (
-                  <Text style={styles.projectMoreFiles}>+{item.projectFiles.length - 5} more files</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.projectCardTitle}>{item.projectName ?? "Generated Project"}</Text>
+                    <Text style={styles.projectCardSub}>{item.projectFiles.length} file{item.projectFiles.length !== 1 ? "s" : ""} ready</Text>
+                  </View>
+                  {!!build?.buildUrl && (
+                    <Pressable onPress={() => Linking.openURL(build.buildUrl!)} style={styles.buildLinkBtn}>
+                      <Feather name="external-link" size={13} color="#60608a" />
+                    </Pressable>
+                  )}
+                </View>
+
+                <View style={styles.projectFileList}>
+                  {item.projectFiles.slice(0, 5).map((f, i) => (
+                    <View key={i} style={styles.projectFileLine}>
+                      <Feather name="file-text" size={11} color="#50508a" />
+                      <Text style={styles.projectFileName} numberOfLines={1}>{f.path}</Text>
+                    </View>
+                  ))}
+                  {item.projectFiles.length > 5 && (
+                    <Text style={styles.projectMoreFiles}>+{item.projectFiles.length - 5} more files</Text>
+                  )}
+                </View>
+
+                {isFailed && (
+                  <View style={styles.buildErrorBox}>
+                    <Feather name="alert-circle" size={13} color="#f87171" />
+                    <Text style={styles.buildErrorText} numberOfLines={3}>{build.error ?? "Build failed."}</Text>
+                  </View>
                 )}
+
+                {isReady ? (
+                  <Pressable
+                    style={styles.installBtn}
+                    onPress={() => installApk(build.apkUrl!, item.projectName ?? "lexi-app")}
+                  >
+                    <Feather name="smartphone" size={15} color="#fff" />
+                    <Text style={styles.installBtnText}>Install APK on Device</Text>
+                  </Pressable>
+                ) : isBuilding ? (
+                  <View style={styles.buildingRow}>
+                    <ActivityIndicator size="small" color="#7c5af0" />
+                    <Text style={styles.buildingText}>
+                      {build.status === "submitting" ? "Submitting build…" :
+                       build.status === "queued" || build.status === "new" ? "Queued — EAS is compiling your APK…" :
+                       "Building APK… (~10–20 min)"}
+                    </Text>
+                  </View>
+                ) : (
+                  <Pressable
+                    style={styles.buildApkBtn}
+                    onPress={() => buildApkForInstall(item.id, item.projectFiles!, item.projectName ?? "lexi-app")}
+                  >
+                    <Feather name="cpu" size={15} color="#fff" />
+                    <Text style={styles.buildApkBtnText}>Build & Install APK</Text>
+                  </Pressable>
+                )}
+
+                <Pressable
+                  style={styles.downloadBtnSecondary}
+                  onPress={() => downloadProject(item.projectFiles!, item.projectName ?? "lexi-project")}
+                >
+                  <Feather name="download" size={13} color="#9080d0" />
+                  <Text style={styles.downloadBtnSecondaryText}>Download Source ZIP</Text>
+                </Pressable>
               </View>
-              <Pressable
-                style={styles.downloadBtn}
-                onPress={() => downloadProject(item.projectFiles!, item.projectName ?? "lexi-project")}
-              >
-                <Feather name="download" size={15} color="#fff" />
-                <Text style={styles.downloadBtnText}>Download Project ZIP</Text>
-              </Pressable>
-            </View>
-          )}
+            );
+          })()}
           {!item.projectFiles && item.role === "assistant" && item.content.includes("```") && (
             <Pressable
               style={styles.codeDownloadBtn}
@@ -1066,8 +1204,25 @@ const styles = StyleSheet.create({
   projectFileName: { color: "#50508a", fontSize: 12, fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace", flex: 1 },
   projectMoreFiles: { color: "#40406a", fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
 
+  buildApkBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#7c5af0", borderRadius: 10, paddingVertical: 11 },
+  buildApkBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
+
+  buildingRow: { flexDirection: "row", alignItems: "center", gap: 10, backgroundColor: "#14142a", borderRadius: 10, paddingVertical: 11, paddingHorizontal: 14, borderWidth: 1, borderColor: "#7c5af033" },
+  buildingText: { color: "#9080d0", fontSize: 13, fontFamily: "Inter_500Medium", flex: 1 },
+
+  installBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#22c55e", borderRadius: 10, paddingVertical: 11 },
+  installBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
+
+  buildLinkBtn: { padding: 6 },
+
+  buildErrorBox: { flexDirection: "row", alignItems: "flex-start", gap: 8, backgroundColor: "#f871711a", borderRadius: 8, padding: 10, borderWidth: 1, borderColor: "#f8717133" },
+  buildErrorText: { color: "#f87171", fontSize: 12, fontFamily: "Inter_400Regular", flex: 1 },
+
   downloadBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#7c5af0", borderRadius: 10, paddingVertical: 11 },
   downloadBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
+
+  downloadBtnSecondary: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingVertical: 8 },
+  downloadBtnSecondaryText: { color: "#9080d0", fontSize: 12, fontFamily: "Inter_500Medium" },
 
   codeDownloadBtn: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2, paddingVertical: 4 },
   codeDownloadText: { color: "#a580ff", fontSize: 12, fontFamily: "Inter_500Medium" },

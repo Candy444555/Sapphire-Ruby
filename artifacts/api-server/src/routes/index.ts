@@ -9,6 +9,7 @@ import sshRouter from "./ssh";
 import vpnRouter from "./vpn";
 import selfPatchRouter from "./self-patch";
 import projectsRouter from "./projects";
+import apkBuildRouter from "./apk-build";
 
 const router: IRouter = Router();
 
@@ -22,5 +23,6 @@ router.use(sshRouter);
 router.use(phoneRouter);
 router.use(selfPatchRouter);
 router.use(projectsRouter);
+router.use(apkBuildRouter);
 
 export default router;

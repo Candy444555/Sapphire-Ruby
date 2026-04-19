@@ -327,6 +327,13 @@ function compressSystemPrompt(prompt: string | undefined): string {
   return firstParagraph.slice(0, 500);
 }
 
+// Fallback chain — tried in order when primary model returns 404 / model-not-found
+const FALLBACK_MODEL_CHAIN = [
+  "Orenguteng/Llama-3.1-8B-Lexi-Uncensored",
+  "aifeifei798/DarkIdol-Llama-3.1-8B-Instruct-1.1-Uncensored",
+  "NousResearch/Hermes-2-Pro-Llama-3-8B",
+];
+
 async function callAI(
   modelId: string,
   messages: { role: string; content: string }[],
@@ -351,45 +358,59 @@ async function callAI(
   const recentMessages = messages.slice(-MAX_HISTORY_MESSAGES);
   hfMessages.push(...recentMessages.filter((m) => m.content.trim().length > 0));
 
-  const modelEndpoint = Object.entries(UNCENSORED_MODEL_ENDPOINTS).find(
+  const primaryEndpoint = Object.entries(UNCENSORED_MODEL_ENDPOINTS).find(
     ([slug]) => slug === modelId
   )?.[1] ?? modelId;
 
-  // Cap agent responses at 1024 tokens — commands and summaries don't need to be long
-  const response = await fetchFeatherless(hfMessages, modelEndpoint, apiKey, 1024);
-  if (!response.body) throw new Error("No response body");
+  const modelsToTry = [primaryEndpoint, ...FALLBACK_MODEL_CHAIN.filter(m => m !== primaryEndpoint)];
+  let lastError: Error | null = null;
 
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  let full = "";
-  let done = false;
+  for (const modelEndpoint of modelsToTry) {
+    try {
+      // Cap agent responses at 1024 tokens — commands and summaries don't need to be long
+      const response = await fetchFeatherless(hfMessages, modelEndpoint, apiKey, 1024);
+      if (!response.body) throw new Error("No response body");
 
-  while (!done) {
-    const { done: readerDone, value } = await reader.read();
-    if (readerDone) break;
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      let full = "";
+      let done = false;
 
-    buffer += decoder.decode(value, { stream: true });
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
+      while (!done) {
+        const { done: readerDone, value } = await reader.read();
+        if (readerDone) break;
 
-    for (const line of lines) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed === "data: [DONE]") {
-        if (trimmed === "data: [DONE]") done = true;
-        continue;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop() ?? "";
+
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed === "data: [DONE]") {
+            if (trimmed === "data: [DONE]") done = true;
+            continue;
+          }
+          if (!trimmed.startsWith("data: ")) continue;
+          try {
+            const chunk = JSON.parse(trimmed.slice(6));
+            const token = chunk.choices?.[0]?.delta?.content;
+            if (token) full += token;
+            if (chunk.choices?.[0]?.finish_reason != null) done = true;
+          } catch { /* skip */ }
+        }
       }
-      if (!trimmed.startsWith("data: ")) continue;
-      try {
-        const chunk = JSON.parse(trimmed.slice(6));
-        const token = chunk.choices?.[0]?.delta?.content;
-        if (token) full += token;
-        if (chunk.choices?.[0]?.finish_reason != null) done = true;
-      } catch { /* skip */ }
+
+      return full;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      const isModelError = lastError.message.includes("404") || lastError.message.toLowerCase().includes("does not exist") || lastError.message.toLowerCase().includes("not found");
+      if (!isModelError) throw lastError;
+      console.warn(`[agent] Model ${modelEndpoint} failed (${lastError.message.slice(0, 80)}), trying next fallback...`);
     }
   }
 
-  return full;
+  throw lastError ?? new Error("All models in fallback chain failed");
 }
 
 router.post("/agent", async (req: Request, res: Response) => {

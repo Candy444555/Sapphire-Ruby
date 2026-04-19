@@ -100,5 +100,11 @@
     "description": "create apk",
     "filePath": "/home/runner/workspace/lexi-python-scripts/create_apk.py",
     "addedAt": "2026-04-19T23:07:14.551Z"
+  },
+  "apk_builder": {
+    "slug": "apk_builder",
+    "description": "Builds an APK file containing the entire Lexi codebase",
+    "filePath": "/home/runner/workspace/lexi-python-scripts/apk_builder.py",
+    "addedAt": "2026-04-19T23:23:01.862Z"
   }
 }

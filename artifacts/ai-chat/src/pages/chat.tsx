@@ -636,6 +636,13 @@ export default function ChatPage() {
     if (activeId) updateConversation(activeId, { messages: msgs });
   }, [activeId, updateConversation]);
 
+  const handleAgentMessagesChange = useCallback((msgs: { role: string; content: string }[]) => {
+    if (activeId) {
+      const asChatMsgs: ChatMsg[] = msgs.map((m) => ({ role: m.role as ChatMsg["role"], content: m.content }));
+      updateConversation(activeId, { messages: asChatMsgs });
+    }
+  }, [activeId, updateConversation]);
+
   const regularChat = useChat({
     conversationId: activeId || undefined,
     initialMessages: activeConversation?.messages ?? [],
@@ -643,6 +650,7 @@ export default function ChatPage() {
   });
 
   const agentChat = useAgentChat({
+    onMessagesChange: handleAgentMessagesChange,
     onSelfPatch: (name, description) => {
       const isPython = description?.startsWith("[Python]");
       if (isPython) {

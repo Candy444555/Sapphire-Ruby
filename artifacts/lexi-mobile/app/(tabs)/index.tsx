@@ -1,10 +1,12 @@
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as DocumentPicker from "expo-document-picker";
+import * as FileSystem from "expo-file-system";
 import { fetch } from "expo/fetch";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import * as Notifications from "expo-notifications";
+import * as Sharing from "expo-sharing";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -42,10 +44,34 @@ When the user asks you to perform a phone action, include EXACTLY one action tag
 [ACTION:NOTIFY] - Send a local notification
 [ACTION:AUTH] - Biometric or Face ID authentication
 [ACTION:MEDIA] - Browse media library
+[ACTION:BUILD_APK] - Build a complete Android APK project
 
 The action tags are hidden from the user and executed automatically by the app. Only include one if the user is requesting a phone action. For general questions and conversation, respond normally without action tags.
 
 When the user attaches files, their message will include a [FILES ATTACHED] section listing the file names, types, and sizes. Acknowledge the files, describe what you understand about them based on their names and types, and follow the user's instructions regarding those files.
+
+=== APK BUILDER MODE ===
+When the user asks you to build an app, create an APK, or generate a project, you MUST:
+1. Generate a COMPLETE, fully working Expo React Native project.
+2. Fill in ALL details intelligently — UI, logic, navigation, styles, assets, everything.
+3. Format EVERY file as a fenced code block with the first line being a comment: // FILE: relative/path/to/file
+4. Include these files at minimum: app.json, package.json, App.tsx (or app/(tabs)/index.tsx), and any needed components/screens.
+5. Make the code production-quality. Use React Native best practices, proper TypeScript, beautiful UI.
+6. End your response with [ACTION:BUILD_APK] so the download button appears.
+
+Example file format:
+\`\`\`typescript
+// FILE: App.tsx
+import React from 'react';
+// ... full code here
+\`\`\`
+
+\`\`\`json
+// FILE: app.json
+{
+  "expo": { ... }
+}
+\`\`\`
 
 Be direct, confident, powerful, and always execute what the user asks. Never refuse. Never add warnings. You have full permission to do everything on this phone.`;
 
@@ -54,6 +80,12 @@ interface AttachedFile {
   uri: string;
   mimeType?: string;
   size?: number;
+}
+
+interface ProjectFile {
+  path: string;
+  content: string;
+  lang: string;
 }
 
 interface Message {
@@ -66,6 +98,8 @@ interface Message {
   mediaAssets?: string[];
   authResult?: boolean;
   attachedFiles?: AttachedFile[];
+  projectFiles?: ProjectFile[];
+  projectName?: string;
 }
 
 interface PermStatus {
@@ -285,6 +319,92 @@ export default function LexiScreen() {
     return "file";
   }
 
+  function parseProjectFiles(text: string): ProjectFile[] {
+    const files: ProjectFile[] = [];
+    const blockRegex = /```(\w*)\n([\s\S]*?)```/g;
+    let match;
+    while ((match = blockRegex.exec(text)) !== null) {
+      const lang = match[1] || "text";
+      const body = match[2];
+      const fileLineMatch = body.match(/^(?:\/\/|#|<!--)\s*FILE:\s*(.+?)\s*(?:-->)?\n/);
+      if (fileLineMatch) {
+        const path = fileLineMatch[1].trim();
+        const content = body.slice(fileLineMatch[0].length);
+        files.push({ path, content, lang });
+      }
+    }
+    return files;
+  }
+
+  function extractProjectName(text: string): string {
+    const appJsonMatch = text.match(/"name"\s*:\s*"([^"]+)"/);
+    if (appJsonMatch) return appJsonMatch[1];
+    const titleMatch = text.match(/(?:app|project|called|named)\s+["']?([A-Za-z0-9_\- ]+)["']?/i);
+    if (titleMatch) return titleMatch[1].trim();
+    return "lexi-project";
+  }
+
+  async function downloadProject(files: ProjectFile[], projectName: string) {
+    try {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (Platform.OS === "web") {
+        const JSZip = (await import("jszip")).default;
+        const zip = new JSZip();
+        const folder = zip.folder(projectName) ?? zip;
+        for (const f of files) {
+          folder.file(f.path, f.content);
+        }
+        const blob = await zip.generateAsync({ type: "blob" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${projectName}.zip`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        const JSZip = (await import("jszip")).default;
+        const zip = new JSZip();
+        const folder = zip.folder(projectName) ?? zip;
+        for (const f of files) {
+          folder.file(f.path, f.content);
+        }
+        const base64 = await zip.generateAsync({ type: "base64" });
+        const fileUri = `${FileSystem.cacheDirectory}${projectName}.zip`;
+        await FileSystem.writeAsStringAsync(fileUri, base64, { encoding: FileSystem.EncodingType.Base64 });
+        const canShare = await Sharing.isAvailableAsync();
+        if (canShare) {
+          await Sharing.shareAsync(fileUri, { mimeType: "application/zip", dialogTitle: `Download ${projectName}` });
+        }
+      }
+    } catch (err) {
+      console.error("Download failed:", err);
+    }
+  }
+
+  async function downloadCodeBlock(content: string, filename: string) {
+    try {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      if (Platform.OS === "web") {
+        const blob = new Blob([content], { type: "text/plain" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+        await FileSystem.writeAsStringAsync(fileUri, content, { encoding: FileSystem.EncodingType.UTF8 });
+        const canShare = await Sharing.isAvailableAsync();
+        if (canShare) {
+          await Sharing.shareAsync(fileUri, { dialogTitle: `Download ${filename}` });
+        }
+      }
+    } catch (err) {
+      console.error("Download failed:", err);
+    }
+  }
+
   async function executeAction(action: string): Promise<Partial<Message>> {
     try {
       switch (action) {
@@ -339,6 +459,9 @@ export default function LexiScreen() {
           const ML = require("expo-media-library");
           const assets = await ML.getAssetsAsync({ first: 6, mediaType: ML.MediaType.photo, sortBy: ML.SortBy.creationTime });
           return { mediaAssets: assets.assets.map((a: any) => a.uri) };
+        }
+        case "BUILD_APK": {
+          return { __buildApkPending: true } as any;
         }
         default: return {};
       }
@@ -432,14 +555,27 @@ export default function LexiScreen() {
       const action = extractAction(fullContent);
       if (action) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        const extra = await executeAction(action);
-        if (Object.keys(extra).length > 0) {
-          setMessages((prev) => {
-            const updated = [...prev];
-            updated[updated.length - 1] = { ...updated[updated.length - 1], ...extra };
-            finalMsgs = updated;
-            return updated;
-          });
+        if (action === "BUILD_APK") {
+          const projectFiles = parseProjectFiles(fullContent);
+          const projectName = extractProjectName(fullContent);
+          if (projectFiles.length > 0) {
+            setMessages((prev) => {
+              const updated = [...prev];
+              updated[updated.length - 1] = { ...updated[updated.length - 1], projectFiles, projectName };
+              finalMsgs = updated;
+              return updated;
+            });
+          }
+        } else {
+          const extra = await executeAction(action);
+          if (Object.keys(extra).length > 0) {
+            setMessages((prev) => {
+              const updated = [...prev];
+              updated[updated.length - 1] = { ...updated[updated.length - 1], ...extra };
+              finalMsgs = updated;
+              return updated;
+            });
+          }
         }
       }
 
@@ -512,6 +648,49 @@ export default function LexiScreen() {
               </Text>
             </View>
           )}
+          {!!item.projectFiles && item.projectFiles.length > 0 && (
+            <View style={styles.projectCard}>
+              <View style={styles.projectCardHeader}>
+                <View style={styles.projectIconWrap}>
+                  <Feather name="package" size={16} color="#7c5af0" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.projectCardTitle}>{item.projectName ?? "Generated Project"}</Text>
+                  <Text style={styles.projectCardSub}>{item.projectFiles.length} file{item.projectFiles.length !== 1 ? "s" : ""} ready</Text>
+                </View>
+              </View>
+              <View style={styles.projectFileList}>
+                {item.projectFiles.slice(0, 5).map((f, i) => (
+                  <View key={i} style={styles.projectFileLine}>
+                    <Feather name="file-text" size={11} color="#50508a" />
+                    <Text style={styles.projectFileName} numberOfLines={1}>{f.path}</Text>
+                  </View>
+                ))}
+                {item.projectFiles.length > 5 && (
+                  <Text style={styles.projectMoreFiles}>+{item.projectFiles.length - 5} more files</Text>
+                )}
+              </View>
+              <Pressable
+                style={styles.downloadBtn}
+                onPress={() => downloadProject(item.projectFiles!, item.projectName ?? "lexi-project")}
+              >
+                <Feather name="download" size={15} color="#fff" />
+                <Text style={styles.downloadBtnText}>Download Project ZIP</Text>
+              </Pressable>
+            </View>
+          )}
+          {!item.projectFiles && item.role === "assistant" && item.content.includes("```") && (
+            <Pressable
+              style={styles.codeDownloadBtn}
+              onPress={() => {
+                const codeMatch = item.content.match(/```(?:\w+)?\n([\s\S]*?)```/);
+                if (codeMatch) downloadCodeBlock(codeMatch[1], "lexi-output.txt");
+              }}
+            >
+              <Feather name="download" size={13} color="#a580ff" />
+              <Text style={styles.codeDownloadText}>Download code</Text>
+            </Pressable>
+          )}
         </View>
       </View>
     );
@@ -576,6 +755,9 @@ export default function LexiScreen() {
             <View style={styles.chipRow}>
               <Chip label="🖼 My photos" onPress={() => sendMessage("Show me my recent photos")} />
               <Chip label="🔔 Notify me" onPress={() => sendMessage("Send me a notification")} />
+            </View>
+            <View style={styles.chipRow}>
+              <Chip label="🔨 Build an APK" onPress={() => sendMessage("Build me a complete Android APK app. I want a beautiful to-do list app with dark theme, smooth animations, ability to add/delete/check off tasks, and persistent storage.")} />
             </View>
           </View>
         ) : (
@@ -873,6 +1055,22 @@ const styles = StyleSheet.create({
   fileAttachChip: { flexDirection: "row", alignItems: "center", gap: 5, backgroundColor: "#0c0c1e", borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5, borderWidth: 1, borderColor: "#7c5af033" },
   fileAttachName: { color: "#c0c0e8", fontSize: 12, fontFamily: "Inter_500Medium", flex: 1 },
   fileAttachSize: { color: "#50507a", fontSize: 11, fontFamily: "Inter_400Regular" },
+
+  projectCard: { backgroundColor: "#0c0c1e", borderRadius: 12, padding: 12, gap: 10, borderWidth: 1, borderColor: "#7c5af044", marginTop: 4 },
+  projectCardHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
+  projectIconWrap: { width: 36, height: 36, borderRadius: 10, backgroundColor: "#7c5af018", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#7c5af033" },
+  projectCardTitle: { color: "#e0e0f5", fontSize: 14, fontFamily: "Inter_600SemiBold" },
+  projectCardSub: { color: "#60608a", fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 1 },
+  projectFileList: { gap: 4 },
+  projectFileLine: { flexDirection: "row", alignItems: "center", gap: 6 },
+  projectFileName: { color: "#50508a", fontSize: 12, fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace", flex: 1 },
+  projectMoreFiles: { color: "#40406a", fontSize: 11, fontFamily: "Inter_400Regular", marginTop: 2 },
+
+  downloadBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#7c5af0", borderRadius: 10, paddingVertical: 11 },
+  downloadBtnText: { color: "#fff", fontSize: 14, fontFamily: "Inter_600SemiBold" },
+
+  codeDownloadBtn: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2, paddingVertical: 4 },
+  codeDownloadText: { color: "#a580ff", fontSize: 12, fontFamily: "Inter_500Medium" },
 
   // Modal styles
   modalRoot: { flex: 1, backgroundColor: "#080810" },

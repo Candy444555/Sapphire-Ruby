@@ -25,6 +25,7 @@ export interface AgentMessage {
 
 interface UseAgentChatOptions {
   conversationId?: string;
+  initialMessages?: { role: "user" | "assistant" | "system"; content: string }[];
   onMessagesChange?: (messages: AgentMessage[]) => void;
   onSelfPatch?: (name: string, description: string) => void;
 }
@@ -34,8 +35,24 @@ function makeId() {
   return `amsg-${Date.now()}-${msgCounter++}`;
 }
 
-export function useAgentChat({ onMessagesChange, onSelfPatch }: UseAgentChatOptions = {}) {
-  const [messages, setMessages] = useState<AgentMessage[]>([]);
+function hydrateInitialMessages(
+  raw: { role: "user" | "assistant" | "system"; content: string }[]
+): AgentMessage[] {
+  return raw
+    .filter((m) => m.role === "user" || m.role === "assistant")
+    .map((m) => ({
+      id: makeId(),
+      role: m.role as "user" | "assistant",
+      content: m.content,
+      events: m.role === "assistant" && m.content ? [{ type: "text" as const, content: m.content }] : [],
+      timestamp: Date.now(),
+    }));
+}
+
+export function useAgentChat({ conversationId, initialMessages, onMessagesChange, onSelfPatch }: UseAgentChatOptions = {}) {
+  const [messages, setMessages] = useState<AgentMessage[]>(() =>
+    initialMessages && initialMessages.length > 0 ? hydrateInitialMessages(initialMessages) : []
+  );
   const [isRunning, setIsRunning] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,6 +60,20 @@ export function useAgentChat({ onMessagesChange, onSelfPatch }: UseAgentChatOpti
 
   const messagesRef = useRef<AgentMessage[]>([]);
   const abortRef = useRef<AbortController | null>(null);
+
+  const prevConversationIdRef = useRef<string | undefined>(conversationId);
+  useEffect(() => {
+    if (conversationId !== prevConversationIdRef.current) {
+      prevConversationIdRef.current = conversationId;
+      const hydrated = initialMessages && initialMessages.length > 0
+        ? hydrateInitialMessages(initialMessages)
+        : [];
+      messagesRef.current = hydrated;
+      setMessages(hydrated);
+      setError(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId]);
   const onChangeRef = useRef(onMessagesChange);
   onChangeRef.current = onMessagesChange;
   const onSelfPatchRef = useRef(onSelfPatch);

@@ -650,6 +650,8 @@ export default function ChatPage() {
   });
 
   const agentChat = useAgentChat({
+    conversationId: activeId || undefined,
+    initialMessages: activeConversation?.messages ?? [],
     onMessagesChange: handleAgentMessagesChange,
     onSelfPatch: (name, description) => {
       const isPython = description?.startsWith("[Python]");

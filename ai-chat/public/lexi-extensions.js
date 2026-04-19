@@ -1712,3 +1712,32 @@
     console.error("[Lexi] Extension failed to load: apk_generator", e);
   }
 })();
+
+// ============================================================
+// LEXI EXTENSION: expo_setup
+// Added: 2026-04-19T23:03:25.510Z
+// Description: create expo project
+// ============================================================
+(function registerExtension_expo_setup() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["expo_setup"]) return;
+
+  try {
+    mkdir -p /home/runner/workspace/lexi-projects/lexi-apk/
+    cd /home/runner/workspace/lexi-projects/lexi-apk/
+    expo init lexi
+    cd lexi
+    npm install expo @react-native-community/masked-view react-native-screens react-native-safe-area-context
+
+    window.LexiExtensions["expo_setup"] = {
+      name: "expo_setup",
+      description: "create expo project",
+      loadedAt: "2026-04-19T23:03:25.510Z",
+    };
+
+    console.log("[Lexi] Extension loaded: expo_setup");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("expo_setup");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: expo_setup", e);
+  }
+})();

@@ -1,6 +1,6 @@
 {
-  "name": "My APK App",
+  "name": "Lexi APK",
   "type": "apk",
-  "mainFile": "main.py",
-  "path": "/home/runner/workspace/lexi-projects/my-apk-app/"
+  "mainFile": "https://expo.build/abcdefghij",
+  "path": "/home/runner/workspace/lexi-projects/lexi-apk/"
 }

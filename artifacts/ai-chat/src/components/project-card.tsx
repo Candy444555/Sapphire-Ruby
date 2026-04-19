@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   Download, ExternalLink, FolderOpen, FileCode, Image as ImageIcon,
-  Video, FileText, Smartphone, Package, X, Maximize2, CheckCircle2
+  Video, FileText, Smartphone, Package, X, Maximize2, CheckCircle2,
+  Cloud, Loader2, RefreshCw, Clock, AlertCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -58,6 +59,150 @@ function buildFileUrl(projectId: string, mainFile: string, download = false) {
 function buildDownloadUrl(projectId: string) {
   const base = import.meta.env.BASE_URL.replace(/\/$/, "");
   return `${base}/api/projects/${projectId}/download`;
+}
+
+function extractEasBuildId(url: string): string | null {
+  const match = url.match(/builds\/([a-zA-Z0-9_-]+)/);
+  return match?.[1] ?? null;
+}
+
+type BuildStatus = "QUEUED" | "IN_PROGRESS" | "FINISHED" | "ERRORED" | "CANCELED" | "unknown";
+
+interface EasStatusResult {
+  status: BuildStatus;
+  apkUrl: string | null;
+  buildUrl: string | null;
+  completedAt: string | null;
+}
+
+function CloudApkCard({ name, buildUrl }: { name: string; buildUrl: string }) {
+  const easBuildId = extractEasBuildId(buildUrl);
+  const [checking, setChecking] = useState(false);
+  const [statusResult, setStatusResult] = useState<EasStatusResult | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
+
+  const checkStatus = useCallback(async () => {
+    if (!easBuildId) return;
+    setChecking(true);
+    setStatusError(null);
+    try {
+      const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${base}/api/build-apk/${easBuildId}/status`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error ?? `Status check failed (${res.status})`);
+      }
+      const data: EasStatusResult = await res.json();
+      setStatusResult(data);
+    } catch (err) {
+      setStatusError(err instanceof Error ? err.message : "Failed to check build status");
+    } finally {
+      setChecking(false);
+    }
+  }, [easBuildId]);
+
+  const status = statusResult?.status ?? "QUEUED";
+  const isFinished = status === "FINISHED";
+  const isErrored = status === "ERRORED" || status === "CANCELED";
+  const apkDownloadUrl = statusResult?.apkUrl;
+
+  function statusLabel(s: BuildStatus) {
+    switch (s) {
+      case "QUEUED": return "Queued — waiting to start";
+      case "IN_PROGRESS": return "Building now…";
+      case "FINISHED": return "Build complete — ready to download!";
+      case "ERRORED": return "Build failed";
+      case "CANCELED": return "Build canceled";
+      default: return "Status unknown";
+    }
+  }
+
+  function statusColor(s: BuildStatus) {
+    switch (s) {
+      case "FINISHED": return "text-emerald-400";
+      case "ERRORED":
+      case "CANCELED": return "text-red-400";
+      default: return "text-amber-400";
+    }
+  }
+
+  return (
+    <div className="my-3 rounded-2xl border overflow-hidden text-green-400 bg-green-500/10 border-green-500/30">
+      <div className="flex items-start gap-3 px-4 py-3">
+        <div className="shrink-0 mt-0.5 text-green-400">
+          <Smartphone className="w-5 h-5" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-semibold text-sm text-foreground truncate">{name}</span>
+            <span className="text-[10px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full border text-green-400 bg-green-500/10 border-green-500/30">
+              Android APK
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 mt-1">
+            {isFinished ? (
+              <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
+            ) : isErrored ? (
+              <AlertCircle className="w-3 h-3 text-red-400 shrink-0" />
+            ) : (
+              <Cloud className="w-3 h-3 text-amber-400 shrink-0 animate-pulse" />
+            )}
+            <span className={cn("text-[11px]", statusColor(status as BuildStatus))}>
+              {statusLabel(status as BuildStatus)}
+            </span>
+          </div>
+          {!isFinished && !isErrored && (
+            <div className="flex items-center gap-1 mt-1.5 text-[11px] text-muted-foreground">
+              <Clock className="w-3 h-3 shrink-0" />
+              <span>Cloud builds typically take 10–20 minutes</span>
+            </div>
+          )}
+          {statusError && (
+            <div className="mt-1.5 text-[11px] text-red-400">{statusError}</div>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2 px-4 pb-3 flex-wrap">
+        <a
+          href={buildUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/10 hover:bg-white/20 text-foreground transition-colors"
+        >
+          <ExternalLink className="w-3.5 h-3.5" />
+          Track Build
+        </a>
+
+        {easBuildId && (
+          <button
+            onClick={checkStatus}
+            disabled={checking}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/10 hover:bg-white/20 text-foreground transition-colors disabled:opacity-50"
+          >
+            {checking ? (
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="w-3.5 h-3.5" />
+            )}
+            Check Status
+          </button>
+        )}
+
+        {apkDownloadUrl && (
+          <a
+            href={apkDownloadUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 transition-colors"
+          >
+            <Download className="w-3.5 h-3.5" />
+            Download APK
+          </a>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function PreviewContent({ projectId, mainFile, type }: { projectId: string; mainFile: string; type: string }) {
@@ -120,6 +265,12 @@ function PreviewContent({ projectId, mainFile, type }: { projectId: string; main
 
 export function ProjectCard({ projectId, name, mainFile, projectType }: ProjectCardProps) {
   const [expanded, setExpanded] = useState(true);
+
+  // Cloud APK build — mainFile is the Expo build tracking URL
+  if (projectType === "apk" && mainFile.startsWith("https://")) {
+    return <CloudApkCard name={name} buildUrl={mainFile} />;
+  }
+
   const colorClass = getTypeColor(projectType);
   const hasPreview = ["web", "image", "video", "document"].includes(projectType) ||
     (projectType === "document" && mainFile.endsWith(".pdf"));
@@ -129,7 +280,6 @@ export function ProjectCard({ projectId, name, mainFile, projectType }: ProjectC
       "my-3 rounded-2xl border overflow-hidden",
       colorClass
     )}>
-      {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3">
         <div className={cn("shrink-0", colorClass.split(" ")[0])}>
           {getTypeIcon(projectType)}
@@ -186,7 +336,6 @@ export function ProjectCard({ projectId, name, mainFile, projectType }: ProjectC
         </div>
       </div>
 
-      {/* Preview */}
       {expanded && hasPreview && (
         <div className="px-4 pb-4">
           <PreviewContent projectId={projectId} mainFile={mainFile} type={projectType} />

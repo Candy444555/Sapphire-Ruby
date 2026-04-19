@@ -257,12 +257,21 @@ const files = fs.readdirSync(dir).map(f => ({
 console.log(JSON.stringify({ projectName: '[Project Name]', files }));
 ")"</cmd>
 
-STEP 4 — Read the response:
-- If successful: you'll get a JSON with { localBuildId, easBuildId, buildUrl, status: "queued" }
-- If it returns an error about EXPO_TOKEN: tell the user they need to add their Expo token in settings to enable APK building, and provide their project files so they can build it themselves
-- If build is queued: tell the user the build is running in the cloud and give them the buildUrl to track progress and download the APK when ready
+STEP 4 — Parse and respond:
+The curl response is JSON. Extract the fields like this:
+<cmd>echo 'RESPONSE_JSON' | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); console.log('buildUrl:', d.buildUrl); console.log('easBuildId:', d.easBuildId);"</cmd>
 
-IMPORTANT: A queued cloud build means success — output [PROJECT_DONE] with type="apk" and the buildUrl as the mainFile. Do NOT wait for the build to finish (it takes 10-20 minutes in the cloud).
+- If response contains { buildUrl, easBuildId, status: "queued" }: SUCCESS — the build is running in the cloud
+- If response contains an error about EXPO_TOKEN: tell the user they need to add their Expo access token to the app settings to enable cloud APK builds (get one at https://expo.dev/settings/access-tokens)
+- If any other error: show the error details
+
+When the build is successfully queued, output EXACTLY this tag using the real buildUrl value from the response:
+[PROJECT_DONE name="[App Name]" path="/home/runner/workspace/lexi-projects/[slug]" mainFile="PASTE_ACTUAL_BUILD_URL_HERE" type="apk"]
+
+Example — if buildUrl was "https://expo.dev/accounts/user/projects/myapp/builds/abc123":
+[PROJECT_DONE name="My App" path="/home/runner/workspace/lexi-projects/my-app" mainFile="https://expo.dev/accounts/user/projects/myapp/builds/abc123" type="apk"]
+
+CRITICAL: mainFile MUST be the full https:// buildUrl from the API response, NOT a file path. This is what gives the user a live tracking card with a download button.
 `;
 
 

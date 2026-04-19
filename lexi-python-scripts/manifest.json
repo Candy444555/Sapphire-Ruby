@@ -10,5 +10,95 @@
     "description": "Python code that generates the APK file",
     "filePath": "/home/runner/workspace/lexi-python-scripts/apk_generator.py",
     "addedAt": "2026-04-19T20:44:49.240Z"
+  },
+  "app_code": {
+    "slug": "app_code",
+    "description": "create app code",
+    "filePath": "/home/runner/workspace/lexi-python-scripts/app_code.py",
+    "addedAt": "2026-04-19T23:03:25.511Z"
+  },
+  "app_config": {
+    "slug": "app_config",
+    "description": "create app config",
+    "filePath": "/home/runner/workspace/lexi-python-scripts/app_config.py",
+    "addedAt": "2026-04-19T23:03:25.511Z"
+  },
+  "package_config": {
+    "slug": "package_config",
+    "description": "create package config",
+    "filePath": "/home/runner/workspace/lexi-python-scripts/package_config.py",
+    "addedAt": "2026-04-19T23:03:25.511Z"
+  },
+  "eas_init": {
+    "slug": "eas_init",
+    "description": "initialize eas project",
+    "filePath": "/home/runner/workspace/lexi-python-scripts/eas_init.py",
+    "addedAt": "2026-04-19T23:06:27.906Z"
+  },
+  "eas_build": {
+    "slug": "eas_build",
+    "description": "trigger eas build",
+    "filePath": "/home/runner/workspace/lexi-python-scripts/eas_build.py",
+    "addedAt": "2026-04-19T23:07:07.283Z"
+  },
+  "apk_download": {
+    "slug": "apk_download",
+    "description": "download apk file",
+    "filePath": "/home/runner/workspace/lexi-python-scripts/apk_download.py",
+    "addedAt": "2026-04-19T23:07:07.298Z"
+  },
+  "create_project_dir": {
+    "slug": "create_project_dir",
+    "description": "create project directory",
+    "filePath": "/home/runner/workspace/lexi-python-scripts/create_project_dir.py",
+    "addedAt": "2026-04-19T23:06:27.905Z"
+  },
+  "create_app_file": {
+    "slug": "create_app_file",
+    "description": "create app file",
+    "filePath": "/home/runner/workspace/lexi-python-scripts/create_app_file.py",
+    "addedAt": "2026-04-19T23:06:27.906Z"
+  },
+  "create_app_json": {
+    "slug": "create_app_json",
+    "description": "create app json",
+    "filePath": "/home/runner/workspace/lexi-python-scripts/create_app_json.py",
+    "addedAt": "2026-04-19T23:06:50.177Z"
+  },
+  "create_package_json": {
+    "slug": "create_package_json",
+    "description": "create package json",
+    "filePath": "/home/runner/workspace/lexi-python-scripts/create_package_json.py",
+    "addedAt": "2026-04-19T23:06:28.008Z"
+  },
+  "create_eas_json": {
+    "slug": "create_eas_json",
+    "description": "create eas json",
+    "filePath": "/home/runner/workspace/lexi-python-scripts/create_eas_json.py",
+    "addedAt": "2026-04-19T23:06:28.018Z"
+  },
+  "remove_project_id": {
+    "slug": "remove_project_id",
+    "description": "remove project id",
+    "filePath": "/home/runner/workspace/lexi-python-scripts/remove_project_id.py",
+    "addedAt": "2026-04-19T23:06:50.176Z"
+  },
+  "create_expo_project": {
+    "slug": "create_expo_project",
+    "description": "create expo project",
+    "filePath": "/home/runner/workspace/lexi-python-scripts/create_expo_project.py",
+    "addedAt": "2026-04-19T23:07:07.272Z"
+  },
+  "link_expo_project": {
+    "slug": "link_expo_project",
+    "description": "link expo project",
+    "filePath": "/home/runner/workspace/lexi-python-scripts/link_expo_project.py",
+    "addedAt": "2026-04-19T23:07:07.273Z"
+  },
+  "create_apk": {
+    "slug": "create_apk",
+    "description": "create apk",
+    "filePath": "/home/runner/workspace/lexi-python-scripts/create_apk.py",
+    "addedAt": "2026-04-19T23:07:14.551Z"
   }
 }

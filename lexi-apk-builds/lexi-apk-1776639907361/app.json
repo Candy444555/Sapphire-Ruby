@@ -1,0 +1,10 @@
+{
+  "expo": {
+    "name": "Lexi APK",
+    "slug": "lexi-apk",
+    "version": "1.0.0",
+    "android": {
+      "package": "com.lexi.lexiapk"
+    }
+  }
+}

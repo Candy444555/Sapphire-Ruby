@@ -150,31 +150,35 @@ export function formatSearchContext(bundle: SearchBundle): string {
   if (!bundle.instantAnswer && bundle.results.length === 0) return "";
 
   const lines: string[] = [
-    `=== LIVE INTERNET SEARCH — "${bundle.query}" (${bundle.timestamp}) ===`,
+    `=== LIVE WEB SEARCH RESULTS FOR: "${bundle.query}" ===`,
+    `Retrieved: ${bundle.timestamp}`,
     "",
   ];
 
   if (bundle.instantAnswer) {
-    lines.push(`INSTANT ANSWER: ${bundle.instantAnswer}`);
+    lines.push(`QUICK ANSWER: ${bundle.instantAnswer}`);
     lines.push("");
   }
 
   if (bundle.results.length > 0) {
-    lines.push("SEARCH RESULTS:");
+    lines.push("TOP RESULTS:");
     for (let i = 0; i < bundle.results.length; i++) {
       const r = bundle.results[i];
       lines.push(`[${i + 1}] ${r.title}`);
-      lines.push(`    URL: ${r.url}`);
-      if (r.snippet) lines.push(`    ${r.snippet.slice(0, 300)}`);
+      lines.push(`    Source: ${r.url}`);
+      if (r.snippet) lines.push(`    ${r.snippet.slice(0, 400)}`);
       lines.push("");
     }
   }
 
   lines.push(
-    "INSTRUCTIONS: You have just retrieved these real search results from the internet.",
-    "Respond based on what was actually found above. Cite specific results, titles, and URLs when relevant.",
-    "If results are present, use them as your primary source of truth for this response.",
-    "=== END OF SEARCH RESULTS ==="
+    "=== HOW TO USE THESE RESULTS ===",
+    "You just pulled this fresh from the internet. Use it naturally — work it into your reply the way a knowledgeable person would.",
+    "Don't recite a list. Don't say 'according to result [2]'. Just talk — weave the key facts, names, numbers, and context directly into what you say.",
+    "If something is confirmed by multiple sources, say it confidently. If results conflict, acknowledge it briefly.",
+    "Mention a source URL only if it genuinely adds value (e.g. the user can go read more). Otherwise keep it conversational.",
+    "These results are your ground truth — prioritise them over anything from your training data when they conflict.",
+    "=== END SEARCH RESULTS ==="
   );
 
   return lines.join("\n");

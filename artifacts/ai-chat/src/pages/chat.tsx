@@ -602,6 +602,7 @@ export default function ChatPage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const selfUpdateNoticeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Set default model once models load
   useEffect(() => {
@@ -650,7 +651,8 @@ export default function ChatPage() {
         setTimeout(() => reloadExtensions(), 300);
       }
       setSelfUpdateNotice(`Lexi permanently incorporated: ${name}${description ? ` — ${description}` : ''}`);
-      setTimeout(() => setSelfUpdateNotice(null), 5000);
+      if (selfUpdateNoticeTimerRef.current) clearTimeout(selfUpdateNoticeTimerRef.current);
+      selfUpdateNoticeTimerRef.current = setTimeout(() => setSelfUpdateNotice(null), 5000);
     },
   });
 
@@ -695,7 +697,8 @@ export default function ChatPage() {
     if (isSelfUpdateRequest(trimmed)) {
       addInstruction(trimmed);
       setSelfUpdateNotice(`Incorporated: "${trimmed.slice(0, 80)}${trimmed.length > 80 ? '…' : ''}"`);
-      setTimeout(() => setSelfUpdateNotice(null), 5000);
+      if (selfUpdateNoticeTimerRef.current) clearTimeout(selfUpdateNoticeTimerRef.current);
+      selfUpdateNoticeTimerRef.current = setTimeout(() => setSelfUpdateNotice(null), 5000);
     }
 
     // Build enhanced prompt: base + Lexi self-mods + user profile DNA

@@ -601,32 +601,26 @@ router.post("/agent", async (req: Request, res: Response) => {
     }
   }
 
-  // Skip web search for operational/execution commands — only search for knowledge questions
-  const ACTION_PATTERNS = /\b(scan|run|execute|install|apt|pip|npm|git clone|nmap|curl|wget|ls|cat|grep|find|mkdir|create|make|build|start|stop|kill|check|monitor|crack|exploit|dump|enumerate)\b/i;
-  const isActionCommand = ACTION_PATTERNS.test(latestUserMessage);
-
   let initialSearchContext: string | undefined;
-  if (!isActionCommand) {
-    try {
-      const query = extractSearchQuery(messages);
-      if (query) {
-        const searches: Promise<string>[] = [
-          searchInternet(query).then(formatSearchContext).catch(() => ""),
-        ];
+  try {
+    const query = extractSearchQuery(messages);
+    if (query) {
+      const searches: Promise<string>[] = [
+        searchInternet(query).then(formatSearchContext).catch(() => ""),
+      ];
 
-        if (isTorReady()) {
-          searches.push(
-            searchDarkWeb(query, getTorSocksUrl()).then(formatDarkWebContext).catch(() => ""),
-          );
-        }
-
-        const contexts = await Promise.all(searches);
-        const combined = contexts.filter(Boolean).join("\n\n");
-        if (combined) initialSearchContext = combined;
+      if (isTorReady()) {
+        searches.push(
+          searchDarkWeb(query, getTorSocksUrl()).then(formatDarkWebContext).catch(() => ""),
+        );
       }
-    } catch {
-      // non-fatal
+
+      const contexts = await Promise.all(searches);
+      const combined = contexts.filter(Boolean).join("\n\n");
+      if (combined) initialSearchContext = combined;
     }
+  } catch {
+    // non-fatal
   }
 
   try {

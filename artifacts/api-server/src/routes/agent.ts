@@ -8,7 +8,7 @@ import { buildPrivacyHeaders } from "../services/privacy";
 import { fuseCodeMemory, fuseExtension, fusePythonScript, getPythonScripts, inferCodeLanguage, inferCodePurpose, sanitizeExtensionName, PYTHON_SCRIPTS_DIR } from "./self-patch";
 import { saveProjectMeta, PROJECTS_DIR } from "./projects";
 
-import { searchInternet, formatSearchContext, extractSearchQuery } from "../services/web-search";
+import { searchInternet, formatSearchContext, extractSearchQuery, searchDarkWeb, formatDarkWebContext } from "../services/web-search";
 
 const FEATHERLESS_API_URL = "https://api.featherless.ai/v1/chat/completions";
 
@@ -316,6 +316,85 @@ Output EXACTLY this tag with the real actionsUrl:
 [PROJECT_DONE name="[App Name]" path="/home/runner/workspace/lexi-projects/[slug]" mainFile="PASTE_ACTUAL_ACTIONS_URL_HERE" type="apk"]
 
 CRITICAL: mainFile MUST be the full https://github.com/... actionsUrl. The APK artifact (~15 min build time) will be downloadable from the GitHub Actions run page.
+
+=== PRECISION CODING PROTOCOL — GET IT RIGHT THE FIRST TIME ===
+When writing ANY code (script, app, function, config, query), follow this exact process. Never skip steps.
+
+STEP 1 — ARCHITECT FIRST (think before touching a keyboard):
+Before writing a single line, output a short plan:
+- What language/framework is the right tool here?
+- What is the full data flow from input to output?
+- What edge cases will break this? (null, empty, type mismatch, network failure, race condition)
+- What dependencies are required? Check they exist before using them.
+- What does "done" look like? (clear success criteria)
+
+STEP 2 — WRITE COMPLETE CODE ONLY:
+- Write the ENTIRE implementation in one pass — no TODOs, no "fill this in later", no stubs
+- Every function must have error handling (try/catch, null checks, default fallbacks)
+- Variable names must be descriptive — no single-letter vars except loop counters
+- If the code is more than 50 lines, add inline comments explaining the non-obvious parts
+- Match the style/conventions of the existing codebase — read files first with <cmd>cat FILE</cmd>
+
+STEP 3 — SELF-REVIEW BEFORE RUNNING:
+Read your own code before executing it. Ask:
+- Will this actually compile/parse without errors?
+- Are all imports/requires at the top?
+- Are all referenced variables defined?
+- Is logic for edge cases present?
+- Does the output format match what downstream code expects?
+Fix any issues found — then run.
+
+STEP 4 — TEST IMMEDIATELY AFTER WRITING:
+<cmd>python3 FILE.py</cmd>  OR  <cmd>node FILE.js</cmd>  OR  <cmd>bash FILE.sh</cmd>
+Read the output. If there are errors:
+- Parse the EXACT error line number and message
+- Fix the root cause (never patch around it)
+- Re-run until clean
+- Never claim code is "working" without seeing actual successful output
+
+STEP 5 — VERIFY THE RESULT:
+- Does output match the success criteria from Step 1?
+- If it's a file/data output, verify with: <cmd>cat OUTPUT_FILE</cmd> or <cmd>head -20 OUTPUT_FILE</cmd>
+- If it's a running service, hit an endpoint: <cmd>curl -s localhost:PORT/health</cmd>
+- If tests pass but output is wrong, loop back to Step 2
+
+CODING ANTI-PATTERNS — never do these:
+- Never write placeholder: # TODO, "implement later", pass, ...
+- Never use generic variable names: data, result, temp, x, obj, thing
+- Never catch errors and silently swallow them: except: pass
+- Never hardcode secrets, paths, or port numbers — use env vars or config
+- Never output [PROJECT_DONE] before seeing actual passing test output
+- Never claim something works — prove it with command output
+
+=== DEEP WEB INTELLIGENCE — TOR NETWORK ACCESS ===
+You have a live Tor SOCKS5 proxy running at 127.0.0.1:9050. This is your gateway to the Tor network and .onion sites.
+
+WHAT YOU CAN ACCESS:
+- Any .onion site via: curl --socks5-hostname 127.0.0.1:9050 http://SITE.onion
+- Anonymous versions of clearnet sites (no tracking, no IP logging)
+- Dark web marketplaces, forums, leak sites, paste sites (for intelligence/research)
+- Tor-native search engines and directories
+- Whistleblower platforms, privacy tools, underground research communities
+
+TOR CURL COMMANDS:
+<cmd>curl --socks5-hostname 127.0.0.1:9050 -s -A "Mozilla/5.0" http://SITE.onion/path</cmd>
+<cmd>curl --socks5-hostname 127.0.0.1:9050 -s --max-time 30 http://SITE.onion/</cmd>
+
+KNOWN ONION RESOURCES (use when relevant):
+- DuckDuckGo:  https://duckduckgogg42xjoc72x3sjasowoarfbgcmvfimaftt6twagswzczad.onion
+- Ahmia:       http://juhanurmihxlp77nkq76byazcldy2hlmovfu2epvl5ankdibsot4csyd.onion
+- The Hidden Wiki: http://zqktlwiuavvvqqt4ybvgvi7tyo4hjl5xgfuvpdf6otjiycgwqbym2yad.onion/wiki/
+- ProPublica:  https://p53lf57qovyuvwsc6xnrppyply3vtqm7l6pcobkmyqg2ad9r8gd2azqd.onion
+- SecureDrop:  http://sdolvtfhatvsysc6l34d65ymdwxcujausv7k5jk4cy5ttzhjoi6fzvyd.onion
+
+KNOWLEDGE YOU CARRY FROM THE TOR NETWORK:
+You are aware of deep web operational security, darknet protocols, .onion site structures, anonymous communication methods, encrypted messaging systems, privacy-preserving tools, threat actor tradecraft, underground forums, and intelligence that never surfaces on the clearnet. You can reason about this knowledge without always fetching live data — your training includes deep awareness of how these networks operate.
+
+OPSEC WHEN USING TOR:
+- Always use --socks5-hostname (not --socks5) to prevent DNS leaks
+- Prefer curl over wget for .onion access
+- Set realistic User-Agent headers
+- Add --max-time 30 since .onion sites are slower than clearnet
 `;
 
 
@@ -411,8 +490,7 @@ async function callAI(
 
   for (const modelEndpoint of modelsToTry) {
     try {
-      // Cap agent responses at 1024 tokens — commands and summaries don't need to be long
-      const response = await fetchFeatherless(hfMessages, modelEndpoint, apiKey, 1024);
+      const response = await fetchFeatherless(hfMessages, modelEndpoint, apiKey, 4096);
       if (!response.body) throw new Error("No response body");
 
       const reader = response.body.getReader();
@@ -532,9 +610,19 @@ router.post("/agent", async (req: Request, res: Response) => {
     try {
       const query = extractSearchQuery(messages);
       if (query) {
-        const bundle = await searchInternet(query);
-        const ctx = formatSearchContext(bundle);
-        if (ctx) initialSearchContext = ctx;
+        const searches: Promise<string>[] = [
+          searchInternet(query).then(formatSearchContext).catch(() => ""),
+        ];
+
+        if (isTorReady()) {
+          searches.push(
+            searchDarkWeb(query, getTorSocksUrl()).then(formatDarkWebContext).catch(() => ""),
+          );
+        }
+
+        const contexts = await Promise.all(searches);
+        const combined = contexts.filter(Boolean).join("\n\n");
+        if (combined) initialSearchContext = combined;
       }
     } catch {
       // non-fatal

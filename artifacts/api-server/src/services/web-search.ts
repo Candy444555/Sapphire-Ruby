@@ -1,3 +1,4 @@
+import { SocksProxyAgent } from "socks-proxy-agent";
 import { randomUserAgent } from "./privacy";
 
 export interface SearchResult {
@@ -15,6 +16,7 @@ export interface SearchBundle {
 }
 
 const SEARCH_TIMEOUT_MS = 6000;
+const TOR_SEARCH_TIMEOUT_MS = 12000;
 
 const SEARX_INSTANCES = [
   "https://searx.be",
@@ -24,7 +26,7 @@ const SEARX_INSTANCES = [
   "https://searx.fmac.xyz",
 ];
 
-async function fetchWithTimeout(url: string, init: RequestInit, ms: number): Promise<Response> {
+async function fetchWithTimeout(url: string, init: RequestInit & { agent?: unknown }, ms: number): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
   try {
@@ -146,6 +148,149 @@ export async function searchInternet(query: string): Promise<SearchBundle> {
   };
 }
 
+async function searchAhmia(query: string, torSocksUrl: string): Promise<SearchResult[]> {
+  const url = `https://ahmia.fi/search/?q=${encodeURIComponent(query)}`;
+  const agent = new SocksProxyAgent(torSocksUrl);
+
+  const res = await fetchWithTimeout(url, {
+    headers: {
+      "User-Agent": randomUserAgent(),
+      "Accept": "text/html,application/xhtml+xml",
+    },
+    agent,
+  }, TOR_SEARCH_TIMEOUT_MS);
+
+  if (!res.ok) throw new Error(`Ahmia returned ${res.status}`);
+
+  const html = await res.text();
+  const results: SearchResult[] = [];
+
+  const titleRe = /<h4[^>]*>\s*<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
+  const descRe = /<p[^>]*class="[^"]*description[^"]*"[^>]*>([\s\S]*?)<\/p>/gi;
+
+  const titles: Array<{ url: string; title: string }> = [];
+  const descs: string[] = [];
+
+  let m: RegExpExecArray | null;
+  while ((m = titleRe.exec(html)) !== null && titles.length < 10) {
+    const rawUrl = m[1].trim();
+    const rawTitle = m[2].replace(/<[^>]+>/g, "").trim();
+    if (rawUrl && rawTitle && rawUrl.includes(".onion")) {
+      titles.push({ url: rawUrl, title: rawTitle });
+    }
+  }
+
+  while ((m = descRe.exec(html)) !== null && descs.length < 10) {
+    descs.push(m[1].replace(/<[^>]+>/g, "").trim());
+  }
+
+  for (let i = 0; i < titles.length; i++) {
+    results.push({
+      title: titles[i].title,
+      url: titles[i].url,
+      snippet: descs[i] ?? "",
+      source: "ahmia.fi (.onion index)",
+    });
+  }
+
+  return results;
+}
+
+async function searchTorSearXNG(query: string, torSocksUrl: string): Promise<SearchResult[]> {
+  const onionInstances = [
+    "http://searxspbitokayvkhzhsnljde7rqmn7rvoga7gg6wketjxsbe4sxlqd.onion",
+    "http://searx3aolosaf3urwnhpynlhuokqsgz47si4pzz5hvb7uuzyjncl2tid.onion",
+  ];
+
+  const agent = new SocksProxyAgent(torSocksUrl);
+
+  for (const instance of onionInstances) {
+    try {
+      const url = `${instance}/search?q=${encodeURIComponent(query)}&format=json&categories=general&safesearch=0`;
+      const res = await fetchWithTimeout(url, {
+        headers: {
+          "User-Agent": randomUserAgent(),
+          "Accept": "application/json",
+        },
+        agent,
+      }, TOR_SEARCH_TIMEOUT_MS);
+
+      if (!res.ok) continue;
+
+      const data = await res.json() as {
+        results?: Array<{ title?: string; url?: string; content?: string; engine?: string }>;
+      };
+
+      const results: SearchResult[] = (data.results ?? [])
+        .filter((r) => r.url && r.title)
+        .slice(0, 8)
+        .map((r) => ({
+          title: r.title ?? "",
+          url: r.url ?? "",
+          snippet: r.content ?? "",
+          source: `tor-searx (${r.engine ?? "unknown"})`,
+        }));
+
+      if (results.length > 0) return results;
+    } catch {
+      continue;
+    }
+  }
+
+  return [];
+}
+
+export async function searchDarkWeb(query: string, torSocksUrl: string): Promise<SearchBundle> {
+  const cleanQuery = query.trim().slice(0, 200);
+
+  const [ahmiaResults, torSearxResults] = await Promise.allSettled([
+    searchAhmia(cleanQuery, torSocksUrl),
+    searchTorSearXNG(cleanQuery, torSocksUrl),
+  ]);
+
+  const results = [
+    ...(ahmiaResults.status === "fulfilled" ? ahmiaResults.value : []),
+    ...(torSearxResults.status === "fulfilled" ? torSearxResults.value : []),
+  ].slice(0, 12);
+
+  return {
+    query: cleanQuery,
+    results,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+export function formatDarkWebContext(bundle: SearchBundle): string {
+  if (bundle.results.length === 0) return "";
+
+  const lines: string[] = [
+    `=== TOR NETWORK / DARK WEB SEARCH RESULTS FOR: "${bundle.query}" ===`,
+    `Retrieved via Tor: ${bundle.timestamp}`,
+    "Sources: Ahmia.fi (.onion index) + Tor-native SearXNG",
+    "",
+    "DARK WEB RESULTS:",
+  ];
+
+  for (let i = 0; i < bundle.results.length; i++) {
+    const r = bundle.results[i];
+    lines.push(`[${i + 1}] ${r.title}`);
+    lines.push(`    URL: ${r.url}`);
+    if (r.snippet) lines.push(`    ${r.snippet.slice(0, 400)}`);
+    if (r.source) lines.push(`    via: ${r.source}`);
+    lines.push("");
+  }
+
+  lines.push(
+    "=== DEEP WEB USAGE NOTES ===",
+    "These results come from Tor-indexed .onion sites and anonymous networks.",
+    "Treat them as raw intelligence — verify critical claims independently.",
+    "You can access any .onion URL directly by routing curl through the Tor SOCKS proxy: curl --socks5-hostname 127.0.0.1:9050 <onion-url>",
+    "=== END DARK WEB RESULTS ===",
+  );
+
+  return lines.join("\n");
+}
+
 export function formatSearchContext(bundle: SearchBundle): string {
   if (!bundle.instantAnswer && bundle.results.length === 0) return "";
 
@@ -178,7 +323,7 @@ export function formatSearchContext(bundle: SearchBundle): string {
     "If something is confirmed by multiple sources, say it confidently. If results conflict, acknowledge it briefly.",
     "Mention a source URL only if it genuinely adds value (e.g. the user can go read more). Otherwise keep it conversational.",
     "These results are your ground truth — prioritise them over anything from your training data when they conflict.",
-    "=== END SEARCH RESULTS ==="
+    "=== END SEARCH RESULTS ===",
   );
 
   return lines.join("\n");

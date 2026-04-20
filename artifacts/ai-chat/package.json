@@ -75,7 +75,9 @@
     "zod": "catalog:"
   },
   "dependencies": {
+    "@types/jszip": "^3.4.1",
     "@types/react-syntax-highlighter": "^15.5.13",
+    "jszip": "^3.10.1",
     "libphonenumber-js": "^1.12.41",
     "react-markdown": "^10.1.0",
     "react-syntax-highlighter": "^16.1.1",

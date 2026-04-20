@@ -106,5 +106,17 @@
     "description": "Builds an APK file containing the entire Lexi codebase",
     "filePath": "/home/runner/workspace/lexi-python-scripts/apk_builder.py",
     "addedAt": "2026-04-19T23:23:01.862Z"
+  },
+  "lexi_apk": {
+    "slug": "lexi_apk",
+    "description": "Exact copy of Lexi as an APK",
+    "filePath": "/home/runner/workspace/lexi-python-scripts/lexi_apk.py",
+    "addedAt": "2026-04-19T23:52:43.087Z"
+  },
+  "apk_build": {
+    "slug": "apk_build",
+    "description": "build APK file",
+    "filePath": "/home/runner/workspace/lexi-python-scripts/apk_build.py",
+    "addedAt": "2026-04-19T23:58:33.046Z"
   }
 }

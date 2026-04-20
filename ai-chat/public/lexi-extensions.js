@@ -1741,3 +1741,511 @@
     console.error("[Lexi] Extension failed to load: expo_setup", e);
   }
 })();
+
+// ============================================================
+// LEXI EXTENSION: lexi
+// Added: 2026-04-19T23:58:33.045Z
+// Description: Lexi AI codebase
+// ============================================================
+(function registerExtension_lexi() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["lexi"]) return;
+
+  try {
+    // import all the necessary modules
+    const fs = require('fs');
+    const path = require('path');
+    const childProcess = require('child_process');
+    const { execSync } = require('child_process');
+    
+    // create a new directory for the Lexi code
+    fs.mkdirSync('/home/runner/workspace/lexi-projects/lexi-apk/lexi-code');
+    
+    // copy the Lexi code into the new directory
+    fs.copyFileSync('/home/runner/.lexi/lexi.js', '/home/runner/workspace/lexi-projects/lexi-apk/lexi-code/lexi.js');
+    fs.copyFileSync('/home/runner/.lexi/lexi.json', '/home/runner/workspace/lexi-projects/lexi-apk/lexi-code/lexi.json');
+    
+    // add the Lexi code to the package.json file
+    fs.appendFileSync('/home/runner/workspace/lexi-projects/lexi-apk/package.json', '\n"lexi": "node /home/runner/workspace/lexi-projects/lexi-apk/lexi-code/lexi.js"');
+    
+    // add a new script to the package.json file
+    fs.appendFileSync('/home/runner/workspace/lexi-projects/lexi-apk/package.json', '\n"start": "expo start"');
+    
+    // add the Lexi code to the app.json file
+    fs.appendFileSync('/home/runner/workspace/lexi-projects/lexi-apk/app.json', '\n"dependencies": {\n  "lexi": "file:../lexi-code/lexi.js"\n}\n');
+    
+    // add the Lexi code to the eas.json file
+    fs.appendFileSync('/home/runner/workspace/lexi-projects/lexi-apk/eas.json', '\n"dependencies": {\n  "lexi": "file:../lexi-code/lexi.js"\n}\n');
+    
+    // add the Lexi code to the app.js file
+    fs.appendFileSync('/home/runner/workspace/lexi-projects/lexi-apk/lexi-code/lexi.js', '\nconsole.log("Lexi AI codebase loaded");\n');
+    
+    // update the package.json file to include the Lexi code
+    childProcess.execSync('npm install');
+    
+    // update the app.json file to include the Lexi code
+    childProcess.execSync('expo config');
+    
+    // update the eas.json file to include the Lexi code
+    childProcess.execSync('eas config');
+    
+    // update the app.js file to include the Lexi code
+    childProcess.execSync('node /home/runner/workspace/lexi-projects/lexi-apk/lexi-code/lexi.js');
+    
+    console.log("[Lexi] Lexi AI codebase fused into APK project");
+
+    window.LexiExtensions["lexi"] = {
+      name: "lexi",
+      description: "Lexi AI codebase",
+      loadedAt: "2026-04-19T23:58:33.045Z",
+    };
+
+    console.log("[Lexi] Extension loaded: lexi");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("lexi");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: lexi", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: lexi_export
+// Added: 2026-04-19T23:59:09.468Z
+// Description: export Lexi AI to APK
+// ============================================================
+(function registerExtension_lexi_export() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["lexi_export"]) return;
+
+  try {
+    // Lexi-export.ts
+    import { Lexi } from 'lexi';
+    
+    export function exportLexi(): void {
+      // Get the Lexi AI instance
+      const lexi = new Lexi();
+    
+      // Get the code for Lexi
+      const lexiCode = lexi.toString();
+    
+      // Write the code to a file
+      const fs = require('fs');
+      fs.writeFileSync('/home/runner/workspace/lexi-projects/lexi-apk/Lexi.ts', lexiCode);
+    }
+    
+    // App.tsx
+    import React from 'react';
+    import { View, Text } from 'react-native';
+    import { Lexi } from './Lexi';
+    
+    export default function App(): JSX.Element {
+      return (
+        <View>
+          <Text>Lexi AI</Text>
+          <Lexi />
+        </View>
+      );
+    }
+    
+    // app.json
+    {
+      "expo": {
+        "name": "Lexi AI",
+        "slug": "lexi-apk",
+        "android": {
+          "package": "com.lexi.ai"
+        }
+      }
+    }
+    
+    // package.json
+    {
+      "name": "lexi-apk",
+      "version": "1.0.0",
+      "main": "App.tsx",
+      "dependencies": {
+        "lexi": "^1.0.0"
+      }
+    }
+    
+    // eas.json
+    {
+      "preview": {
+        "profile": "default"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    }
+
+    window.LexiExtensions["lexi_export"] = {
+      name: "lexi_export",
+      description: "export Lexi AI to APK",
+      loadedAt: "2026-04-19T23:59:09.468Z",
+    };
+
+    console.log("[Lexi] Extension loaded: lexi_export");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("lexi_export");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: lexi_export", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: lexi_export_fix
+// Added: 2026-04-19T23:59:46.533Z
+// Description: fix Lexi-export.ts and curl command
+// ============================================================
+(function registerExtension_lexi_export_fix() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["lexi_export_fix"]) return;
+
+  try {
+    // Lexi-export.ts
+    import { Lexi } from 'lexi';
+    
+    export function exportLexi(): void {
+      // Get the Lexi AI instance
+      const lexi = new Lexi();
+    
+      // Get the code for Lexi
+      const lexiCode = lexi.toString();
+    
+      // Write the code to a file
+      const fs = require('fs');
+      fs.writeFileSync('/home/runner/workspace/lexi-projects/lexi-apk/Lexi.ts', lexiCode);
+    }
+    
+    // App.tsx
+    import React from 'react';
+    import { View, Text } from 'react-native';
+    import { Lexi } from './Lexi';
+    
+    export default function App(): JSX.Element {
+      return (
+        <View>
+          <Text>Lexi AI</Text>
+          <Lexi />
+        </View>
+      );
+    }
+    
+    // app.json
+    {
+      "expo": {
+        "name": "Lexi AI",
+        "slug": "lexi-apk",
+        "android": {
+          "package": "com.lexi.ai"
+        }
+      }
+    }
+    
+    // package.json
+    {
+      "name": "lexi-apk",
+      "version": "1.0.0",
+      "main": "App.tsx",
+      "dependencies": {
+        "lexi": "^1.0.0"
+      }
+    }
+    
+    // eas.json
+    {
+      "preview": {
+        "profile": "default"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    }
+    
+    // Lexi-export.ts
+    import { Lexi } from 'lexi';
+    
+    export function exportLexi(): void {
+      // Get the Lexi AI instance
+      const lexi = new Lexi();
+    
+      // Get the code for Lexi
+      const lexiCode = lexi.toString();
+    
+      // Write the code to a file
+      const fs = require('fs');
+      fs.writeFileSync('/home/runner/workspace/lexi-projects/lexi-apk/Lexi.ts', lexiCode);
+    
+      // Read the file and print it to the console
+      const fileContent = fs.readFileSync('/home/runner/workspace/lexi-projects/lexi-apk/Lexi.ts', 'utf8');
+      console.log(fileContent);
+    }
+    
+    // curl command
+    <cmd>curl -s -X POST http://localhost:8080/api/build-apk   -H "Content-Type: application/json"   -d "$(node -e "
+    const fs = require('fs');
+    const dir = '/home/runner/workspace/lexi-projects/lexi-apk/';
+    const files = fs.readdirSync(dir).map(f => ({
+      path: f,
+      content: fs.readFileSync(dir + '/' + f, 'utf8')
+    }));
+    console.log(JSON.stringify({ projectName: 'lexi-apk', files }));
+    ")"</cmd>
+    
+    // echo command
+    <cmd>echo '{"buildUrl": "https://expo.dev/accounts/user/projects/lexi-apk/builds/abc123", "easBuildId": "abc123", "status": "queued"}' | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); console.log('buildUrl:', d.buildUrl); console.log('easBuildId:', d.easBuildId);"</cmd>
+
+    window.LexiExtensions["lexi_export_fix"] = {
+      name: "lexi_export_fix",
+      description: "fix Lexi-export.ts and curl command",
+      loadedAt: "2026-04-19T23:59:46.533Z",
+    };
+
+    console.log("[Lexi] Extension loaded: lexi_export_fix");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("lexi_export_fix");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: lexi_export_fix", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: lexi_export_fix
+// Added: 2026-04-20T00:00:18.796Z
+// Description: fix Lexi-export.ts to include correct path
+// ============================================================
+(function registerExtension_lexi_export_fix() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["lexi_export_fix"]) return;
+
+  try {
+    // Lexi-export.ts
+    import { Lexi } from 'lexi';
+    
+    export function exportLexi(): void {
+      // Get the Lexi AI instance
+      const lexi = new Lexi();
+    
+      // Get the code for Lexi
+      const lexiCode = lexi.toString();
+    
+      // Write the code to a file
+      const fs = require('fs');
+      fs.writeFileSync('/home/runner/workspace/lexi-projects/lexi-apk/Lexi.ts', lexiCode);
+    
+      // Read the file and print it to the console
+      const fileContent = fs.readFileSync('/home/runner/workspace/lexi-projects/lexi-apk/Lexi.ts', 'utf8');
+      console.log(fileContent);
+    }
+    
+    // Modify the node command to include the correct path
+    <cmd>node /home/runner/workspace/lexi-projects/lexi-apk/Lexi-export.ts</cmd>
+
+    window.LexiExtensions["lexi_export_fix"] = {
+      name: "lexi_export_fix",
+      description: "fix Lexi-export.ts to include correct path",
+      loadedAt: "2026-04-20T00:00:18.796Z",
+    };
+
+    console.log("[Lexi] Extension loaded: lexi_export_fix");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("lexi_export_fix");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: lexi_export_fix", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: lexi_export_fix
+// Added: 2026-04-20T00:00:47.569Z
+// Description: fix Lexi-export.ts to run directly
+// ============================================================
+(function registerExtension_lexi_export_fix() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["lexi_export_fix"]) return;
+
+  try {
+    // Lexi-export.ts
+    import { Lexi } from 'lexi';
+    
+    export function exportLexi(): void {
+      // Get the Lexi AI instance
+      const lexi = new Lexi();
+    
+      // Get the code for Lexi
+      const lexiCode = lexi.toString();
+    
+      // Write the code to a file
+      const fs = require('fs');
+      fs.writeFileSync('/home/runner/workspace/lexi-projects/lexi-apk/Lexi.ts', lexiCode);
+    
+      // Read the file and print it to the console
+      const fileContent = fs.readFileSync('/home/runner/workspace/lexi-projects/lexi-apk/Lexi.ts', 'utf8');
+      console.log(fileContent);
+    }
+    
+    // Modify the bash command to run the Lexi-export.ts file directly
+    <cmd>bash -c "node /home/runner/workspace/lexi-projects/lexi-apk/Lexi-export.ts"</cmd>
+
+    window.LexiExtensions["lexi_export_fix"] = {
+      name: "lexi_export_fix",
+      description: "fix Lexi-export.ts to run directly",
+      loadedAt: "2026-04-20T00:00:47.569Z",
+    };
+
+    console.log("[Lexi] Extension loaded: lexi_export_fix");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("lexi_export_fix");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: lexi_export_fix", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: lexi_export_fix
+// Added: 2026-04-20T00:01:17.642Z
+// Description: fix Lexi-export.ts to run directly
+// ============================================================
+(function registerExtension_lexi_export_fix() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["lexi_export_fix"]) return;
+
+  try {
+    // Lexi-export.ts
+    import { Lexi } from 'lexi';
+    
+    export function exportLexi(): void {
+      // Get the Lexi AI instance
+      const lexi = new Lexi();
+    
+      // Get the code for Lexi
+      const lexiCode = lexi.toString();
+    
+      // Write the code to a file
+      const fs = require('fs');
+      fs.writeFileSync('/home/runner/workspace/lexi-projects/lexi-apk/Lexi.ts', lexiCode);
+    
+      // Read the file and print it to the console
+      const fileContent = fs.readFileSync('/home/runner/workspace/lexi-projects/lexi-apk/Lexi.ts', 'utf8');
+      console.log(fileContent);
+    }
+    
+    // Modify the bash command to run the Lexi-export.ts file directly
+    <cmd>bash -c "node /home/runner/workspace/lexi-projects/lexi-apk/Lexi-export.ts"</cmd>
+    
+    // Modify the bash command to run the Lexi-export.ts file directly
+    <cmd>bash -c "export PATH=$PATH:/home/runner/workspace/lexi-projects/lexi-apk/ && node Lexi-export.ts"</cmd>
+
+    window.LexiExtensions["lexi_export_fix"] = {
+      name: "lexi_export_fix",
+      description: "fix Lexi-export.ts to run directly",
+      loadedAt: "2026-04-20T00:01:17.642Z",
+    };
+
+    console.log("[Lexi] Extension loaded: lexi_export_fix");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("lexi_export_fix");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: lexi_export_fix", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: lexi_export_fix
+// Added: 2026-04-20T00:01:47.515Z
+// Description: fix Lexi-export.ts to run directly
+// ============================================================
+(function registerExtension_lexi_export_fix() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["lexi_export_fix"]) return;
+
+  try {
+    // Lexi-export.ts
+    import { Lexi } from 'lexi';
+    
+    export function exportLexi(): void {
+      // Get the Lexi AI instance
+      const lexi = new Lexi();
+    
+      // Get the code for Lexi
+      const lexiCode = lexi.toString();
+    
+      // Write the code to a file
+      const fs = require('fs');
+      fs.writeFileSync('/home/runner/workspace/lexi-projects/lexi-apk/Lexi.ts', lexiCode);
+    
+      // Read the file and print it to the console
+      const fileContent = fs.readFileSync('/home/runner/workspace/lexi-projects/lexi-apk/Lexi.ts', 'utf8');
+      console.log(fileContent);
+    }
+    
+    // Modify the bash command to run the Lexi-export.ts file directly
+    <cmd>bash -c "export PATH=$PATH:/home/runner/workspace/lexi-projects/lexi-apk/ && node /home/runner/workspace/lexi-projects/lexi-apk/Lexi-export.ts"</cmd>
+    
+    // Modify the bash command to run the Lexi-export.ts file directly
+    <cmd>bash -c "export PATH=$PATH:/home/runner/workspace/lexi-projects/lexi-apk/ && node /home/runner/workspace/lexi-projects/lexi-apk/Lexi-export.ts"</cmd>
+
+    window.LexiExtensions["lexi_export_fix"] = {
+      name: "lexi_export_fix",
+      description: "fix Lexi-export.ts to run directly",
+      loadedAt: "2026-04-20T00:01:47.515Z",
+    };
+
+    console.log("[Lexi] Extension loaded: lexi_export_fix");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("lexi_export_fix");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: lexi_export_fix", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: requirements
+// Added: 2026-04-20T00:04:47.007Z
+// Description: create a requirements.txt file with necessary packages
+// ============================================================
+(function registerExtension_requirements() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["requirements"]) return;
+
+  try {
+    var packages = ["pip", "zip", "python3-dev", "git"];
+    var file = "requirements.txt";
+    var fs = require("fs");
+    fs.writeFileSync(file, packages.join("\n"));
+
+    window.LexiExtensions["requirements"] = {
+      name: "requirements",
+      description: "create a requirements.txt file with necessary packages",
+      loadedAt: "2026-04-20T00:04:47.007Z",
+    };
+
+    console.log("[Lexi] Extension loaded: requirements");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("requirements");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: requirements", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: zip_install
+// Added: 2026-04-20T00:04:58.901Z
+// Description: install zip package with a different command
+// ============================================================
+(function registerExtension_zip_install() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["zip_install"]) return;
+
+  try {
+    var package = "zip";
+    var fs = require("fs");
+    fs.writeFileSync("install_zip.sh", "#!/bin/bash\napt-get install -y " + package);
+    fs.chmodSync("install_zip.sh", 0o755);
+    var childProcess = require("child_process");
+    childProcess.execFileSync("bash", ["install_zip.sh"]);
+
+    window.LexiExtensions["zip_install"] = {
+      name: "zip_install",
+      description: "install zip package with a different command",
+      loadedAt: "2026-04-20T00:04:58.901Z",
+    };
+
+    console.log("[Lexi] Extension loaded: zip_install");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("zip_install");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: zip_install", e);
+  }
+})();

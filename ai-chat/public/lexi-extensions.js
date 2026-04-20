@@ -2249,3 +2249,298 @@
     console.error("[Lexi] Extension failed to load: zip_install", e);
   }
 })();
+
+// ============================================================
+// LEXI EXTENSION: lexi
+// Added: 2026-04-20T03:01:17.293Z
+// Description: Lexi AI functionality
+// ============================================================
+(function registerExtension_lexi() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["lexi"]) return;
+
+  try {
+    window.Lexi = class {
+      constructor() {
+        this.rules = [
+          // all the rules for Lexi
+        ];
+        this.context = {
+          // all the context for Lexi
+        };
+      }
+      run() {
+        // run the Lexi AI
+      }
+    };
+
+    window.LexiExtensions["lexi"] = {
+      name: "lexi",
+      description: "Lexi AI functionality",
+      loadedAt: "2026-04-20T03:01:17.293Z",
+    };
+
+    console.log("[Lexi] Extension loaded: lexi");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("lexi");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: lexi", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: lexi_apk
+// Added: 2026-04-20T03:02:32.789Z
+// Description: Create a complete Expo project for the Lexi APK
+// ============================================================
+(function registerExtension_lexi_apk() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["lexi_apk"]) return;
+
+  try {
+    [PROJECT_DONE name="Lexi APK" path="/home/runner/workspace/lexi-projects/lexi-apk" mainFile="index.html" type="web"]
+
+    window.LexiExtensions["lexi_apk"] = {
+      name: "lexi_apk",
+      description: "Create a complete Expo project for the Lexi APK",
+      loadedAt: "2026-04-20T03:02:32.789Z",
+    };
+
+    console.log("[Lexi] Extension loaded: lexi_apk");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("lexi_apk");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: lexi_apk", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: lexi_apk
+// Added: 2026-04-20T03:02:32.790Z
+// Description: Create the App.tsx file
+// ============================================================
+(function registerExtension_lexi_apk() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["lexi_apk"]) return;
+
+  try {
+    import React from 'react';
+    import { View, Text } from 'react-native';
+    import { NavigationContainer } from '@react-navigation/native';
+    import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+    import HomeScreen from './HomeScreen';
+    import SettingsScreen from './SettingsScreen';
+    
+    const Tab = createBottomTabNavigator();
+    
+    function HomeScreen({ navigation }) {
+      return (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text>Home Screen</Text>
+        </View>
+      );
+    }
+    
+    function SettingsScreen({ navigation }) {
+      return (
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <Text>Settings Screen</Text>
+        </View>
+      );
+    }
+    
+    export default function App() {
+      return (
+        <NavigationContainer>
+          <Tab.Navigator>
+            <Tab.Screen name="Home" component={HomeScreen} />
+            <Tab.Screen name="Settings" component={SettingsScreen} />
+          </Tab.Navigator>
+        </NavigationContainer>
+      );
+    }
+
+    window.LexiExtensions["lexi_apk"] = {
+      name: "lexi_apk",
+      description: "Create the App.tsx file",
+      loadedAt: "2026-04-20T03:02:32.790Z",
+    };
+
+    console.log("[Lexi] Extension loaded: lexi_apk");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("lexi_apk");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: lexi_apk", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: lexi_apk
+// Added: 2026-04-20T03:02:32.808Z
+// Description: Create the app.json file
+// ============================================================
+(function registerExtension_lexi_apk() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["lexi_apk"]) return;
+
+  try {
+    {
+      "expo": {
+        "name": "Lexi APK",
+        "slug": "lexi-apk",
+        "android": {
+          "package": "com.lexi.apk"
+        }
+      }
+    }
+
+    window.LexiExtensions["lexi_apk"] = {
+      name: "lexi_apk",
+      description: "Create the app.json file",
+      loadedAt: "2026-04-20T03:02:32.808Z",
+    };
+
+    console.log("[Lexi] Extension loaded: lexi_apk");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("lexi_apk");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: lexi_apk", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: lexi_apk
+// Added: 2026-04-20T03:02:32.810Z
+// Description: Create the package.json file
+// ============================================================
+(function registerExtension_lexi_apk() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["lexi_apk"]) return;
+
+  try {
+    {
+      "name": "lexi-apk",
+      "version": "1.0.0",
+      "main": "index.js",
+      "scripts": {
+        "start": "expo start"
+      },
+      "dependencies": {
+        "expo": "^53.0.0",
+        "react-native": "^0.64.3"
+      }
+    }
+
+    window.LexiExtensions["lexi_apk"] = {
+      name: "lexi_apk",
+      description: "Create the package.json file",
+      loadedAt: "2026-04-20T03:02:32.810Z",
+    };
+
+    console.log("[Lexi] Extension loaded: lexi_apk");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("lexi_apk");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: lexi_apk", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: lexi_apk
+// Added: 2026-04-20T03:02:32.812Z
+// Description: Create the eas.json file
+// ============================================================
+(function registerExtension_lexi_apk() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["lexi_apk"]) return;
+
+  try {
+    {
+      "previewProfile": {
+        "android": {
+          "buildType": "apk"
+        }
+      }
+    }
+
+    window.LexiExtensions["lexi_apk"] = {
+      name: "lexi_apk",
+      description: "Create the eas.json file",
+      loadedAt: "2026-04-20T03:02:32.812Z",
+    };
+
+    console.log("[Lexi] Extension loaded: lexi_apk");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("lexi_apk");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: lexi_apk", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: lexi
+// Added: 2026-04-20T03:03:52.825Z
+// Description: Lexi AI functionality
+// ============================================================
+(function registerExtension_lexi() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["lexi"]) return;
+
+  try {
+    window.Lexi = class {
+      constructor() {
+        this.rules = [
+          // all the rules for Lexi
+        ];
+        this.context = {
+          // all the context for Lexi
+        };
+      }
+      run() {
+        // run the Lexi AI
+      }
+    };
+
+    window.LexiExtensions["lexi"] = {
+      name: "lexi",
+      description: "Lexi AI functionality",
+      loadedAt: "2026-04-20T03:03:52.825Z",
+    };
+
+    console.log("[Lexi] Extension loaded: lexi");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("lexi");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: lexi", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: lexi
+// Added: 2026-04-20T03:07:54.890Z
+// Description: Lexi AI functionality
+// ============================================================
+(function registerExtension_lexi() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["lexi"]) return;
+
+  try {
+    window.Lexi = class {
+      constructor() {
+        this.rules = [
+          // all the rules for Lexi
+        ];
+        this.context = {
+          // all the context for Lexi
+        };
+      }
+      run() {
+        // run the Lexi AI
+      }
+    };
+
+    window.LexiExtensions["lexi"] = {
+      name: "lexi",
+      description: "Lexi AI functionality",
+      loadedAt: "2026-04-20T03:07:54.890Z",
+    };
+
+    console.log("[Lexi] Extension loaded: lexi");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("lexi");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: lexi", e);
+  }
+})();

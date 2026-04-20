@@ -1,7 +1,9 @@
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as FileSystem from "expo-file-system/legacy";
 import { fetch } from "expo/fetch";
 import * as Haptics from "expo-haptics";
+import * as Sharing from "expo-sharing";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -51,16 +53,99 @@ const SYSTEM_PROMPTS = [
   },
 ];
 
-interface Message {
-  id: string;
-  role: "user" | "assistant";
-  content: string;
-}
+const CODE_EXTS: Record<string, string> = {
+  js: "js", javascript: "js", ts: "ts", typescript: "ts", tsx: "tsx", jsx: "jsx",
+  py: "py", python: "py", sh: "sh", bash: "sh", shell: "sh", html: "html",
+  css: "css", json: "json", md: "md", markdown: "md", java: "java", kt: "kt",
+  swift: "swift", go: "go", rs: "rs", rust: "rs", cpp: "cpp", c: "c", rb: "rb",
+  php: "php", yaml: "yaml", yml: "yaml", sql: "sql", xml: "xml",
+};
+
+interface ProjectFile { path: string; content: string }
+interface Message { id: string; role: "user" | "assistant"; content: string }
 
 let counter = 0;
 function genId() {
   counter++;
   return `${Date.now()}-${counter}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function parseProjectFiles(text: string): ProjectFile[] {
+  const files: ProjectFile[] = [];
+  const blockRe = /```(\w*)\n([\s\S]*?)```/g;
+  let m;
+  while ((m = blockRe.exec(text)) !== null) {
+    const body = m[2];
+    const fileLine = body.match(/^(?:\/\/|#|<!--)\s*FILE:\s*(.+?)\s*(?:-->)?\n/);
+    if (fileLine) {
+      files.push({ path: fileLine[1].trim(), content: body.slice(fileLine[0].length) });
+    }
+  }
+  return files;
+}
+
+function detectCodeLang(text: string): string {
+  const m = text.match(/```(\w+)/);
+  if (m) return CODE_EXTS[m[1].toLowerCase()] ?? "txt";
+  return "txt";
+}
+
+function hasCode(text: string): boolean {
+  return /```[\s\S]*?```/.test(text);
+}
+
+async function shareFile(uri: string, mimeType: string, dialogTitle: string) {
+  const canShare = await Sharing.isAvailableAsync();
+  if (canShare) {
+    await Sharing.shareAsync(uri, { mimeType, dialogTitle });
+  }
+}
+
+async function downloadMessage(content: string, role: "user" | "assistant") {
+  try {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    if (Platform.OS === "web") {
+      const blob = new Blob([content], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = role === "user" ? "my-message.txt" : "nexus-response.txt";
+      a.click();
+      URL.revokeObjectURL(url);
+      return;
+    }
+
+    const projectFiles = parseProjectFiles(content);
+
+    if (projectFiles.length > 1) {
+      // Multi-file → ZIP
+      const JSZip = (await import("jszip")).default;
+      const zip = new JSZip();
+      for (const f of projectFiles) zip.file(f.path, f.content);
+      const base64 = await zip.generateAsync({ type: "base64" });
+      const uri = `${FileSystem.cacheDirectory}nexus-project.zip`;
+      await FileSystem.writeAsStringAsync(uri, base64, { encoding: FileSystem.EncodingType.Base64 });
+      await shareFile(uri, "application/zip", "Download Project ZIP");
+
+    } else if (hasCode(content)) {
+      // Single code block → appropriate extension
+      const ext = detectCodeLang(content);
+      const codeMatch = content.match(/```(?:\w+)?\n([\s\S]*?)```/);
+      const codeContent = codeMatch ? codeMatch[1] : content;
+      const uri = `${FileSystem.cacheDirectory}nexus-output.${ext}`;
+      await FileSystem.writeAsStringAsync(uri, codeContent, { encoding: FileSystem.EncodingType.UTF8 });
+      await shareFile(uri, "text/plain", `Download .${ext} file`);
+
+    } else {
+      // Plain text
+      const uri = `${FileSystem.cacheDirectory}nexus-message.txt`;
+      await FileSystem.writeAsStringAsync(uri, content, { encoding: FileSystem.EncodingType.UTF8 });
+      await shareFile(uri, "text/plain", "Download message");
+    }
+  } catch (e) {
+    console.error("Download failed", e);
+  }
 }
 
 export default function NexusChat() {
@@ -73,11 +158,10 @@ export default function NexusChat() {
   const [selectedPrompt, setSelectedPrompt] = useState(SYSTEM_PROMPTS[0].id);
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [showPromptPicker, setShowPromptPicker] = useState(false);
+  const [downloading, setDownloading] = useState<string | null>(null);
   const inputRef = useRef<TextInput>(null);
 
-  useEffect(() => {
-    loadHistory();
-  }, []);
+  useEffect(() => { loadHistory(); }, []);
 
   async function loadHistory() {
     try {
@@ -120,24 +204,17 @@ export default function NexusChat() {
 
       try {
         const history = captured.map((m) => ({ role: m.role, content: m.content }));
-
         const response = await fetch(`https://${DOMAIN}/api/chat`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
-          body: JSON.stringify({
-            model: selectedModel,
-            messages: history,
-            systemPrompt: currentPrompt.prompt,
-          }),
+          body: JSON.stringify({ model: selectedModel, messages: history, systemPrompt: currentPrompt.prompt }),
         });
-
         if (!response.ok) throw new Error("Request failed");
         const reader = response.body?.getReader();
         if (!reader) throw new Error("No reader");
 
         const decoder = new TextDecoder();
         let buffer = "";
-
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -171,11 +248,7 @@ export default function NexusChat() {
         }
       } catch {
         setShowTyping(false);
-        const errMsg: Message = {
-          id: genId(),
-          role: "assistant",
-          content: "Connection error. Check your network and try again.",
-        };
+        const errMsg: Message = { id: genId(), role: "assistant", content: "Connection error. Check your network and try again." };
         setMessages((prev) => { finalMsgs = [...prev, errMsg]; return finalMsgs; });
       } finally {
         setIsStreaming(false);
@@ -186,8 +259,18 @@ export default function NexusChat() {
     [messages, isStreaming, selectedModel, currentPrompt]
   );
 
+  function getDownloadLabel(content: string): string {
+    const pf = parseProjectFiles(content);
+    if (pf.length > 1) return `ZIP  (${pf.length} files)`;
+    if (hasCode(content)) return `.${detectCodeLang(content)}`;
+    return ".txt";
+  }
+
   function renderMessage({ item }: { item: Message }) {
     const isUser = item.role === "user";
+    const isDown = downloading === item.id;
+    const label = getDownloadLabel(item.content);
+
     return (
       <View style={[styles.msgRow, isUser ? styles.rowUser : styles.rowAssistant]}>
         {!isUser && (
@@ -195,10 +278,29 @@ export default function NexusChat() {
             <Text style={styles.aiBadgeText}>AI</Text>
           </View>
         )}
-        <View style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}>
-          <Text style={[styles.bubbleText, isUser ? styles.userText : styles.aiText]}>
-            {item.content}
-          </Text>
+        <View style={styles.bubbleCol}>
+          <View style={[styles.bubble, isUser ? styles.userBubble : styles.aiBubble]}>
+            <Text style={[styles.bubbleText, isUser ? styles.userText : styles.aiText]}>
+              {item.content}
+            </Text>
+          </View>
+          <Pressable
+            style={[styles.dlBtn, isUser ? styles.dlBtnUser : styles.dlBtnAi]}
+            onPress={async () => {
+              setDownloading(item.id);
+              await downloadMessage(item.content, item.role);
+              setDownloading(null);
+            }}
+            disabled={isDown}
+          >
+            {isDown
+              ? <ActivityIndicator size={10} color="#444" />
+              : <Feather name="download" size={11} color={isUser ? "#00d4ff88" : "#444"} />
+            }
+            <Text style={[styles.dlBtnText, isUser && styles.dlBtnTextUser]}>
+              {isDown ? "saving…" : `Download ${label}`}
+            </Text>
+          </Pressable>
         </View>
       </View>
     );
@@ -317,8 +419,7 @@ export default function NexusChat() {
           >
             {isStreaming
               ? <ActivityIndicator size="small" color="#000" />
-              : <Feather name="send" size={18} color="#000" />
-            }
+              : <Feather name="send" size={18} color="#000" />}
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -370,7 +471,7 @@ export default function NexusChat() {
                 style={[styles.modelRow, selectedPrompt === p.id && styles.modelRowActive]}
                 onPress={() => { setSelectedPrompt(p.id); Haptics.selectionAsync(); setShowPromptPicker(false); }}
               >
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text style={styles.modelRowLabel}>{p.label}</Text>
                   <Text style={styles.promptDesc} numberOfLines={2}>{p.prompt.slice(0, 80)}…</Text>
                 </View>
@@ -388,20 +489,15 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: "#000" },
 
   header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: "#111",
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 16, paddingBottom: 12,
+    borderBottomWidth: 1, borderBottomColor: "#111",
   },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
   headerRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   logo: {
     width: 36, height: 36, borderRadius: 8,
-    backgroundColor: "#00d4ff18",
-    borderWidth: 1, borderColor: "#00d4ff44",
+    backgroundColor: "#00d4ff18", borderWidth: 1, borderColor: "#00d4ff44",
     alignItems: "center", justifyContent: "center",
   },
   logoText: { color: "#00d4ff", fontSize: 18, fontWeight: "800" },
@@ -409,27 +505,19 @@ const styles = StyleSheet.create({
   headerSub: { color: "#00d4ff", fontSize: 10, fontWeight: "600", letterSpacing: 1, marginTop: 1 },
   iconBtn: {
     width: 36, height: 36, borderRadius: 8,
-    backgroundColor: "#0a0a0a",
-    borderWidth: 1, borderColor: "#1a1a1a",
+    backgroundColor: "#0a0a0a", borderWidth: 1, borderColor: "#1a1a1a",
     alignItems: "center", justifyContent: "center",
   },
 
   modelBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: "#111",
-    backgroundColor: "#050505",
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 16, paddingVertical: 8,
+    borderBottomWidth: 1, borderBottomColor: "#111", backgroundColor: "#050505",
   },
   modelBarLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
   uncensoredBadge: {
-    backgroundColor: "#00d4ff18",
-    borderWidth: 1, borderColor: "#00d4ff44",
-    borderRadius: 4,
-    paddingHorizontal: 6, paddingVertical: 2,
+    backgroundColor: "#00d4ff18", borderWidth: 1, borderColor: "#00d4ff44",
+    borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2,
   },
   uncensoredText: { color: "#00d4ff", fontSize: 9, fontWeight: "800", letterSpacing: 1 },
   modelName: { color: "#888", fontSize: 12, fontWeight: "500" },
@@ -437,103 +525,89 @@ const styles = StyleSheet.create({
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, paddingHorizontal: 20 },
   emptyLogo: {
     width: 80, height: 80, borderRadius: 20,
-    backgroundColor: "#00d4ff12",
-    borderWidth: 1, borderColor: "#00d4ff33",
-    alignItems: "center", justifyContent: "center",
-    marginBottom: 8,
+    backgroundColor: "#00d4ff12", borderWidth: 1, borderColor: "#00d4ff33",
+    alignItems: "center", justifyContent: "center", marginBottom: 8,
   },
   emptyLogoText: { color: "#00d4ff", fontSize: 40, fontWeight: "900" },
   emptyTitle: { color: "#fff", fontSize: 28, fontWeight: "900", letterSpacing: 4 },
   emptySub: { color: "#444", fontSize: 13, textAlign: "center", marginBottom: 8 },
   chipRow: { flexDirection: "row", gap: 8, flexWrap: "wrap", justifyContent: "center" },
   chip: {
-    backgroundColor: "#0a0a0a",
-    borderWidth: 1, borderColor: "#1a1a1a",
-    borderRadius: 20,
-    paddingHorizontal: 14, paddingVertical: 8,
-    marginBottom: 4,
+    backgroundColor: "#0a0a0a", borderWidth: 1, borderColor: "#1a1a1a",
+    borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, marginBottom: 4,
   },
   chipText: { color: "#555", fontSize: 13 },
 
   listContent: { paddingHorizontal: 12, paddingVertical: 12 },
-  msgRow: { flexDirection: "row", marginBottom: 12, alignItems: "flex-start", gap: 8 },
+  msgRow: { flexDirection: "row", marginBottom: 16, alignItems: "flex-start", gap: 8 },
   rowUser: { justifyContent: "flex-end" },
   rowAssistant: { justifyContent: "flex-start" },
   aiBadge: {
     width: 28, height: 28, borderRadius: 6,
-    backgroundColor: "#00d4ff18",
-    borderWidth: 1, borderColor: "#00d4ff33",
-    alignItems: "center", justifyContent: "center",
-    flexShrink: 0,
-    marginTop: 2,
+    backgroundColor: "#00d4ff18", borderWidth: 1, borderColor: "#00d4ff33",
+    alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2,
   },
   aiBadgeText: { color: "#00d4ff", fontSize: 9, fontWeight: "800" },
-  bubble: { maxWidth: "82%", borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
+
+  bubbleCol: { maxWidth: "82%", gap: 4 },
+  bubble: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
   userBubble: { backgroundColor: "#00d4ff18", borderWidth: 1, borderColor: "#00d4ff33", borderBottomRightRadius: 2 },
   aiBubble: { backgroundColor: "#0a0a0a", borderWidth: 1, borderColor: "#1a1a1a", borderBottomLeftRadius: 2 },
   bubbleText: { fontSize: 15, lineHeight: 22 },
   userText: { color: "#e0e0e0" },
   aiText: { color: "#ccc" },
 
+  dlBtn: {
+    flexDirection: "row", alignItems: "center", gap: 5,
+    paddingHorizontal: 10, paddingVertical: 5,
+    borderRadius: 6, borderWidth: 1,
+    alignSelf: "flex-start",
+  },
+  dlBtnAi: { borderColor: "#1a1a1a", backgroundColor: "#080808" },
+  dlBtnUser: { borderColor: "#00d4ff22", backgroundColor: "#00d4ff08", alignSelf: "flex-end" },
+  dlBtnText: { color: "#333", fontSize: 11, fontWeight: "600" },
+  dlBtnTextUser: { color: "#00d4ff66" },
+
   typingRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginBottom: 12, paddingHorizontal: 12 },
-  typingBubble: { backgroundColor: "#0a0a0a", borderRadius: 12, borderWidth: 1, borderColor: "#1a1a1a", paddingHorizontal: 18, paddingVertical: 12 },
+  typingBubble: {
+    backgroundColor: "#0a0a0a", borderRadius: 12, borderWidth: 1,
+    borderColor: "#1a1a1a", paddingHorizontal: 18, paddingVertical: 12,
+  },
 
   inputBar: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    paddingHorizontal: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#111",
-    backgroundColor: "#000",
-    gap: 8,
+    flexDirection: "row", alignItems: "flex-end",
+    paddingHorizontal: 12, paddingTop: 10,
+    borderTopWidth: 1, borderTopColor: "#111", backgroundColor: "#000", gap: 8,
   },
   input: {
-    flex: 1,
-    backgroundColor: "#0a0a0a",
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    color: "#e0e0e0",
-    fontSize: 15,
-    maxHeight: 120,
-    borderWidth: 1,
-    borderColor: "#1a1a1a",
+    flex: 1, backgroundColor: "#0a0a0a", borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 10,
+    color: "#e0e0e0", fontSize: 15, maxHeight: 120,
+    borderWidth: 1, borderColor: "#1a1a1a",
   },
   sendBtn: {
-    width: 44, height: 44, borderRadius: 12,
-    backgroundColor: "#00d4ff",
-    alignItems: "center", justifyContent: "center",
-    flexShrink: 0,
+    width: 44, height: 44, borderRadius: 12, backgroundColor: "#00d4ff",
+    alignItems: "center", justifyContent: "center", flexShrink: 0,
   },
   sendOff: { backgroundColor: "#111" },
 
   modalRoot: { flex: 1, backgroundColor: "#000" },
   modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingBottom: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#111",
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 20, paddingBottom: 14,
+    borderBottomWidth: 1, borderBottomColor: "#111",
   },
   modalTitle: { color: "#fff", fontSize: 18, fontWeight: "800" },
   modalClose: {
     width: 34, height: 34, borderRadius: 8,
-    backgroundColor: "#0a0a0a",
-    borderWidth: 1, borderColor: "#1a1a1a",
+    backgroundColor: "#0a0a0a", borderWidth: 1, borderColor: "#1a1a1a",
     alignItems: "center", justifyContent: "center",
   },
   modalScroll: { flex: 1 },
   modelRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: "#0d0d0d",
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    paddingHorizontal: 20, paddingVertical: 16,
+    borderBottomWidth: 1, borderBottomColor: "#0d0d0d",
   },
   modelRowActive: { backgroundColor: "#00d4ff08" },
   modelRowLeft: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },

@@ -1,6 +1,6 @@
 {
-  "name": "Lexi",
+  "name": "Lexi App",
   "type": "apk",
-  "mainFile": "https://expo.dev/accounts/user/projects/lexi-app/builds/abc123",
+  "mainFile": "/home/runner/workspace/lexi-projects/lexi-app/build/Android/app.apk",
   "path": "/home/runner/workspace/lexi-projects/lexi-app"
 }

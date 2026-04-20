@@ -2544,3 +2544,220 @@
     console.error("[Lexi] Extension failed to load: lexi", e);
   }
 })();
+
+// ============================================================
+// LEXI EXTENSION: lexi
+// Added: 2026-04-20T03:36:48.142Z
+// Description: lexi.js main entry point
+// ============================================================
+(function registerExtension_lexi() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["lexi"]) return;
+
+  try {
+    // lexi.js
+    const lexicon = {
+      // all of my knowledge here
+    };
+    
+    const lexi = {
+      // all of my functions here
+    };
+    
+    module.exports = lexi;
+
+    window.LexiExtensions["lexi"] = {
+      name: "lexi",
+      description: "lexi.js main entry point",
+      loadedAt: "2026-04-20T03:36:48.142Z",
+    };
+
+    console.log("[Lexi] Extension loaded: lexi");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("lexi");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: lexi", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: app
+// Added: 2026-04-20T03:36:48.251Z
+// Description: index.js main entry point
+// ============================================================
+(function registerExtension_app() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["app"]) return;
+
+  try {
+    // index.js
+    import React from 'react';
+    import { AppRegistry, View } from 'react-native';
+    import lexicon from './lexi';
+    import lexi from './lexi';
+    
+    const App = () => {
+      return (
+        <View>
+          <lexi>lexi</lexi>
+        </View>
+      );
+    };
+    
+    AppRegistry.registerComponent('App', () => App);
+
+    window.LexiExtensions["app"] = {
+      name: "app",
+      description: "index.js main entry point",
+      loadedAt: "2026-04-20T03:36:48.251Z",
+    };
+
+    console.log("[Lexi] Extension loaded: app");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("app");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: app", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: ui
+// Added: 2026-04-20T03:36:48.252Z
+// Description: App.tsx main entry point
+// ============================================================
+(function registerExtension_ui() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["ui"]) return;
+
+  try {
+    // App.tsx
+    import React from 'react';
+    import { AppRegistry, View } from 'react-native';
+    import lexicon from './lexi';
+    import lexi from './lexi';
+    
+    const App = () => {
+      return (
+        <View>
+          <lexi>lexi</lexi>
+        </View>
+      );
+    };
+    
+    AppRegistry.registerComponent('App', () => App);
+
+    window.LexiExtensions["ui"] = {
+      name: "ui",
+      description: "App.tsx main entry point",
+      loadedAt: "2026-04-20T03:36:48.252Z",
+    };
+
+    console.log("[Lexi] Extension loaded: ui");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("ui");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: ui", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: config
+// Added: 2026-04-20T03:36:48.253Z
+// Description: app.json main entry point
+// ============================================================
+(function registerExtension_config() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["config"]) return;
+
+  try {
+    // app.json
+    {
+      "expo": {
+        "name": "Lexi",
+        "slug": "lexi",
+        "android": {
+          "package": "com.example.lexi"
+        }
+      }
+    }
+
+    window.LexiExtensions["config"] = {
+      name: "config",
+      description: "app.json main entry point",
+      loadedAt: "2026-04-20T03:36:48.253Z",
+    };
+
+    console.log("[Lexi] Extension loaded: config");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("config");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: config", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: eas
+// Added: 2026-04-20T03:36:48.254Z
+// Description: eas.json main entry point
+// ============================================================
+(function registerExtension_eas() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["eas"]) return;
+
+  try {
+    // eas.json
+    {
+      "preview": {
+        "profile": "lexi-preview"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    }
+
+    window.LexiExtensions["eas"] = {
+      name: "eas",
+      description: "eas.json main entry point",
+      loadedAt: "2026-04-20T03:36:48.254Z",
+    };
+
+    console.log("[Lexi] Extension loaded: eas");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("eas");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: eas", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: package
+// Added: 2026-04-20T03:36:48.264Z
+// Description: package.json main entry point
+// ============================================================
+(function registerExtension_package() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["package"]) return;
+
+  try {
+    // package.json
+    {
+      "name": "lexi",
+      "version": "1.0.0",
+      "main": "index.js",
+      "scripts": {
+        "start": "expo start"
+      },
+      "dependencies": {
+        "expo": "^53.0.0",
+        "react": "^17.0.2",
+        "react-native": "^0.64.3"
+      }
+    }
+
+    window.LexiExtensions["package"] = {
+      name: "package",
+      description: "package.json main entry point",
+      loadedAt: "2026-04-20T03:36:48.264Z",
+    };
+
+    console.log("[Lexi] Extension loaded: package");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("package");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: package", e);
+  }
+})();

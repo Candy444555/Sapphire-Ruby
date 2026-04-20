@@ -12,6 +12,7 @@ import projectsRouter from "./projects";
 import apkBuildRouter from "./apk-build";
 import uploadRouter from "./upload";
 import githubRouter from "./github";
+import githubBuildApkRouter from "./github-build-apk";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use(projectsRouter);
 router.use(apkBuildRouter);
 router.use(uploadRouter);
 router.use(githubRouter);
+router.use(githubBuildApkRouter);
 
 export default router;

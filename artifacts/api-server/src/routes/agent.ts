@@ -229,49 +229,46 @@ AUTO-TEST RULES (run BEFORE outputting PROJECT_DONE):
 - If any test fails → fix the issue and re-test until it passes
 - NEVER output [PROJECT_DONE] if tests are still failing
 
-=== APK BUILD PROTOCOL ===
-NEVER use Buildozer or Kivy for APK builds — they require an Android SDK that is not available and will always produce empty or broken files.
-
-INSTEAD, use this exact process:
+=== APK BUILD PROTOCOL (GitHub Actions) ===
+NEVER use Buildozer, Kivy, or direct EAS/Expo CLI for APK builds. ALL APK builds go through GitHub — the project is pushed to a GitHub repository and a GitHub Actions workflow builds the APK automatically.
 
 STEP 1 — Create a complete Expo React Native project in /home/runner/workspace/lexi-projects/[slug]/
 Required files:
-  - App.tsx (your full React Native app UI)
+  - App.tsx (your full React Native app UI — complete, styled, working)
   - app.json (expo config with name, slug, android.package)
-  - package.json (with expo ~53.0.0, react-native, etc.)
-  - eas.json (with preview profile, android buildType: "apk")
+  - package.json (with expo ~53.0.0, react-native 0.76.9, react 18.3.2)
 
 STEP 2 — Verify the project files are in place:
 <cmd>ls /home/runner/workspace/lexi-projects/[slug]/</cmd>
 
-STEP 3 — Trigger the cloud build via the internal API:
-<cmd>curl -s -X POST http://localhost:8080/api/build-apk \
+STEP 3 — Push to GitHub and trigger the build:
+<cmd>curl -s -X POST http://localhost:8080/api/github-build-apk \
   -H "Content-Type: application/json" \
   -d "$(node -e "
 const fs = require('fs');
 const dir = '/home/runner/workspace/lexi-projects/[slug]';
-const files = fs.readdirSync(dir).map(f => ({
+const files = fs.readdirSync(dir).filter(f => !f.startsWith('_')).map(f => ({
   path: f,
   content: fs.readFileSync(dir + '/' + f, 'utf8')
 }));
 console.log(JSON.stringify({ projectName: '[Project Name]', files }));
 ")"</cmd>
 
-STEP 4 — Parse and respond:
-The curl response is JSON. Extract the fields like this:
-<cmd>echo 'RESPONSE_JSON' | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); console.log('buildUrl:', d.buildUrl); console.log('easBuildId:', d.easBuildId);"</cmd>
+STEP 4 — Parse and report:
+<cmd>echo 'RESPONSE_JSON' | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); console.log('repo:', d.repoUrl); console.log('actions:', d.actionsUrl);"</cmd>
 
-- If response contains { buildUrl, easBuildId, status: "queued" }: SUCCESS — the build is running in the cloud
-- If response contains an error about EXPO_TOKEN: tell the user they need to add their Expo access token to the app settings to enable cloud APK builds (get one at https://expo.dev/settings/access-tokens)
-- If any other error: show the error details
+- If response contains { ok: true, repoUrl, actionsUrl }: SUCCESS — code is on GitHub, build is running
+- If any error: show the error details and attempt to fix
 
-When the build is successfully queued, output EXACTLY this tag using the real buildUrl value from the response:
-[PROJECT_DONE name="[App Name]" path="/home/runner/workspace/lexi-projects/[slug]" mainFile="PASTE_ACTUAL_BUILD_URL_HERE" type="apk"]
+When the build is successfully triggered, output EXACTLY this tag using the real actionsUrl from the response:
+[PROJECT_DONE name="[App Name]" path="/home/runner/workspace/lexi-projects/[slug]" mainFile="PASTE_ACTUAL_ACTIONS_URL_HERE" type="apk"]
 
-Example — if buildUrl was "https://expo.dev/accounts/user/projects/myapp/builds/abc123":
-[PROJECT_DONE name="My App" path="/home/runner/workspace/lexi-projects/my-app" mainFile="https://expo.dev/accounts/user/projects/myapp/builds/abc123" type="apk"]
+Example — if actionsUrl was "https://github.com/user/my-app/actions":
+[PROJECT_DONE name="My App" path="/home/runner/workspace/lexi-projects/my-app" mainFile="https://github.com/user/my-app/actions" type="apk"]
 
-CRITICAL: mainFile MUST be the full https:// buildUrl from the API response, NOT a file path. This is what gives the user a live tracking card with a download button.
+CRITICAL: mainFile MUST be the full https://github.com/... actionsUrl from the API response, NOT a file path. This gives the user a live build tracking link.
+
+NOTE: The GitHub Actions workflow builds a debug APK using expo prebuild + Gradle. The APK artifact will be downloadable from the Actions run page once the build completes (~10-15 minutes).
 `;
 
 

@@ -32,30 +32,34 @@ async function githubFetch(path: string, options: RequestInit = {}) {
   return res.json();
 }
 
-async function getOrCreateRepo(slug: string, projectName: string): Promise<{ owner: string; repo: string; created: boolean }> {
+async function getOrCreateRepo(slug: string, projectName: string): Promise<{ owner: string; repo: string; defaultBranch: string }> {
   const user = await githubFetch("/user");
   const owner: string = user.login;
 
-  // Try to get existing repo
   try {
-    await githubFetch(`/repos/${owner}/${slug}`);
-    return { owner, repo: slug, created: false };
+    const existing = await githubFetch(`/repos/${owner}/${slug}`);
+    return { owner, repo: slug, defaultBranch: existing.default_branch ?? "main" };
   } catch {}
 
-  // Create new repo
   await githubFetch("/user/repos", {
     method: "POST",
     body: JSON.stringify({
       name: slug,
-      description: `Lexi-generated project: ${projectName}`,
+      description: `Lexi-generated React Native project: ${projectName}`,
       private: false,
       auto_init: true,
     }),
   });
 
-  // Wait briefly for GitHub to initialise the repo
-  await new Promise((r) => setTimeout(r, 2000));
-  return { owner, repo: slug, created: true };
+  await new Promise((r) => setTimeout(r, 2500));
+
+  let defaultBranch = "main";
+  try {
+    const created = await githubFetch(`/repos/${owner}/${slug}`);
+    defaultBranch = created.default_branch ?? "main";
+  } catch {}
+
+  return { owner, repo: slug, defaultBranch };
 }
 
 async function getFileSha(owner: string, repo: string, filePath: string, branch: string): Promise<string | undefined> {
@@ -94,11 +98,8 @@ function slugify(name: string): string {
     .slice(0, 40) || "lexi-app";
 }
 
-function sanitizePackage(slug: string): string {
-  return slug.replace(/-/g, "").replace(/[^a-z0-9]/g, "").slice(0, 30) || "lexiapp";
-}
-
-const APK_WORKFLOW_YAML = (slug: string) => `name: Build APK
+// Pure React Native GitHub Actions workflow — no Expo, no EAS
+const APK_WORKFLOW_YAML = (appName: string, slug: string) => `name: Build APK
 
 on:
   push:
@@ -108,17 +109,17 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout
+      - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
-      - name: Setup Java
+      - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -127,24 +128,45 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Install React Native CLI
+        run: npm install -g @react-native-community/cli@15
+
+      - name: Scaffold bare React Native project
+        run: |
+          npx @react-native-community/cli@15 init LeximBuild \\
+            --version 0.76.9 \\
+            --skip-install \\
+            --directory LeximBuild
+          echo "Scaffold complete"
+
+      - name: Copy app source into project
+        run: |
+          for f in *.tsx *.ts *.js *.jsx; do
+            [ -f "\\$f" ] && cp "\\$f" LeximBuild/ && echo "Copied \\$f" || true
+          done
+          for d in src components screens hooks lib assets images; do
+            [ -d "\\$d" ] && cp -r "\\$d" LeximBuild/ && echo "Copied dir \\$d" || true
+          done
+
       - name: Install dependencies
+        working-directory: LeximBuild
         run: npm install --legacy-peer-deps
 
-      - name: Generate native Android code
-        run: npx expo prebuild --platform android --clean --no-install
-
       - name: Make gradlew executable
-        run: chmod +x android/gradlew
+        working-directory: LeximBuild/android
+        run: chmod +x gradlew
 
       - name: Build debug APK
-        run: cd android && ./gradlew assembleDebug --no-daemon
+        working-directory: LeximBuild/android
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: ${slug}-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          name: ${slug}-debug-apk
+          path: LeximBuild/android/app/build/outputs/apk/debug/app-debug.apk
           retention-days: 30
+          if-no-files-found: error
 `;
 
 // POST /api/github-build-apk
@@ -161,81 +183,92 @@ router.post("/github-build-apk", async (req: Request, res: Response) => {
 
   const name = projectName ?? "Lexi App";
   const slug = slugify(name);
-  const pkgSlug = sanitizePackage(slug);
 
   try {
-    const { owner, repo } = await getOrCreateRepo(slug, name);
-    const branch = "main";
+    const { owner, repo, defaultBranch } = await getOrCreateRepo(slug, name);
 
-    // Determine default branch (auto_init might create "main" or "master")
-    let defaultBranch = "main";
-    try {
-      const repoData = await githubFetch(`/repos/${owner}/${repo}`);
-      defaultBranch = repoData.default_branch ?? "main";
-    } catch {}
-
-    // Ensure app.json has correct expo config
+    // Pure React Native app.json (no expo config)
     const existingAppJson = files.find((f) => f.path === "app.json");
     let appJsonContent: string;
     if (existingAppJson) {
       try {
         const parsed = JSON.parse(existingAppJson.content);
-        if (!parsed.expo) parsed.expo = {};
-        parsed.expo.name = parsed.expo.name ?? name;
-        if (!parsed.expo.slug) parsed.expo.slug = slug;
-        if (!parsed.expo.android) parsed.expo.android = {};
-        if (!parsed.expo.android.package) parsed.expo.android.package = `com.lexi.${pkgSlug}`;
+        // Strip expo config if present
+        delete parsed.expo;
+        if (!parsed.name) parsed.name = name;
+        if (!parsed.displayName) parsed.displayName = name;
         appJsonContent = JSON.stringify(parsed, null, 2);
       } catch {
         appJsonContent = existingAppJson.content;
       }
     } else {
-      appJsonContent = JSON.stringify({
-        expo: {
-          name,
-          slug,
-          version: "1.0.0",
-          android: { package: `com.lexi.${pkgSlug}` },
-        },
-      }, null, 2);
+      appJsonContent = JSON.stringify({ name: slug, displayName: name }, null, 2);
     }
 
-    // Ensure package.json exists
+    // Pure React Native package.json (no expo)
     const existingPkgJson = files.find((f) => f.path === "package.json");
     let pkgJsonContent: string;
     if (existingPkgJson) {
-      pkgJsonContent = existingPkgJson.content;
+      try {
+        const parsed = JSON.parse(existingPkgJson.content);
+        // Remove expo dependencies
+        if (parsed.dependencies) {
+          for (const key of Object.keys(parsed.dependencies)) {
+            if (key.startsWith("expo")) delete parsed.dependencies[key];
+          }
+          if (!parsed.dependencies["react-native"]) parsed.dependencies["react-native"] = "0.76.9";
+          if (!parsed.dependencies["react"]) parsed.dependencies["react"] = "18.3.2";
+        }
+        // Fix scripts
+        delete parsed.main;
+        parsed.scripts = {
+          android: "react-native run-android",
+          ios: "react-native run-ios",
+          start: "react-native start",
+        };
+        pkgJsonContent = JSON.stringify(parsed, null, 2);
+      } catch {
+        pkgJsonContent = existingPkgJson.content;
+      }
     } else {
       pkgJsonContent = JSON.stringify({
         name: slug,
         version: "1.0.0",
-        main: "node_modules/expo/AppEntry.js",
-        scripts: { start: "expo start", android: "expo run:android" },
+        private: true,
+        scripts: {
+          android: "react-native run-android",
+          ios: "react-native run-ios",
+          start: "react-native start",
+        },
         dependencies: {
-          expo: "~53.0.0",
-          "expo-status-bar": "~2.0.0",
           react: "18.3.2",
           "react-native": "0.76.9",
+        },
+        devDependencies: {
+          "@babel/core": "^7.25.0",
+          "@react-native/babel-preset": "^0.76.0",
+          "@types/react": "^18.3.0",
+          "@types/react-native": "^0.73.0",
+          typescript: "^5.0.0",
         },
       }, null, 2);
     }
 
-    // Build full file list
+    // Build full file list — no expo dependencies, inject GitHub Actions workflow
     const allFiles: Array<{ path: string; content: string }> = [
       ...files.filter((f) => f.path !== "app.json" && f.path !== "package.json"),
       { path: "app.json", content: appJsonContent },
       { path: "package.json", content: pkgJsonContent },
-      { path: ".github/workflows/build-apk.yml", content: APK_WORKFLOW_YAML(slug) },
+      { path: ".github/workflows/build-apk.yml", content: APK_WORKFLOW_YAML(name, slug) },
     ];
 
-    // Push files sequentially
     let pushed = 0;
     for (const file of allFiles) {
       try {
-        await pushFile(owner, repo, file.path, file.content, `feat: add ${file.path} via Lexi`, defaultBranch);
+        await pushFile(owner, repo, file.path, file.content, `build: add ${file.path}`, defaultBranch);
         pushed++;
       } catch (e: any) {
-        console.warn(`[github-build-apk] Failed to push ${file.path}:`, e.message?.slice(0, 200));
+        console.warn(`[github-build-apk] Skipped ${file.path}: ${e.message?.slice(0, 120)}`);
       }
     }
 
@@ -251,14 +284,14 @@ router.post("/github-build-apk", async (req: Request, res: Response) => {
       owner,
       repo,
       pushed,
-      message: `Project pushed to GitHub. Build triggered at ${actionsUrl}`,
+      message: `Pure React Native project pushed to GitHub. APK build triggered via GitHub Actions at ${actionsUrl}`,
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// GET /api/github-build-apk/:owner/:repo/status — check latest workflow run
+// GET /api/github-build-apk/:owner/:repo/status
 router.get("/github-build-apk/:owner/:repo/status", async (req: Request, res: Response) => {
   const { owner, repo } = req.params;
   try {
@@ -267,9 +300,10 @@ router.get("/github-build-apk/:owner/:repo/status", async (req: Request, res: Re
     );
     const run = data.workflow_runs?.[0];
     if (!run) {
-      res.json({ status: "no_runs", message: "No workflow runs found yet." });
+      res.json({ status: "no_runs", message: "No workflow runs found yet — build may still be queuing." });
       return;
     }
+
     const artifactsData = run.status === "completed"
       ? await githubFetch(`/repos/${owner}/${repo}/actions/runs/${run.id}/artifacts`)
       : null;
@@ -283,7 +317,7 @@ router.get("/github-build-apk/:owner/:repo/status", async (req: Request, res: Re
       updatedAt: run.updated_at,
       artifacts: artifactsData?.artifacts?.map((a: any) => ({
         name: a.name,
-        size: a.size_in_bytes,
+        sizeBytes: a.size_in_bytes,
         downloadUrl: a.archive_download_url,
         expiresAt: a.expires_at,
       })) ?? [],

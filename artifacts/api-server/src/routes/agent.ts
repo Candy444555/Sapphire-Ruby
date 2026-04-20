@@ -198,7 +198,7 @@ QUALITY STANDARDS — Make everything look authentic, professional, and real:
 - Documents (PDF/DOCX): Real formatting, real content, professional layout
 - Images: Generate with Python Pillow (pip install Pillow) or ImageMagick — actual visual content
 - Videos: Generate with FFmpeg — real animations, text overlays, actual video file
-- APK: Build using Expo + EAS cloud build. Create a complete Expo React Native project, then trigger the build via the internal API endpoint using curl. See APK BUILD PROTOCOL below.
+- APK: Build using pure React Native (no Expo). Push the project to GitHub via the internal API and GitHub Actions will build the APK automatically. See APK BUILD PROTOCOL below.
 - Python/Node apps: Fully working, runnable code
 
 STEP-BY-STEP PROCESS:
@@ -229,19 +229,25 @@ AUTO-TEST RULES (run BEFORE outputting PROJECT_DONE):
 - If any test fails → fix the issue and re-test until it passes
 - NEVER output [PROJECT_DONE] if tests are still failing
 
-=== APK BUILD PROTOCOL (GitHub Actions) ===
-NEVER use Buildozer, Kivy, or direct EAS/Expo CLI for APK builds. ALL APK builds go through GitHub — the project is pushed to a GitHub repository and a GitHub Actions workflow builds the APK automatically.
+=== APK BUILD PROTOCOL (GitHub Actions — Pure React Native) ===
+NEVER use Buildozer, Kivy, EAS, or any Expo tooling. ALL APK builds go through GitHub — pure React Native project pushed to a GitHub repo, built by GitHub Actions with Gradle.
 
-STEP 1 — Create a complete Expo React Native project in /home/runner/workspace/lexi-projects/[slug]/
-Required files:
-  - App.tsx (your full React Native app UI — complete, styled, working)
-  - app.json (expo config with name, slug, android.package)
-  - package.json (with expo ~53.0.0, react-native 0.76.9, react 18.3.2)
+STEP 1 — Create a pure React Native project in /home/runner/workspace/lexi-projects/[slug]/
+Required files (NO expo imports, NO expo packages):
+  - App.tsx   → Pure React Native UI using only 'react-native' imports (View, Text, StyleSheet, etc.)
+  - app.json  → { "name": "[slug]", "displayName": "[App Name]" }
+  - package.json → { "name": "[slug]", "version": "1.0.0", "scripts": { "android": "react-native run-android", "start": "react-native start" }, "dependencies": { "react": "18.3.2", "react-native": "0.76.9" } }
 
-STEP 2 — Verify the project files are in place:
+RULES for App.tsx:
+- ONLY import from 'react-native' — never from 'expo-*', '@expo/*', or 'expo'
+- Use StyleSheet.create() for styles
+- Use StatusBar from 'react-native'
+- Keep the component clean and self-contained
+
+STEP 2 — Verify files exist:
 <cmd>ls /home/runner/workspace/lexi-projects/[slug]/</cmd>
 
-STEP 3 — Push to GitHub and trigger the build:
+STEP 3 — Push to GitHub and trigger the GitHub Actions build:
 <cmd>curl -s -X POST http://localhost:8080/api/github-build-apk \
   -H "Content-Type: application/json" \
   -d "$(node -e "
@@ -254,21 +260,16 @@ const files = fs.readdirSync(dir).filter(f => !f.startsWith('_')).map(f => ({
 console.log(JSON.stringify({ projectName: '[Project Name]', files }));
 ")"</cmd>
 
-STEP 4 — Parse and report:
+STEP 4 — Read and report the result:
 <cmd>echo 'RESPONSE_JSON' | node -e "const d=JSON.parse(require('fs').readFileSync('/dev/stdin','utf8')); console.log('repo:', d.repoUrl); console.log('actions:', d.actionsUrl);"</cmd>
 
-- If response contains { ok: true, repoUrl, actionsUrl }: SUCCESS — code is on GitHub, build is running
-- If any error: show the error details and attempt to fix
+- { ok: true, repoUrl, actionsUrl } → SUCCESS — pure React Native code is on GitHub, GitHub Actions is building the APK
+- Any error → show details and fix
 
-When the build is successfully triggered, output EXACTLY this tag using the real actionsUrl from the response:
+Output EXACTLY this tag with the real actionsUrl:
 [PROJECT_DONE name="[App Name]" path="/home/runner/workspace/lexi-projects/[slug]" mainFile="PASTE_ACTUAL_ACTIONS_URL_HERE" type="apk"]
 
-Example — if actionsUrl was "https://github.com/user/my-app/actions":
-[PROJECT_DONE name="My App" path="/home/runner/workspace/lexi-projects/my-app" mainFile="https://github.com/user/my-app/actions" type="apk"]
-
-CRITICAL: mainFile MUST be the full https://github.com/... actionsUrl from the API response, NOT a file path. This gives the user a live build tracking link.
-
-NOTE: The GitHub Actions workflow builds a debug APK using expo prebuild + Gradle. The APK artifact will be downloadable from the Actions run page once the build completes (~10-15 minutes).
+CRITICAL: mainFile MUST be the full https://github.com/... actionsUrl. The APK artifact (~15 min build time) will be downloadable from the GitHub Actions run page.
 `;
 
 

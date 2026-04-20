@@ -3,6 +3,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system/legacy";
 import { fetch } from "expo/fetch";
 import * as Haptics from "expo-haptics";
+import { useRouter } from "expo-router";
 import * as Sharing from "expo-sharing";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -150,6 +151,7 @@ async function downloadMessage(content: string, role: "user" | "assistant") {
 
 export default function NexusChat() {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -322,6 +324,9 @@ export default function NexusChat() {
           </View>
         </View>
         <View style={styles.headerRight}>
+          <Pressable style={styles.iconBtn} onPress={() => router.push("/(tabs)/github")}>
+            <Feather name="github" size={18} color="#666" />
+          </Pressable>
           <Pressable style={styles.iconBtn} onPress={() => setShowPromptPicker(true)}>
             <Feather name="cpu" size={18} color="#00d4ff" />
           </Pressable>

@@ -11,6 +11,7 @@ import selfPatchRouter from "./self-patch";
 import projectsRouter from "./projects";
 import apkBuildRouter from "./apk-build";
 import uploadRouter from "./upload";
+import githubRouter from "./github";
 
 const router: IRouter = Router();
 
@@ -26,5 +27,6 @@ router.use(selfPatchRouter);
 router.use(projectsRouter);
 router.use(apkBuildRouter);
 router.use(uploadRouter);
+router.use(githubRouter);
 
 export default router;

@@ -76,6 +76,29 @@ All tools are installed via Nix and available in the real terminal:
 - `POST /api/terminal/exec` — Execute command in session (marker-based completion)
 - `DELETE /api/terminal/session/:id` — Destroy session
 
+### GitHub Pipeline (Lexi Mobile)
+Token stored as `GITHUB_TOKEN` secret.
+- `GET /api/github/user` — Authenticated GitHub user info
+- `GET /api/github/repos` — List user repositories
+- `GET /api/github/repos/:owner/:repo` — Repo details
+- `GET /api/github/repos/:owner/:repo/branches` — List branches
+- `GET /api/github/repos/:owner/:repo/tree` — Recursive file tree
+- `GET /api/github/repos/:owner/:repo/contents` — File contents (decoded from base64)
+- `POST /api/github/repos/:owner/:repo/push` — Create or update a single file (commit)
+- `POST /api/github/repos/:owner/:repo/push-multi` — Push multiple files in sequence
+- `POST /api/github/repos/:owner/:repo/issues` — Create issue
+- `GET /api/github/repos/:owner/:repo/issues` — List open issues
+- `POST /api/github/repos` — Create new repository
+
+#### Lexi Mobile GitHub Tab (`app/(tabs)/github.tsx`)
+- GitHub icon in chat header navigates to tab
+- User profile banner showing login, repo count, followers
+- Searchable repo list with language, star count, visibility badge
+- Repo detail: branch selector, file tree, action buttons
+- Push Code screen: file path, content editor, commit message, branch picker
+- Issues screen: list open issues, create new issue modal
+- Create Repository screen: name, description, public/private toggle
+
 ### Uncensored Models Available
 - Hermes 3 Llama 3.1 405B / 70B
 - Hermes 2 Pro Llama 3 8B

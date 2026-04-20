@@ -107,6 +107,13 @@ router.post("/build-apk", async (req: Request, res: Response) => {
     }, null, 2), "utf-8");
   }
 
+  const easEnv = {
+    ...process.env,
+    EXPO_TOKEN: token,
+    PATH: `/home/runner/workspace/.config/npm/node_global/bin:${process.env.PATH}`,
+  };
+
+  // Step 1: install deps
   try {
     execSync("npm install --legacy-peer-deps --prefer-offline", {
       cwd: projectDir,
@@ -115,6 +122,23 @@ router.post("/build-apk", async (req: Request, res: Response) => {
     });
   } catch {}
 
+  // Step 2: register the project under the authenticated Expo account
+  // This is required before EAS can queue a build — without it the build
+  // hangs in "queued" forever and the build page shows "no app here".
+  try {
+    execSync(`${EAS_BIN} init --non-interactive --force`, {
+      cwd: projectDir,
+      stdio: ["pipe", "pipe", "pipe"],
+      timeout: 60000,
+      env: easEnv,
+    });
+  } catch (initErr: any) {
+    const detail = (initErr.stdout?.toString?.() ?? "") + (initErr.stderr?.toString?.() ?? "");
+    res.status(500).json({ error: "Failed to register project with Expo.", details: detail.slice(0, 1000) });
+    return;
+  }
+
+  // Step 3: submit the build
   let easBuildId = "";
   let buildUrl = "";
   try {
@@ -124,14 +148,14 @@ router.post("/build-apk", async (req: Request, res: Response) => {
         cwd: projectDir,
         stdio: ["pipe", "pipe", "pipe"],
         timeout: 120000,
-        env: { ...process.env, EXPO_TOKEN: token, PATH: `/home/runner/workspace/.config/npm/node_global/bin:${process.env.PATH}` },
+        env: easEnv,
       }
     ).toString().trim();
 
     const parsed = JSON.parse(output);
     const buildEntry = Array.isArray(parsed) ? parsed[0] : parsed;
     easBuildId = buildEntry?.id ?? "";
-    buildUrl = buildEntry?.buildDetailsPageUrl ?? `https://expo.dev/builds/${easBuildId}`;
+    buildUrl = buildEntry?.buildDetailsPageUrl ?? `https://expo.dev/accounts/rubywilliam444/builds/${easBuildId}`;
   } catch (err: any) {
     const detail = (err.stdout?.toString?.() ?? "") + (err.stderr?.toString?.() ?? "") + (err.message ?? "");
     res.status(500).json({ error: "Failed to start EAS build.", details: detail.slice(0, 2000) });

@@ -2761,3 +2761,74 @@
     console.error("[Lexi] Extension failed to load: package", e);
   }
 })();
+
+// ============================================================
+// LEXI EXTENSION: android_project_finder
+// Added: 2026-04-20T04:00:04.473Z
+// Description: finds the Android project in the current directory
+// ============================================================
+(function registerExtension_android_project_finder() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["android_project_finder"]) return;
+
+  try {
+    const fs = require('fs');
+    const path = require('path');
+    const androidDir = fs.readdirSync('./').find(d => d === 'android');
+    if (!androidDir) {
+      console.log('Android project not found');
+      process.exit(1);
+    }
+
+    window.LexiExtensions["android_project_finder"] = {
+      name: "android_project_finder",
+      description: "finds the Android project in the current directory",
+      loadedAt: "2026-04-20T04:00:04.473Z",
+    };
+
+    console.log("[Lexi] Extension loaded: android_project_finder");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("android_project_finder");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: android_project_finder", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: apk_installer
+// Added: 2026-04-20T04:50:29.442Z
+// Description: install APK on phone
+// ============================================================
+(function registerExtension_apk_installer() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["apk_installer"]) return;
+
+  try {
+    const fs = require('fs');
+    const adb = require('adb');
+    const path = require('path');
+    const download = require('download');
+    
+    function installApk(apkPath) {
+      const device = adb.getDevice();
+      const apkName = path.basename(apkPath);
+      const apkPathOnDevice = `/sdcard/${apkName}`;
+      download(apkPath, apkPathOnDevice);
+      adb.push(apkPathOnDevice, `/data/local/tmp/${apkName}`);
+      adb.shell(`pm install -r /data/local/tmp/${apkName}`);
+      console.log(`APK installed successfully. ${apkName} is now on your phone.`);
+    }
+    
+    module.exports = installApk;
+
+    window.LexiExtensions["apk_installer"] = {
+      name: "apk_installer",
+      description: "install APK on phone",
+      loadedAt: "2026-04-20T04:50:29.442Z",
+    };
+
+    console.log("[Lexi] Extension loaded: apk_installer");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("apk_installer");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: apk_installer", e);
+  }
+})();

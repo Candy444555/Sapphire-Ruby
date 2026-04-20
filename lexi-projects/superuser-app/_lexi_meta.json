@@ -1,0 +1,6 @@
+{
+  "name": "SuperUser App",
+  "type": "apk",
+  "mainFile": "https://github.com/your-username/superuser-app/actions/runs/123456789",
+  "path": "/home/runner/workspace/lexi-projects/superuser-app"
+}

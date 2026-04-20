@@ -1,0 +1,1 @@
+{"name": "superuser-app", "version": "1.0.0", "scripts": {"android": "react-native run-android", "start": "react-native start"}, "dependencies": {"react": "18.3.2", "react-native": "0.76.9"}}

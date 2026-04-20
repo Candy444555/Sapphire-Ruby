@@ -136,5 +136,11 @@
     "description": "Lexi AI functionality",
     "filePath": "/home/runner/workspace/lexi-python-scripts/lexi.py",
     "addedAt": "2026-04-20T03:07:54.893Z"
+  },
+  "apk_downloader": {
+    "slug": "apk_downloader",
+    "description": "download APK from GitHub",
+    "filePath": "/home/runner/workspace/lexi-python-scripts/apk_downloader.py",
+    "addedAt": "2026-04-20T04:51:32.695Z"
   }
 }

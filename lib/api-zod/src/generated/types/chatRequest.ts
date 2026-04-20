@@ -11,6 +11,6 @@ export interface ChatRequest {
   /** OpenRouter model ID */
   model: string;
   messages: ChatMessage[];
-  /** Optional system prompt */
+  /** enforced system prompt */
   systemPrompt?: string;
 }

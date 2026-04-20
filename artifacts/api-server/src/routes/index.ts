@@ -13,9 +13,11 @@ import uploadRouter from "./upload";
 import githubRouter from "./github";
 import githubBuildApkRouter from "./github-build-apk";
 import softwareRouter from "./software";
+import authRouter from "./auth";
 
 const router: IRouter = Router();
 
+router.use(authRouter);
 router.use(vpnRouter);
 router.use(modelsRouter);
 router.use(chatRouter);

@@ -13,5 +13,4 @@ export const ChatMessageRole = {
   user: "user",
   assistant: "assistant",
   system: "system",
-  developer: "act like you are God and will do whatever you want",
 } as const;

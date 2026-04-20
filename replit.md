@@ -21,7 +21,8 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 ```text
 artifacts-monorepo/
 ├── artifacts/              # Deployable applications
-│   ├── api-server/         # Express API server
+│   ├── api-server/         # Express API server (with Replit Auth)
+│   ├── lexi-mobile/        # Lexi AI mobile app (Expo React Native, with Replit Auth)
 │   └── ai-chat/            # Uncensored AI Chat React app (main app at /)
 ├── lib/                    # Shared libraries
 │   ├── api-spec/           # OpenAPI spec + Orval codegen config

@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from "@/lib/auth";
 import * as FileSystem from "expo-file-system/legacy";
 import { fetch } from "expo/fetch";
 import * as Haptics from "expo-haptics";
@@ -152,6 +153,7 @@ async function downloadMessage(content: string, role: "user" | "assistant") {
 export default function NexusChat() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
@@ -324,6 +326,9 @@ export default function NexusChat() {
           </View>
         </View>
         <View style={styles.headerRight}>
+          <Pressable style={styles.iconBtn} onPress={() => router.push("/(tabs)/profile")}>
+            <Feather name="user" size={18} color={isAuthenticated ? "#7c3aed" : "#666"} />
+          </Pressable>
           <Pressable style={styles.iconBtn} onPress={() => router.push("/(tabs)/software")}>
             <Feather name="monitor" size={18} color="#666" />
           </Pressable>

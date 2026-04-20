@@ -324,6 +324,9 @@ export default function NexusChat() {
           </View>
         </View>
         <View style={styles.headerRight}>
+          <Pressable style={styles.iconBtn} onPress={() => router.push("/(tabs)/software")}>
+            <Feather name="monitor" size={18} color="#666" />
+          </Pressable>
           <Pressable style={styles.iconBtn} onPress={() => router.push("/(tabs)/upload")}>
             <Feather name="upload-cloud" size={18} color="#666" />
           </Pressable>

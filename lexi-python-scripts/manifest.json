@@ -118,5 +118,17 @@
     "description": "build APK file",
     "filePath": "/home/runner/workspace/lexi-python-scripts/apk_build.py",
     "addedAt": "2026-04-19T23:58:33.046Z"
+  },
+  "expo_signin": {
+    "slug": "expo_signin",
+    "description": "sign into Expo and enable cloud APK builds",
+    "filePath": "/home/runner/workspace/lexi-python-scripts/expo_signin.py",
+    "addedAt": "2026-04-20T02:11:34.306Z"
+  },
+  "fix_project_config": {
+    "slug": "fix_project_config",
+    "description": "fix project configuration files",
+    "filePath": "/home/runner/workspace/lexi-python-scripts/fix_project_config.py",
+    "addedAt": "2026-04-20T02:12:16.517Z"
   }
 }

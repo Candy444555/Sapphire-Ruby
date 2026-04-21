@@ -27,9 +27,7 @@ const DOMAIN = process.env.EXPO_PUBLIC_DOMAIN ?? "";
 const MODELS = [
   { id: "lexi-uncensored-v2-8b", label: "Lexi Uncensored v2", uncensored: true },
   { id: "hermes-3-llama-3.1-8b", label: "Hermes 3 Llama 8B", uncensored: true },
-  { id: "euryale-70b", label: "Euryale 70B", uncensored: true },
   { id: "mythomax-l2-13b", label: "MythoMax 13B", uncensored: true },
-  { id: "magnum-v4-72b", label: "Magnum v4 72B", uncensored: true },
   { id: "llama-3.1-8b-instruct", label: "Llama 3.1 8B", uncensored: false },
   { id: "mistral-7b-instruct", label: "Mistral 7B", uncensored: false },
 ];

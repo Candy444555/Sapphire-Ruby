@@ -62,6 +62,8 @@ export function useChat({
   useEffect(() => {
     if (prevConversationId.current === conversationId) return;
     prevConversationId.current = conversationId;
+    // Don't wipe in-progress messages when a new empty conversation is created mid-stream
+    if (initialMessages.length === 0 && messagesRef.current.length > 0) return;
     messagesRef.current = initialMessages;
     setMessages(initialMessages);
     setError(null);

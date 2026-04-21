@@ -68,6 +68,8 @@ export function useAgentChat({ conversationId, initialMessages, onMessagesChange
       const hydrated = initialMessages && initialMessages.length > 0
         ? hydrateInitialMessages(initialMessages)
         : [];
+      // Don't wipe in-progress messages when a new empty conversation is created mid-stream
+      if (hydrated.length === 0 && messagesRef.current.length > 0) return;
       messagesRef.current = hydrated;
       setMessages(hydrated);
       setError(null);

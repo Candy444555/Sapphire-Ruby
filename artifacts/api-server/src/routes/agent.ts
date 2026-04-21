@@ -1,6 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { z } from "zod";
-import { SocksProxyAgent } from "socks-proxy-agent";
 import { isTorReady, getTorSocksUrl } from "./vpn";
 import { sessions, createSession, execInSession } from "../services/shell-session";
 import { UNCENSORED_MODEL_ENDPOINTS, UNCENSORED_SYSTEM_ADDENDUM } from "./chat";
@@ -40,9 +39,9 @@ async function fetchFeatherless(
     body: JSON.stringify(bodyPayload),
     signal: timeoutController.signal,
   };
-  if (isTorReady()) {
-    fetchOptions.agent = new SocksProxyAgent(getTorSocksUrl());
-  }
+  // Featherless API calls go direct — Tor is reserved for user-initiated
+  // research traffic the agent runs via shell commands. Routing the LLM
+  // call through Tor causes intermittent timeouts/hangs (stuck on "thinking").
 
   try {
     const response = await fetch(FEATHERLESS_API_URL, fetchOptions);

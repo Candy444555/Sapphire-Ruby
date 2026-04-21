@@ -24,7 +24,7 @@ const ChatRequestSchema = z.object({
 // accessible on the current plan, professional tone, 32K context.
 // Hermes-2-Pro 8B stays as fallback.
 export const UNCENSORED_MODEL_ENDPOINTS: Record<string, string> = {
-  "lexi-uncensored-v2-8b": "dphn/dolphin-2.9.3-mistral-nemo-12b",
+  "lexi-uncensored-v2-8b": "Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2",
   "hermes-2-pro-llama3-8b": "NousResearch/Hermes-2-Pro-Llama-3-8B",
 };
 

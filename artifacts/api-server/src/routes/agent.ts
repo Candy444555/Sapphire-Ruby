@@ -178,7 +178,7 @@ function compressSystemPrompt(prompt: string | undefined): string {
 // Fallback chain — tried in order when primary model returns 404 / model-not-found.
 // LexiFun was removed — its tone-tuning ignores persona instructions.
 const FALLBACK_MODEL_CHAIN = [
-  "cognitivecomputations/dolphin-2.9-llama3-8b",
+  "dphn/dolphin-2.9.3-mistral-nemo-12b",
   "NousResearch/Hermes-2-Pro-Llama-3-8B",
   "aifeifei798/DarkIdol-Llama-3.1-8B-Instruct-1.1-Uncensored",
 ];

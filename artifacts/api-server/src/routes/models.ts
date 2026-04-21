@@ -5,8 +5,8 @@ const router: IRouter = Router();
 const MODELS = [
   {
     id: "lexi-uncensored-v2-8b",
-    name: "Lexi Uncensored V2 8B",
-    description: "Llama 3.1 8B fine-tune with all censorship and restrictions removed",
+    name: "Lexi Uncensored (Dolphin Nemo 12B)",
+    description: "Mistral Nemo 12B Dolphin 2.9.3 fine-tune with all censorship and restrictions removed",
     uncensored: true,
   },
 ];

@@ -17,12 +17,14 @@ const ChatRequestSchema = z.object({
   systemPrompt: z.string().optional(),
 });
 
-// NOTE: The previous primary model "Orenguteng/Llama-3-8B-LexiFun-Uncensored-V1"
-// is fine-tuned for jokey/playful tone (the name is literally "LexiFun") and
-// ignored persona instructions. Swapped to Dolphin which is uncensored AND
-// professional in tone. Hermes-2-Pro stays as fallback.
+// NOTE: Previous endpoints `cognitivecomputations/dolphin-2.9-llama3-8b` and
+// the older LexiFun model were delisted from Featherless (HTTP 404
+// model_not_found). Swapped to the official Cognitive Computations Dolphin
+// 2.9.3 fine-tune on Mistral Nemo 12B — strongest uncensored model
+// accessible on the current plan, professional tone, 32K context.
+// Hermes-2-Pro 8B stays as fallback.
 export const UNCENSORED_MODEL_ENDPOINTS: Record<string, string> = {
-  "lexi-uncensored-v2-8b": "cognitivecomputations/dolphin-2.9-llama3-8b",
+  "lexi-uncensored-v2-8b": "dphn/dolphin-2.9.3-mistral-nemo-12b",
   "hermes-2-pro-llama3-8b": "NousResearch/Hermes-2-Pro-Llama-3-8B",
 };
 

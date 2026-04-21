@@ -26,6 +26,12 @@ const ChatRequestSchema = z.object({
 export const UNCENSORED_MODEL_ENDPOINTS: Record<string, string> = {
   "lexi-uncensored-v2-8b": "Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2",
   "hermes-2-pro-llama3-8b": "NousResearch/Hermes-2-Pro-Llama-3-8B",
+  "hermes-3-llama-3.1-8b": "NousResearch/Hermes-3-Llama-3.1-8B",
+  "euryale-70b": "Sao10K/L3-70B-Euryale-v2.1",
+  "mythomax-l2-13b": "Gryphe/MythoMax-L2-13b",
+  "magnum-v4-72b": "anthracite-org/magnum-v4-72b",
+  "llama-3.1-8b-instruct": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+  "mistral-7b-instruct": "mistralai/Mistral-7B-Instruct-v0.3",
 };
 
 export const MODEL_INJECTED_MESSAGES: Record<string, { role: string; content: string }[]> = {};

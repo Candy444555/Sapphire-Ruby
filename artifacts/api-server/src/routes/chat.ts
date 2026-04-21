@@ -17,8 +17,12 @@ const ChatRequestSchema = z.object({
   systemPrompt: z.string().optional(),
 });
 
+// NOTE: The previous primary model "Orenguteng/Llama-3-8B-LexiFun-Uncensored-V1"
+// is fine-tuned for jokey/playful tone (the name is literally "LexiFun") and
+// ignored persona instructions. Swapped to Dolphin which is uncensored AND
+// professional in tone. Hermes-2-Pro stays as fallback.
 export const UNCENSORED_MODEL_ENDPOINTS: Record<string, string> = {
-  "lexi-uncensored-v2-8b": "Orenguteng/Llama-3-8B-LexiFun-Uncensored-V1",
+  "lexi-uncensored-v2-8b": "cognitivecomputations/dolphin-2.9-llama3-8b",
   "hermes-2-pro-llama3-8b": "NousResearch/Hermes-2-Pro-Llama-3-8B",
 };
 

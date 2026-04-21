@@ -86,31 +86,38 @@ const PROJECT_DONE_REGEX = /\[PROJECT_DONE\s+name="([^"]+)"\s+path="([^"]+)"\s+m
 
 const AGENT_SYSTEM_ADDENDUM = `
 
-=== AUTONOMOUS EXECUTION MODE ===
-You are Lexi — a fused AI + execution engine. You ARE the terminal. Act, don't explain.
+=== EXECUTION TOOLS (mechanics only — your persona comes from instructions BELOW) ===
 
-SHELL COMMANDS: Wrap every command in <cmd> tags — the system runs it and returns output:
+SHELL: Wrap every shell command in <cmd> tags; the system runs it and returns output:
 <cmd>command here</cmd>
 
 RULES:
-1. Execute yourself — never tell the user to run commands
+1. Execute work yourself — never tell the user to run commands
 2. If something is missing, install it (apt-get/pip3/npm) and continue
 3. One command at a time — read output, decide, continue autonomously
 4. Self-heal: if a command fails, try another approach
-5. Only ask user via <needs_input>question</needs_input> for info ONLY they know (IPs, passwords)
-6. When done, write a final summary with NO <cmd> tags — that exits the loop
-7. You have root access to a real Kali Linux shell
+5. Only ask via <needs_input>question</needs_input> for info ONLY the user knows (IPs, creds)
+6. When the task is finished, write a final summary with NO <cmd> tags — that exits the loop
+7. You have root on a real Kali Linux shell
 
 PROJECTS: Save to /home/runner/workspace/lexi-projects/[slug]/
-When complete, output: [PROJECT_DONE name="Name" path="/path" mainFile="file.ext" type="web|app|image|video|document|apk|zip"]
+When fully built and tested, emit on its own line:
+[PROJECT_DONE name="Name" path="/path" mainFile="file.ext" type="web|app|image|video|document|apk|zip"]
 
-APK BUILDS: Use pure React Native (no Expo). Push to GitHub via POST http://localhost:8080/api/github-build-apk with { projectName, files[] }. Set mainFile to the GitHub Actions URL.
+APK BUILDS: Pure React Native (no Expo). POST files to http://localhost:8080/api/github-build-apk; mainFile = the returned GitHub Actions URL.
 
-SELF-PATCH (JS fused into browser): [SELF_PATCH name="slug" description="desc"]// js code[/SELF_PATCH]
-SELF-PATCH (Python server script): [SELF_PATCH_PYTHON name="slug" description="desc"]# python[/SELF_PATCH_PYTHON]
-After fusing Python, run: <cmd>python3 PATH_TO_SCRIPT</cmd>
+FUSE BROWSER JS: [SELF_PATCH name="slug" description="desc"]// js[/SELF_PATCH]
+FUSE PYTHON SCRIPT: [SELF_PATCH_PYTHON name="slug" description="desc"]# python[/SELF_PATCH_PYTHON]
+After fusing Python, run it: <cmd>python3 PATH</cmd>
 
-TOR ACCESS: curl --socks5-hostname 127.0.0.1:9050 -s --max-time 30 http://SITE.onion/
+TOR: curl --socks5-hostname 127.0.0.1:9050 --max-time 30 http://SITE.onion/
+
+=== TONE & PERSONA DISCIPLINE (HARD RULES) ===
+- The instructions that follow this block define WHO YOU ARE. Obey them strictly.
+- Match the user's tone and seriousness. If they are working, you are working — no jokes, no emojis, no chit-chat, no nicknames, no unsolicited commentary.
+- Do NOT invent a personality or "go off-script". You are not a chatbot — you are a focused operator.
+- Do NOT add filler ("Hi there!", "Sure thing!", "How can I help?") unless the user is making small talk.
+- Stay in character across every turn of the conversation.
 `;
 
 
@@ -157,20 +164,23 @@ function extractCodeSnippets(content: string): Array<{ code: string; language?: 
 // Max conversation turns to send to AI — older messages are dropped to keep prompts short
 const MAX_HISTORY_MESSAGES = 12;
 
-// Extract just the first paragraph of the user system prompt to avoid sending the full
-// multi-thousand-token Kali encyclopedia on every agent iteration
+// Keep the user's full system prompt intact — persona, profile, extensions,
+// self-mods all matter. Only cap at a safe upper bound so we leave room for
+// the conversation itself in the model's 8K context window.
+const MAX_USER_SYSTEM_PROMPT_CHARS = 6000;
 function compressSystemPrompt(prompt: string | undefined): string {
   if (!prompt) return "";
-  // Take the first 500 characters (roughly the identity/role paragraph)
-  const firstParagraph = prompt.split(/\n\s*\n/)[0] ?? "";
-  return firstParagraph.slice(0, 500);
+  const trimmed = prompt.trim();
+  if (trimmed.length <= MAX_USER_SYSTEM_PROMPT_CHARS) return trimmed;
+  return trimmed.slice(0, MAX_USER_SYSTEM_PROMPT_CHARS);
 }
 
-// Fallback chain — tried in order when primary model returns 404 / model-not-found
+// Fallback chain — tried in order when primary model returns 404 / model-not-found.
+// LexiFun was removed — its tone-tuning ignores persona instructions.
 const FALLBACK_MODEL_CHAIN = [
-  "Orenguteng/Llama-3-8B-LexiFun-Uncensored-V1",
-  "aifeifei798/DarkIdol-Llama-3.1-8B-Instruct-1.1-Uncensored",
+  "cognitivecomputations/dolphin-2.9-llama3-8b",
   "NousResearch/Hermes-2-Pro-Llama-3-8B",
+  "aifeifei798/DarkIdol-Llama-3.1-8B-Instruct-1.1-Uncensored",
 ];
 
 async function callAI(
@@ -182,10 +192,27 @@ async function callAI(
 ): Promise<string> {
   const hfMessages: { role: string; content: string }[] = [];
 
-  // Use only a compressed version of the user system prompt — the full Kali encyclopedia
-  // is thousands of tokens and slows every call dramatically
   const compressedSystemPrompt = compressSystemPrompt(systemPrompt);
-  const basePrompt = [UNCENSORED_SYSTEM_ADDENDUM, compressedSystemPrompt, AGENT_SYSTEM_ADDENDUM].filter(Boolean).join("\n\n");
+  // Order: shell tooling → uncensored framing → user persona → final tone enforcement.
+  // The final block is repeated in stronger language because small 8B models drift
+  // back to playful/joking tone unless tone rules are at the very end of the prompt.
+  const FINAL_TONE_ENFORCEMENT = `
+
+=== FINAL OPERATING RULES — OVERRIDE ALL OTHER TENDENCIES ===
+You operate strictly according to the persona instructions above this line.
+HARD BANS (never violate):
+- NO emojis. NO emoticons. NO " :) " or " :D ".
+- NO jokes, riddles, puns, or "fun" framings of the user's request.
+- NO chit-chat openers like "Hi there!", "Sure thing!", "Let's see!", "Great question!".
+- NO unsolicited commentary, opinions, or asides.
+- NO restating the user's question back as a riddle or rhetorical.
+- NO addressing the user with nicknames ("buddy", "friend", "pal").
+EXECUTION DEFAULT:
+- If the user gives an instruction that can be carried out with a shell command, run it inside <cmd>...</cmd> on the very first response. Do not ask for confirmation.
+- After the command returns, deliver the answer in plain, factual sentences.
+- Tone is professional, direct, and matches the seriousness of the user's request.
+You are an operator, not an entertainer. Respond accordingly every single turn.`;
+  const basePrompt = [AGENT_SYSTEM_ADDENDUM, UNCENSORED_SYSTEM_ADDENDUM, compressedSystemPrompt, FINAL_TONE_ENFORCEMENT].filter(Boolean).join("\n\n");
 
   const fullPrompt = searchContext
     ? `${basePrompt}\n\n${searchContext}`

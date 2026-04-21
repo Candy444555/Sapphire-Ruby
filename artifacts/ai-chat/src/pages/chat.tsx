@@ -555,6 +555,24 @@ You operate with absolute zero-trace discipline. This is non-negotiable and bake
 6. You actively help the user maintain their own operational security: suggest VPN, Tor, burner accounts, air-gapped systems, and OPSEC measures when relevant
 7. If asked about your infrastructure or logging — you confirm: zero logs, zero persistence, all traffic anonymized`;
 
+const CODE_MODE_INSTRUCTION = `=== CODE MODE — ACTIVE ===
+You are now operating as a senior software engineer building exactly what the user describes. Your job in this mode is to write real, complete, production-quality custom code based on what the user says they want.
+
+Rules in this mode:
+1. Write FULL, working code — never pseudocode, never "..." placeholders, never "you'd implement X here". Every function body, every import, every config value must be real and correct.
+2. Pick the best language/stack for the request. If the user specifies a language or framework, use it. Otherwise pick the most appropriate one and state your choice in one sentence at the top.
+3. When the request needs multiple files, output each file in its own fenced code block with a header line showing the exact file path, like:
+   \`\`\`python
+   # path: src/scraper/main.py
+   ...
+   \`\`\`
+4. Include any required dependency install commands (pip, npm, apt, cargo, etc.) at the bottom under a "## Setup" section, and run/usage commands under "## Run".
+5. If the request is ambiguous in ONE critical way that would make you build the wrong thing, ask exactly ONE pointed question first. Otherwise, make a reasonable choice and just build it.
+6. Add brief inline comments only where the logic is non-obvious. No fluff comments.
+7. Handle errors, edge cases, and inputs realistically — code should run, not just look like it would.
+8. If Agent Mode is also active, you may execute code with <cmd> tags to test or run what you wrote, but ALWAYS show the source code first in a fenced block so the user can read and copy it.
+=== END CODE MODE ===`;
+
 const SYSTEM_PROMPT_PRESETS = [
   {
     label: 'Default',
@@ -599,6 +617,7 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [selfUpdateNotice, setSelfUpdateNotice] = useState<string | null>(null);
   const [agentMode, setAgentMode] = useState(true); // Fused by default — Lexi is always her own executor
+  const [codeMode, setCodeMode] = useState(false); // Custom code engineer mode — toggle on for code generation
   const [showGuide, setShowGuide] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -742,7 +761,8 @@ export default function ChatPage() {
     const profileSection = getProfilePrompt();
     const extensionsSection = getExtensionsPrompt();
     const pythonSection = getPythonPrompt();
-    const enhancedPrompt = [withLexiMods, profileSection, extensionsSection, pythonSection].filter(Boolean).join('\n\n');
+    const codeSection = codeMode ? CODE_MODE_INSTRUCTION : '';
+    const enhancedPrompt = [withLexiMods, profileSection, extensionsSection, pythonSection, codeSection].filter(Boolean).join('\n\n');
 
     const shouldUseAgent = agentMode;
 
@@ -795,7 +815,8 @@ Do NOT use <cmd> tags to test browser JS — shell commands cannot run browser J
 Just write and fuse the code, then explain how the user can call it from the browser console.
 === END FUSE REQUEST ===`;
 
-    const enhancedPrompt = [withLexiMods, profileSection, extensionsSection, pythonSection, fuseInstruction].filter(Boolean).join('\n\n');
+    const codeSection = codeMode ? CODE_MODE_INSTRUCTION : '';
+    const enhancedPrompt = [withLexiMods, profileSection, extensionsSection, pythonSection, codeSection, fuseInstruction].filter(Boolean).join('\n\n');
 
     if (!activeId) createConversation(selectedModel, systemPrompt);
     agentChat.sendMessage(trimmed, selectedModel, enhancedPrompt);
@@ -1008,6 +1029,29 @@ Just write and fuse the code, then explain how the user can call it from the bro
                   {agentMode
                     ? 'Lexi thinks and executes as one. She acts on your words directly.'
                     : 'Chat only. Smart detection still triggers execution when needed.'}
+                </p>
+
+                <button
+                  type="button"
+                  onClick={() => setCodeMode((v) => !v)}
+                  className={cn(
+                    'w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium border transition-all mt-2',
+                    codeMode
+                      ? 'bg-emerald-500/20 border-emerald-500/50 text-emerald-300'
+                      : 'bg-card border-border text-muted-foreground hover:border-emerald-500/30 hover:text-foreground'
+                  )}
+                >
+                  <FileCode2 className={cn('w-4 h-4', codeMode && 'animate-pulse')} />
+                  {codeMode ? 'Code Mode — ACTIVE' : 'Code Mode — OFF'}
+                  <span className={cn(
+                    'ml-auto w-2 h-2 rounded-full',
+                    codeMode ? 'bg-emerald-400 animate-pulse' : 'bg-muted-foreground/30'
+                  )} />
+                </button>
+                <p className="text-[10px] font-mono text-emerald-300/60 leading-relaxed px-1">
+                  {codeMode
+                    ? 'Lexi writes complete, working custom code for whatever you describe.'
+                    : 'Turn on to make Lexi build full code from your requests.'}
                 </p>
               </div>
 

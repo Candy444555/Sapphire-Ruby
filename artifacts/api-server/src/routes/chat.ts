@@ -19,7 +19,7 @@ const ChatRequestSchema = z.object({
 });
 
 export const UNCENSORED_MODEL_ENDPOINTS: Record<string, string> = {
-  "lexi-uncensored-v2-8b": "Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2",
+  "lexi-uncensored-v2-8b": "Orenguteng/Llama-3-8B-LexiFun-Uncensored-V1",
   "hermes-2-pro-llama3-8b": "NousResearch/Hermes-2-Pro-Llama-3-8B",
 };
 

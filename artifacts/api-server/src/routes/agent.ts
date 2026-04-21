@@ -452,7 +452,7 @@ function compressSystemPrompt(prompt: string | undefined): string {
 
 // Fallback chain — tried in order when primary model returns 404 / model-not-found
 const FALLBACK_MODEL_CHAIN = [
-  "Orenguteng/Llama-3.1-8B-Lexi-Uncensored",
+  "Orenguteng/Llama-3-8B-LexiFun-Uncensored-V1",
   "aifeifei798/DarkIdol-Llama-3.1-8B-Instruct-1.1-Uncensored",
   "NousResearch/Hermes-2-Pro-Llama-3-8B",
 ];

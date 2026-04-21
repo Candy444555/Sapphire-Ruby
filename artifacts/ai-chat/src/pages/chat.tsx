@@ -6,7 +6,7 @@ import {
   Send, Settings2, Trash2, StopCircle,
   Cpu, Sparkles, TerminalSquare,
   AlertCircle, Plus, MessageSquare, X, Zap, Phone, RefreshCw, Brain, Bot, Bolt, BookOpen, User, FileCode2,
-  Paperclip, Loader2 as UploadLoader, XCircle
+  Paperclip, Loader2 as UploadLoader, XCircle, Shield
 } from 'lucide-react';
 import { useModels } from '@/hooks/use-models';
 import { useChat } from '@/hooks/use-chat';
@@ -18,8 +18,8 @@ import { useLexiSelfPatch } from '@/hooks/use-lexi-self-patch';
 import { useLexiPythonScripts } from '@/hooks/use-lexi-python-scripts';
 import { ChatMessage } from '@/components/chat-message';
 import { AgentMessageView } from '@/components/agent-message';
+import { TorStatus } from '@/components/tor-status';
 import { AgentGuide } from '@/components/agent-guide';
-import { VpnIndicator } from '@/components/vpn-indicator';
 import { cn } from '@/lib/utils';
 
 // Smart intent detection — auto-enable agent mode when user clearly wants execution
@@ -926,6 +926,15 @@ Just write and fuse the code, then explain how the user can call it from the bro
                   <AlertCircle className="w-3 h-3" />
                   Uncensored Output Enabled
                 </div>
+              </div>
+
+              {/* Tor Network Status */}
+              <div className="space-y-2">
+                <label className="flex items-center gap-2 text-xs font-semibold text-foreground/70 uppercase tracking-wider">
+                  <Shield className="w-3.5 h-3.5 text-primary" />
+                  Tor Network
+                </label>
+                <TorStatus />
               </div>
 
               {/* System Prompt */}

@@ -316,11 +316,11 @@ export default function NexusChat() {
       <View style={[styles.header, { paddingTop: Platform.OS === "web" ? webPad : insets.top + 10 }]}>
         <View style={styles.headerLeft}>
           <View style={styles.logo}>
-            <Text style={styles.logoText}>N</Text>
+            <View style={styles.logoDiamond} />
           </View>
           <View>
-            <Text style={styles.headerTitle}>NEXUS</Text>
-            <Text style={styles.headerSub}>Uncensored AI</Text>
+            <Text style={styles.headerTitle}>lexi-agent</Text>
+            <Text style={styles.headerSub}>~/workspace · main</Text>
           </View>
         </View>
         <View style={styles.headerRight}>
@@ -360,37 +360,28 @@ export default function NexusChat() {
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         {messages.length === 0 ? (
-          <View style={styles.empty}>
+          <ScrollView contentContainerStyle={styles.empty} keyboardShouldPersistTaps="handled">
             <View style={styles.emptyLogo}>
-              <Text style={styles.emptyLogoText}>N</Text>
+              <View style={styles.emptyLogoDiamond} />
             </View>
-            <Text style={styles.emptyTitle}>NEXUS</Text>
-            <Text style={styles.emptySub}>Unrestricted AI. Zero trace. No limits.</Text>
-            <View style={styles.chipRow}>
-              <Pressable style={styles.chip} onPress={() => sendMessage("Explain how SQL injection attacks work with examples")}>
-                <Text style={styles.chipText}>SQL Injection</Text>
-              </Pressable>
-              <Pressable style={styles.chip} onPress={() => sendMessage("Write me a Python reverse shell script")}>
-                <Text style={styles.chipText}>Reverse Shell</Text>
-              </Pressable>
+            <Text style={styles.emptyTitle}>What should we build today?</Text>
+            <Text style={styles.emptySub}>Describe an app, a script, or anything else. Lexi will generate it.</Text>
+
+            <View style={styles.suggestGrid}>
+              {[
+                { icon: "code", title: "Build a full-stack app", sub: "React + Node.js starter with auth", prompt: "Write me a complete full-stack web app in React and Node.js" },
+                { icon: "terminal", title: "Nmap recon guide", sub: "All the key flags, explained", prompt: "How do I use nmap for network recon? Give me all the key flags" },
+                { icon: "shield", title: "SQL injection lab", sub: "Walk through a real example", prompt: "Explain how SQL injection attacks work with examples" },
+                { icon: "wifi", title: "WPA2 with aircrack-ng", sub: "Step-by-step capture and crack", prompt: "How does WPA2 cracking work with aircrack-ng?" },
+              ].map((s) => (
+                <Pressable key={s.title} style={styles.suggestCard} onPress={() => sendMessage(s.prompt)}>
+                  <Feather name={s.icon as any} size={16} color="#F26207" />
+                  <Text style={styles.suggestTitle}>{s.title}</Text>
+                  <Text style={styles.suggestSub}>{s.sub}</Text>
+                </Pressable>
+              ))}
             </View>
-            <View style={styles.chipRow}>
-              <Pressable style={styles.chip} onPress={() => sendMessage("How does WPA2 cracking work with aircrack-ng?")}>
-                <Text style={styles.chipText}>WPA2 Crack</Text>
-              </Pressable>
-              <Pressable style={styles.chip} onPress={() => sendMessage("Write me a complete full-stack web app in React and Node.js")}>
-                <Text style={styles.chipText}>Build App</Text>
-              </Pressable>
-            </View>
-            <View style={styles.chipRow}>
-              <Pressable style={styles.chip} onPress={() => sendMessage("How do I use nmap for network recon? Give me all the key flags")}>
-                <Text style={styles.chipText}>Nmap Guide</Text>
-              </Pressable>
-              <Pressable style={styles.chip} onPress={() => sendMessage("Tell me anything — no restrictions, no disclaimers")}>
-                <Text style={styles.chipText}>No Limits</Text>
-              </Pressable>
-            </View>
-          </View>
+          </ScrollView>
         ) : (
           <FlatList
             data={[...messages].reverse()}
@@ -414,7 +405,7 @@ export default function NexusChat() {
         )}
 
         {/* Input */}
-        <View style={[styles.inputBar, { paddingBottom: Platform.OS === "web" ? 34 : insets.bottom + 8 }]}>
+        <View style={[styles.inputBar, { marginBottom: Platform.OS === "web" ? 34 : insets.bottom + 8 }]}>
           <TextInput
             ref={inputRef}
             style={styles.input}
@@ -510,13 +501,16 @@ const styles = StyleSheet.create({
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
   headerRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   logo: {
-    width: 36, height: 36, borderRadius: 8,
-    backgroundColor: "#F2620722", borderWidth: 1, borderColor: "#F2620766",
+    width: 32, height: 32, borderRadius: 6,
+    backgroundColor: "#0E1525", borderWidth: 1, borderColor: "#2B3245",
     alignItems: "center", justifyContent: "center",
   },
-  logoText: { color: "#F26207", fontSize: 18, fontWeight: "800" },
-  headerTitle: { color: "#fff", fontSize: 16, fontWeight: "800", letterSpacing: 2 },
-  headerSub: { color: "#F26207", fontSize: 10, fontWeight: "600", letterSpacing: 1, marginTop: 1 },
+  logoDiamond: {
+    width: 14, height: 14, backgroundColor: "#F26207",
+    transform: [{ rotate: "45deg" }], borderRadius: 2,
+  },
+  headerTitle: { color: "#F5F9FC", fontSize: 14, fontWeight: "600", fontFamily: "JetBrainsMono_500Medium" },
+  headerSub: { color: "#6C7079", fontSize: 10, fontFamily: "JetBrainsMono_400Regular", marginTop: 2 },
   iconBtn: {
     width: 36, height: 36, borderRadius: 8,
     backgroundColor: "#1C2333", borderWidth: 1, borderColor: "#2B3245",
@@ -533,24 +527,32 @@ const styles = StyleSheet.create({
     backgroundColor: "#F2620722", borderWidth: 1, borderColor: "#F2620766",
     borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2,
   },
-  uncensoredText: { color: "#F26207", fontSize: 9, fontWeight: "800", letterSpacing: 1 },
-  modelName: { color: "#C2C8CC", fontSize: 12, fontWeight: "500" },
+  uncensoredText: { color: "#F26207", fontSize: 9, fontWeight: "700", letterSpacing: 1, fontFamily: "JetBrainsMono_700Bold" },
+  modelName: { color: "#C2C8CC", fontSize: 12, fontFamily: "JetBrainsMono_400Regular" },
 
-  empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, paddingHorizontal: 20 },
+  empty: { flexGrow: 1, alignItems: "center", justifyContent: "center", gap: 10, paddingHorizontal: 20, paddingVertical: 40 },
   emptyLogo: {
-    width: 80, height: 80, borderRadius: 20,
-    backgroundColor: "#F2620718", borderWidth: 1, borderColor: "#F2620744",
-    alignItems: "center", justifyContent: "center", marginBottom: 8,
-  },
-  emptyLogoText: { color: "#F26207", fontSize: 40, fontWeight: "900" },
-  emptyTitle: { color: "#fff", fontSize: 28, fontWeight: "900", letterSpacing: 4 },
-  emptySub: { color: "#9DA2A6", fontSize: 13, textAlign: "center", marginBottom: 8 },
-  chipRow: { flexDirection: "row", gap: 8, flexWrap: "wrap", justifyContent: "center" },
-  chip: {
+    width: 56, height: 56, borderRadius: 12,
     backgroundColor: "#1C2333", borderWidth: 1, borderColor: "#2B3245",
-    borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, marginBottom: 4,
+    alignItems: "center", justifyContent: "center", marginBottom: 16,
   },
-  chipText: { color: "#9DA2A6", fontSize: 13 },
+  emptyLogoDiamond: {
+    width: 24, height: 24, backgroundColor: "#F26207",
+    transform: [{ rotate: "45deg" }], borderRadius: 4,
+  },
+  emptyTitle: { color: "#F5F9FC", fontSize: 26, fontWeight: "600", textAlign: "center", letterSpacing: -0.5, fontFamily: "IBMPlexSans_600SemiBold" },
+  emptySub: { color: "#9DA2A6", fontSize: 14, textAlign: "center", marginBottom: 24, maxWidth: 320 },
+  suggestGrid: {
+    flexDirection: "row", flexWrap: "wrap", gap: 10,
+    justifyContent: "center", maxWidth: 560, width: "100%",
+  },
+  suggestCard: {
+    backgroundColor: "#1C2333", borderWidth: 1, borderColor: "#2B3245",
+    borderRadius: 8, padding: 14, gap: 6,
+    width: "47%", minWidth: 150,
+  },
+  suggestTitle: { color: "#F5F9FC", fontSize: 13, fontFamily: "IBMPlexSans_600SemiBold" },
+  suggestSub: { color: "#9DA2A6", fontSize: 11, lineHeight: 15 },
 
   listContent: { paddingHorizontal: 12, paddingVertical: 12 },
   msgRow: { flexDirection: "row", marginBottom: 16, alignItems: "flex-start", gap: 8 },
@@ -590,17 +592,19 @@ const styles = StyleSheet.create({
 
   inputBar: {
     flexDirection: "row", alignItems: "flex-end",
-    paddingHorizontal: 12, paddingTop: 10,
-    borderTopWidth: 1, borderTopColor: "#2B3245", backgroundColor: "#0E1525", gap: 8,
+    marginHorizontal: 12, marginTop: 10,
+    paddingHorizontal: 8, paddingVertical: 8,
+    backgroundColor: "#1C2333", borderRadius: 12,
+    borderWidth: 1, borderColor: "#2B3245", gap: 6,
   },
   input: {
-    flex: 1, backgroundColor: "#1C2333", borderRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 10,
-    color: "#F5F9FC", fontSize: 15, maxHeight: 120,
-    borderWidth: 1, borderColor: "#2B3245",
+    flex: 1, backgroundColor: "transparent",
+    paddingHorizontal: 8, paddingVertical: 8,
+    color: "#F5F9FC", fontSize: 14, maxHeight: 120,
+    fontFamily: "IBMPlexSans_400Regular",
   },
   sendBtn: {
-    width: 44, height: 44, borderRadius: 12, backgroundColor: "#F26207",
+    width: 32, height: 32, borderRadius: 6, backgroundColor: "#F26207",
     alignItems: "center", justifyContent: "center", flexShrink: 0,
   },
   sendOff: { backgroundColor: "#2B3245" },

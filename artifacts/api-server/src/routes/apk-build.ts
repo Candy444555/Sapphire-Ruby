@@ -155,7 +155,7 @@ router.post("/build-apk", async (req: Request, res: Response) => {
     const parsed = JSON.parse(output);
     const buildEntry = Array.isArray(parsed) ? parsed[0] : parsed;
     easBuildId = buildEntry?.id ?? "";
-    buildUrl = buildEntry?.buildDetailsPageUrl ?? `https://expo.dev/accounts/rubywilliam444/builds/${easBuildId}`;
+    buildUrl = buildEntry?.buildDetailsPageUrl ?? `https://expo.dev/accounts/${process.env.EXPO_USERNAME ?? ""}/builds/${easBuildId}`;
   } catch (err: any) {
     const detail = (err.stdout?.toString?.() ?? "") + (err.stderr?.toString?.() ?? "") + (err.message ?? "");
     res.status(500).json({ error: "Failed to start EAS build.", details: detail.slice(0, 2000) });

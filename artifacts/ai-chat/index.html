@@ -11,6 +11,23 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      (function hideReplitBadge() {
+        var css = '\n          [data-replit-metadata*="dev-banner"], iframe[src*="replit-dev-banner"],\n          iframe[src*="replit.com/badge"], iframe[src*="replit.dev/__replco"],\n          [data-replit-badge], #replit-badge, .replit-badge, .__replco-dev-banner,\n          a[href*="replit.com/@"], a[href*="replit.com/replid"] {\n            display: none !important; visibility: hidden !important; opacity: 0 !important;\n            pointer-events: none !important; height: 0 !important; width: 0 !important;\n          }\n        ';
+        var style = document.createElement('style');
+        style.id = '__hide-replit-badge';
+        style.appendChild(document.createTextNode(css));
+        document.documentElement.appendChild(style);
+        var sweep = function () {
+          document.querySelectorAll('iframe').forEach(function (f) {
+            var src = f.getAttribute('src') || '';
+            if (/replit\.(com|dev).*(badge|banner|__replco)/i.test(src)) f.remove();
+          });
+        };
+        sweep();
+        new MutationObserver(sweep).observe(document.documentElement, { childList: true, subtree: true });
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

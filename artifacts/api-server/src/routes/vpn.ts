@@ -3,6 +3,7 @@ import { spawn, type ChildProcess } from "child_process";
 import net from "net";
 import fs from "fs";
 import path from "path";
+import { SocksProxyAgent } from "socks-proxy-agent";
 
 const router: IRouter = Router();
 
@@ -14,6 +15,13 @@ const TOR_COOKIE_PATH = path.join(TOR_DATA_DIR, "control_auth_cookie");
 let torProcess: ChildProcess | null = null;
 let torReady = false;
 let torBootstrapPct = 0;
+let lastRotateTs = 0;
+let totalRotations = 0;
+let autoRotateTimer: NodeJS.Timeout | null = null;
+let cachedAgent: SocksProxyAgent | null = null;
+
+const ROTATE_INTERVAL_MS = 2_000;
+const ROTATE_COOLDOWN_MS = 2_000;
 
 export function isTorReady(): boolean {
   return torReady;
@@ -21,6 +29,12 @@ export function isTorReady(): boolean {
 
 export function getTorSocksUrl(): string {
   return `socks5h://127.0.0.1:${TOR_SOCKS_PORT}`;
+}
+
+export function getTorAgent(): SocksProxyAgent | null {
+  if (!torReady) return null;
+  if (!cachedAgent) cachedAgent = new SocksProxyAgent(getTorSocksUrl());
+  return cachedAgent;
 }
 
 export function startTor(): void {
@@ -35,6 +49,7 @@ export function startTor(): void {
     "--CookieAuthFileGroupReadable", "1",
     "--DataDirectory", TOR_DATA_DIR,
     "--Log", "notice stdout",
+    "--MaxCircuitDirtiness", "10",
   ], { stdio: ["ignore", "pipe", "pipe"] });
 
   torProcess.stdout?.on("data", (data: Buffer) => {
@@ -42,9 +57,10 @@ export function startTor(): void {
     const match = msg.match(/Bootstrapped (\d+)%/);
     if (match) {
       torBootstrapPct = parseInt(match[1], 10);
-      if (torBootstrapPct === 100) {
+      if (torBootstrapPct === 100 && !torReady) {
         torReady = true;
-        console.log("[VPN] Tor bootstrap complete — ready");
+        console.log("[VPN] Tor bootstrap complete — auto-rotation enabled");
+        startAutoRotate();
       }
     }
   });
@@ -54,6 +70,9 @@ export function startTor(): void {
     torProcess = null;
     torReady = false;
     torBootstrapPct = 0;
+    cachedAgent = null;
+    stopAutoRotate();
+    setTimeout(() => startTor(), 3000);
   });
 
   torProcess.on("error", (err) => {
@@ -111,36 +130,55 @@ function sendControlCommand(cmd: string): Promise<string> {
   });
 }
 
-let lastRotate = 0;
-const ROTATE_COOLDOWN_MS = 5_000;
+async function rotateCircuit(): Promise<{ ok: boolean; reason?: string }> {
+  const now = Date.now();
+  if (now - lastRotateTs < ROTATE_COOLDOWN_MS) {
+    return { ok: false, reason: "cooldown" };
+  }
+  if (!torReady) {
+    return { ok: false, reason: `bootstrapping ${torBootstrapPct}%` };
+  }
+  try {
+    await sendControlCommand("SIGNAL NEWNYM");
+    lastRotateTs = now;
+    totalRotations++;
+    cachedAgent = new SocksProxyAgent(getTorSocksUrl());
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, reason: err instanceof Error ? err.message : "unknown" };
+  }
+}
+
+function startAutoRotate(): void {
+  if (autoRotateTimer) return;
+  autoRotateTimer = setInterval(() => {
+    rotateCircuit().catch(() => {});
+  }, ROTATE_INTERVAL_MS);
+  console.log("[VPN] Auto-rotation started (every 2s)");
+}
+
+function stopAutoRotate(): void {
+  if (autoRotateTimer) {
+    clearInterval(autoRotateTimer);
+    autoRotateTimer = null;
+  }
+}
 
 router.get("/vpn/status", (_req: Request, res: Response) => {
   res.json({
-    active: true,
+    active: torReady,
     torReady,
     bootstrapPct: torBootstrapPct,
     socksPort: TOR_SOCKS_PORT,
+    autoRotate: autoRotateTimer !== null,
+    rotateIntervalMs: ROTATE_INTERVAL_MS,
+    totalRotations,
   });
 });
 
 router.post("/vpn/rotate", async (_req: Request, res: Response) => {
-  const now = Date.now();
-  if (now - lastRotate < ROTATE_COOLDOWN_MS) {
-    res.json({ ok: false, reason: "Cooldown — please wait a few seconds" });
-    return;
-  }
-  if (!torReady) {
-    res.json({ ok: false, reason: `Tor still bootstrapping (${torBootstrapPct}%)` });
-    return;
-  }
-  try {
-    await sendControlCommand("SIGNAL NEWNYM");
-    lastRotate = now;
-    res.json({ ok: true, message: "New Tor circuit requested" });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    res.json({ ok: false, reason: msg });
-  }
+  const result = await rotateCircuit();
+  res.json(result.ok ? { ok: true, message: "New Tor circuit", totalRotations } : { ok: false, reason: result.reason });
 });
 
 startTor();

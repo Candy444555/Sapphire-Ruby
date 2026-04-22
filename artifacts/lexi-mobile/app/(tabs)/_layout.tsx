@@ -14,12 +14,13 @@ export default function TabLayout() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedForeground,
         headerShown: false,
+        tabBarShowLabel: false,
         tabBarStyle: {
           backgroundColor: colors.background,
           borderTopColor: colors.border,
           borderTopWidth: 1,
           elevation: 0,
-          ...(isWeb ? { height: 84 } : {}),
+          ...(isWeb ? { height: 64 } : {}),
         },
         tabBarBackground: () => (
           <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.background }]} />
@@ -28,31 +29,33 @@ export default function TabLayout() {
     >
       <Tabs.Screen
         name="index"
-        options={{
-          title: "Chat",
-          tabBarIcon: ({ color }) => (
-            <Feather name="message-circle" size={22} color={color} />
-          ),
-        }}
+        options={{ title: "Chat", tabBarIcon: ({ color }) => <Feather name="message-circle" size={22} color={color} /> }}
       />
       <Tabs.Screen
-        name="tools"
-        options={{
-          title: "Tools",
-          tabBarIcon: ({ color }) => (
-            <Feather name="tool" size={22} color={color} />
-          ),
-        }}
+        name="terminal"
+        options={{ title: "Terminal", tabBarIcon: ({ color }) => <Feather name="terminal" size={22} color={color} /> }}
+      />
+      <Tabs.Screen
+        name="phone"
+        options={{ title: "Phone", tabBarIcon: ({ color }) => <Feather name="phone" size={22} color={color} /> }}
+      />
+      <Tabs.Screen
+        name="github"
+        options={{ title: "GitHub", tabBarIcon: ({ color }) => <Feather name="github" size={22} color={color} /> }}
+      />
+      <Tabs.Screen
+        name="software"
+        options={{ title: "Software", tabBarIcon: ({ color }) => <Feather name="package" size={22} color={color} /> }}
+      />
+      <Tabs.Screen
+        name="upload"
+        options={{ title: "Upload", tabBarIcon: ({ color }) => <Feather name="upload-cloud" size={22} color={color} /> }}
       />
       <Tabs.Screen
         name="profile"
-        options={{
-          title: "Profile",
-          tabBarIcon: ({ color }) => (
-            <Feather name="user" size={22} color={color} />
-          ),
-        }}
+        options={{ title: "Profile", tabBarIcon: ({ color }) => <Feather name="user" size={22} color={color} /> }}
       />
+      <Tabs.Screen name="tools" options={{ href: null }} />
     </Tabs>
   );
 }

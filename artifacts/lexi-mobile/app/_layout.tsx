@@ -15,6 +15,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { RootModeProvider } from "@/lib/root-mode";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -37,9 +38,7 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
-    }
+    if (fontsLoaded || fontError) SplashScreen.hideAsync();
   }, [fontsLoaded, fontError]);
 
   if (!fontsLoaded && !fontError) return null;
@@ -50,8 +49,10 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1, backgroundColor: "#0d1117" }}>
             <KeyboardProvider>
-              <StatusBar style="light" />
-              <RootLayoutNav />
+              <RootModeProvider>
+                <StatusBar style="light" />
+                <RootLayoutNav />
+              </RootModeProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>

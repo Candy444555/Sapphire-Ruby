@@ -1,5 +1,7 @@
 {pkgs}: {
   deps = [
+    pkgs.u-root-cmds
+    pkgs.nano
     pkgs.ligolo-ng
     pkgs.chisel
     pkgs.evil-winrm

@@ -2938,3 +2938,41 @@
     console.error("[Lexi] Extension failed to load: apk_builder", e);
   }
 })();
+
+// ============================================================
+// LEXI EXTENSION: python_install_the_missing_package_moae1onl
+// Added: 2026-04-22T18:30:41.169Z
+// Description: Auto-learned python code: Install the missing package
+// ============================================================
+(function registerExtension_python_install_the_missing_package_moae1onl() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["python_install_the_missing_package_moae1onl"]) return;
+
+  try {
+    
+    const memory = {
+      name: "python_install_the_missing_package_moae1onl",
+      description: "Install the missing package",
+      language: "python",
+      source: "import os\nimport subprocess\n\ndef install_missing_package(package_name):\n    # Install the missing package\n    subprocess.run(['apt-get', 'install', '-y', package_name])\n\ndef install_missing_command(command):\n    # Get the name of the missing command\n    command_name = command.split()[0]\n\n    # Install the missing package\n    install_missing_package(command_name)\n\ndef run_command(command):\n    # Run the command\n    try:\n        subprocess.run(command, shell=True)\n    except FileNotFoundError:\n        # If the command is not found, install the missing package\n        install_missing_command(command)\n        # Run the command again\n        subprocess.run(command, shell=True)\n\ndef build_apk():\n    # Change to the app directory\n    os.chdir('/home/runner/workspace/lexi-projects/apk-builder')\n\n    # Build the APK\n    run_command('npx react-native bundle --platform android --dev --reset-cache --entry-file index.js --bundle-output index.android.bundle --assets-dest android/app/src/main/assets')\n\n    # Create the APK\n    run_command('npx react-native android release')\n\n    # Sign the APK\n    run_command('jarsigner -verbose -sigalg SHA1withRSA -digestalg SHA1 -keystore /home/runner/workspace/lexi-projects/apk-builder/android/app/.keystore app-release-unsigned.apk android')\n\n    # Align the APK\n    run_command('zipalign -v 4 app-release-unsigned.apk app-release.apk')\n\n    # Copy the APK to the output directory\n    run_command('cp app-release.apk /home/runner/workspace/lexi-projects/apk-builder/output')\n\n    # Return the path to the APK\n    return '/home/runner/workspace/lexi-projects/apk-builder/output/app-release.apk'\n\ndef install_apk():\n    # Install the APK on the phone\n    run_command('adb install /home/runner/workspace/lexi-projects/apk-builder/output/app-release.apk')\n\n# Call the build_apk function\nbuild_apk()\n\n# Call the install_apk function\ninstall_apk()",
+      loadedAt: "2026-04-22T18:30:41.169Z",
+    };
+    if (!window.LexiCodeMemory) window.LexiCodeMemory = {};
+    window.LexiCodeMemory["python_install_the_missing_package_moae1onl"] = memory;
+    window.getLexiCodeMemory = function getLexiCodeMemory(name) {
+      return name ? window.LexiCodeMemory?.[name] : window.LexiCodeMemory;
+    };
+    
+
+    window.LexiExtensions["python_install_the_missing_package_moae1onl"] = {
+      name: "python_install_the_missing_package_moae1onl",
+      description: "Auto-learned python code: Install the missing package",
+      loadedAt: "2026-04-22T18:30:41.169Z",
+    };
+
+    console.log("[Lexi] Extension loaded: python_install_the_missing_package_moae1onl");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("python_install_the_missing_package_moae1onl");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: python_install_the_missing_package_moae1onl", e);
+  }
+})();

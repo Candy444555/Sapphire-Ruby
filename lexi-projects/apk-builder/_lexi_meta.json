@@ -1,0 +1,6 @@
+{
+  "name": "apk_builder",
+  "type": "app",
+  "mainFile": "apk_builder.py",
+  "path": "/home/runner/workspace/lexi-projects/apk-builder"
+}

@@ -146,14 +146,14 @@ export default function SoftwareScreen() {
       {/* Header */}
       <View style={[styles.header, { paddingTop: Platform.OS === "web" ? webPad : insets.top + 10 }]}>
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <Feather name="arrow-left" size={20} color="#aaa" />
+          <Feather name="arrow-left" size={20} color="#F5F9FC" />
         </Pressable>
         <View>
           <Text style={styles.headerTitle}>SOFTWARE</Text>
           <Text style={styles.headerSub}>Install & Manage</Text>
         </View>
         <Pressable style={styles.iconBtn} onPress={fetchCatalog}>
-          <Feather name="refresh-cw" size={18} color="#666" />
+          <Feather name="refresh-cw" size={18} color="#C2C8CC" />
         </Pressable>
       </View>
 
@@ -165,17 +165,17 @@ export default function SoftwareScreen() {
       >
         {/* Search */}
         <View style={styles.searchRow}>
-          <Feather name="search" size={16} color="#555" style={styles.searchIcon} />
+          <Feather name="search" size={16} color="#9DA2A6" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search software..."
-            placeholderTextColor="#444"
+            placeholderTextColor="#9DA2A6"
             value={search}
             onChangeText={setSearch}
           />
           {search.length > 0 && (
             <Pressable onPress={() => setSearch("")} hitSlop={8}>
-              <Feather name="x" size={16} color="#555" />
+              <Feather name="x" size={16} color="#9DA2A6" />
             </Pressable>
           )}
         </View>
@@ -199,7 +199,7 @@ export default function SoftwareScreen() {
             <TextInput
               style={styles.customInput}
               placeholder="apt-get install -y nmap  or  pip3 install requests"
-              placeholderTextColor="#444"
+              placeholderTextColor="#9DA2A6"
               value={customCmd}
               onChangeText={setCustomCmd}
               autoCapitalize="none"
@@ -211,8 +211,8 @@ export default function SoftwareScreen() {
               disabled={!customCmd.trim() || customInstalling}
             >
               {customInstalling
-                ? <ActivityIndicator color="#000" size="small" />
-                : <Feather name="play" size={16} color="#000" />
+                ? <ActivityIndicator color="#0E1525" size="small" />
+                : <Feather name="play" size={16} color="#0E1525" />
               }
             </Pressable>
           </View>
@@ -222,12 +222,12 @@ export default function SoftwareScreen() {
         {installOutput && (
           <View style={[styles.outputBox, installOutput.ok ? styles.outputOk : styles.outputErr]}>
             <View style={styles.outputHeader}>
-              <Feather name={installOutput.ok ? "check-circle" : "x-circle"} size={14} color={installOutput.ok ? "#00d4ff" : "#ff4444"} />
+              <Feather name={installOutput.ok ? "check-circle" : "x-circle"} size={14} color={installOutput.ok ? "#F26207" : "#F73E3E"} />
               <Text style={[styles.outputStatus, installOutput.ok ? styles.outputStatusOk : styles.outputStatusErr]}>
                 {installOutput.ok ? "Installed successfully" : "Install failed"}
               </Text>
               <Pressable onPress={() => setInstallOutput(null)} hitSlop={8} style={styles.closeOutput}>
-                <Feather name="x" size={14} color="#555" />
+                <Feather name="x" size={14} color="#9DA2A6" />
               </Pressable>
             </View>
             <ScrollView style={styles.outputScroll} nestedScrollEnabled>
@@ -239,13 +239,13 @@ export default function SoftwareScreen() {
         {/* Loading */}
         {loadingCatalog ? (
           <View style={styles.centered}>
-            <ActivityIndicator color="#00d4ff" />
+            <ActivityIndicator color="#F26207" />
           </View>
         ) : (
           filtered.map((cat) => (
             <View key={cat.category} style={styles.categorySection}>
               <View style={styles.categoryHeader}>
-                <Feather name={cat.icon as any} size={14} color="#00d4ff" />
+                <Feather name={cat.icon as any} size={14} color="#F26207" />
                 <Text style={styles.categoryTitle}>{cat.category}</Text>
               </View>
               {cat.items.map((item) => {
@@ -264,7 +264,7 @@ export default function SoftwareScreen() {
                     <View style={styles.itemRight}>
                       {st?.installed && !isInstalling && (
                         <View style={styles.installedBadge}>
-                          <Feather name="check" size={10} color="#00d4ff" />
+                          <Feather name="check" size={10} color="#F26207" />
                           <Text style={styles.installedText}>Installed</Text>
                         </View>
                       )}
@@ -274,8 +274,8 @@ export default function SoftwareScreen() {
                         disabled={!!installingId}
                       >
                         {isInstalling
-                          ? <ActivityIndicator color="#000" size="small" style={{ width: 14 }} />
-                          : <Feather name={st?.installed ? "refresh-cw" : "download"} size={14} color={st?.installed ? "#555" : "#000"} />
+                          ? <ActivityIndicator color="#0E1525" size="small" style={{ width: 14 }} />
+                          : <Feather name={st?.installed ? "refresh-cw" : "download"} size={14} color={st?.installed ? "#9DA2A6" : "#0E1525"} />
                         }
                         <Text style={[styles.installBtnText, st?.installed && !isInstalling && styles.reinstallBtnText]}>
                           {isInstalling ? "Installing..." : st?.installed ? "Reinstall" : "Install"}
@@ -296,7 +296,7 @@ export default function SoftwareScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0a0a0a" },
+  container: { flex: 1, backgroundColor: "#1C2333" },
 
   header: {
     flexDirection: "row",
@@ -305,12 +305,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#1a1a1a",
+    borderBottomColor: "#2B3245",
   },
   backBtn: { padding: 6 },
   iconBtn: { padding: 6 },
   headerTitle: { color: "#fff", fontSize: 16, fontWeight: "800", letterSpacing: 2 },
-  headerSub: { color: "#00d4ff", fontSize: 10, fontWeight: "600", letterSpacing: 1, marginTop: 1 },
+  headerSub: { color: "#F26207", fontSize: 10, fontWeight: "600", letterSpacing: 1, marginTop: 1 },
 
   scroll: { flex: 1 },
   scrollContent: { padding: 16, gap: 16 },
@@ -318,16 +318,16 @@ const styles = StyleSheet.create({
   searchRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#111",
+    backgroundColor: "#2B3245",
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: "#1a1a1a",
+    borderColor: "#2B3245",
     gap: 8,
   },
   searchIcon: {},
-  searchInput: { flex: 1, color: "#eee", fontSize: 14 },
+  searchInput: { flex: 1, color: "#F5F9FC", fontSize: 14 },
 
   pillRow: { marginHorizontal: -16 },
   pillContent: { paddingHorizontal: 16, gap: 8 },
@@ -335,31 +335,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 6,
     borderRadius: 20,
-    backgroundColor: "#111",
+    backgroundColor: "#2B3245",
     borderWidth: 1,
-    borderColor: "#222",
+    borderColor: "#2B3245",
   },
-  pillActive: { backgroundColor: "#00d4ff22", borderColor: "#00d4ff" },
-  pillText: { color: "#555", fontSize: 12, fontWeight: "600" },
-  pillTextActive: { color: "#00d4ff" },
+  pillActive: { backgroundColor: "#F2620733", borderColor: "#F26207" },
+  pillText: { color: "#9DA2A6", fontSize: 12, fontWeight: "600" },
+  pillTextActive: { color: "#F26207" },
 
   customSection: { gap: 8 },
-  sectionTitle: { color: "#555", fontSize: 11, fontWeight: "700", letterSpacing: 1, textTransform: "uppercase" },
+  sectionTitle: { color: "#9DA2A6", fontSize: 11, fontWeight: "700", letterSpacing: 1, textTransform: "uppercase" },
   customRow: { flexDirection: "row", gap: 8 },
   customInput: {
     flex: 1,
-    backgroundColor: "#111",
+    backgroundColor: "#2B3245",
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#1a1a1a",
+    borderColor: "#2B3245",
     paddingHorizontal: 12,
     paddingVertical: 10,
-    color: "#eee",
+    color: "#F5F9FC",
     fontSize: 13,
     fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
   },
   runBtn: {
-    backgroundColor: "#00d4ff",
+    backgroundColor: "#F26207",
     borderRadius: 10,
     width: 44,
     alignItems: "center",
@@ -374,16 +374,16 @@ const styles = StyleSheet.create({
     gap: 8,
     maxHeight: 200,
   },
-  outputOk: { backgroundColor: "#00d4ff08", borderColor: "#00d4ff33" },
-  outputErr: { backgroundColor: "#ff444408", borderColor: "#ff444433" },
+  outputOk: { backgroundColor: "#F2620710", borderColor: "#F2620744" },
+  outputErr: { backgroundColor: "#F73E3E10", borderColor: "#F73E3E33" },
   outputHeader: { flexDirection: "row", alignItems: "center", gap: 6 },
   outputStatus: { flex: 1, fontSize: 12, fontWeight: "700" },
-  outputStatusOk: { color: "#00d4ff" },
-  outputStatusErr: { color: "#ff4444" },
+  outputStatusOk: { color: "#F26207" },
+  outputStatusErr: { color: "#F73E3E" },
   closeOutput: { marginLeft: "auto" },
   outputScroll: { maxHeight: 140 },
   outputText: {
-    color: "#aaa",
+    color: "#F5F9FC",
     fontSize: 11,
     fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
     lineHeight: 16,
@@ -393,49 +393,49 @@ const styles = StyleSheet.create({
 
   categorySection: { gap: 6 },
   categoryHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 },
-  categoryTitle: { color: "#00d4ff", fontSize: 11, fontWeight: "700", letterSpacing: 1, textTransform: "uppercase" },
+  categoryTitle: { color: "#F26207", fontSize: 11, fontWeight: "700", letterSpacing: 1, textTransform: "uppercase" },
 
   itemCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#111",
+    backgroundColor: "#2B3245",
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: "#1a1a1a",
+    borderColor: "#2B3245",
     gap: 10,
   },
   itemInfo: { flex: 1, gap: 2 },
-  itemName: { color: "#ddd", fontSize: 14, fontWeight: "600" },
-  itemVersion: { color: "#444", fontSize: 10, fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace" },
-  itemVersionInstalled: { color: "#00d4ff44", fontSize: 10 },
+  itemName: { color: "#F5F9FC", fontSize: 14, fontWeight: "600" },
+  itemVersion: { color: "#9DA2A6", fontSize: 10, fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace" },
+  itemVersionInstalled: { color: "#F2620766", fontSize: 10 },
 
   itemRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   installedBadge: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "#00d4ff11",
+    backgroundColor: "#F2620714",
     borderRadius: 6,
     paddingHorizontal: 6,
     paddingVertical: 3,
     borderWidth: 1,
-    borderColor: "#00d4ff22",
+    borderColor: "#F2620733",
   },
-  installedText: { color: "#00d4ff", fontSize: 9, fontWeight: "700" },
+  installedText: { color: "#F26207", fontSize: 9, fontWeight: "700" },
 
   installBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
-    backgroundColor: "#00d4ff",
+    backgroundColor: "#F26207",
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
-  installBtnBusy: { opacity: 0.7, backgroundColor: "#00d4ff88" },
-  reinstallBtn: { backgroundColor: "#1a1a1a", borderWidth: 1, borderColor: "#2a2a2a" },
-  installBtnText: { color: "#000", fontSize: 11, fontWeight: "700" },
-  reinstallBtnText: { color: "#555" },
+  installBtnBusy: { opacity: 0.7, backgroundColor: "#F26207CC" },
+  reinstallBtn: { backgroundColor: "#2B3245", borderWidth: 1, borderColor: "#2B3245" },
+  installBtnText: { color: "#0E1525", fontSize: 11, fontWeight: "700" },
+  reinstallBtnText: { color: "#9DA2A6" },
 });

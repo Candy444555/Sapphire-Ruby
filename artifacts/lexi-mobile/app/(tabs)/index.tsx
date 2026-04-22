@@ -296,8 +296,8 @@ export default function NexusChat() {
             disabled={isDown}
           >
             {isDown
-              ? <ActivityIndicator size={10} color="#444" />
-              : <Feather name="download" size={11} color={isUser ? "#00d4ff88" : "#444"} />
+              ? <ActivityIndicator size={10} color="#9DA2A6" />
+              : <Feather name="download" size={11} color={isUser ? "#F26207CC" : "#9DA2A6"} />
             }
             <Text style={[styles.dlBtnText, isUser && styles.dlBtnTextUser]}>
               {isDown ? "saving…" : `Download ${label}`}
@@ -325,22 +325,22 @@ export default function NexusChat() {
         </View>
         <View style={styles.headerRight}>
           <Pressable style={styles.iconBtn} onPress={() => router.push("/(tabs)/profile")}>
-            <Feather name="user" size={18} color={isAuthenticated ? "#7c3aed" : "#666"} />
+            <Feather name="user" size={18} color={isAuthenticated ? "#F26207" : "#C2C8CC"} />
           </Pressable>
           <Pressable style={styles.iconBtn} onPress={() => router.push("/(tabs)/software")}>
-            <Feather name="monitor" size={18} color="#666" />
+            <Feather name="monitor" size={18} color="#C2C8CC" />
           </Pressable>
           <Pressable style={styles.iconBtn} onPress={() => router.push("/(tabs)/upload")}>
-            <Feather name="upload-cloud" size={18} color="#666" />
+            <Feather name="upload-cloud" size={18} color="#C2C8CC" />
           </Pressable>
           <Pressable style={styles.iconBtn} onPress={() => router.push("/(tabs)/github")}>
-            <Feather name="github" size={18} color="#666" />
+            <Feather name="github" size={18} color="#C2C8CC" />
           </Pressable>
           <Pressable style={styles.iconBtn} onPress={() => setShowPromptPicker(true)}>
-            <Feather name="cpu" size={18} color="#00d4ff" />
+            <Feather name="cpu" size={18} color="#F26207" />
           </Pressable>
           <Pressable style={styles.iconBtn} onPress={clearChat}>
-            <Feather name="trash-2" size={18} color="#666" />
+            <Feather name="trash-2" size={18} color="#C2C8CC" />
           </Pressable>
         </View>
       </View>
@@ -355,7 +355,7 @@ export default function NexusChat() {
           )}
           <Text style={styles.modelName}>{currentModel.label}</Text>
         </View>
-        <Feather name="chevron-down" size={14} color="#444" />
+        <Feather name="chevron-down" size={14} color="#9DA2A6" />
       </Pressable>
 
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -405,7 +405,7 @@ export default function NexusChat() {
                 <View style={styles.typingRow}>
                   <View style={styles.aiBadge}><Text style={styles.aiBadgeText}>AI</Text></View>
                   <View style={styles.typingBubble}>
-                    <ActivityIndicator size="small" color="#00d4ff" />
+                    <ActivityIndicator size="small" color="#F26207" />
                   </View>
                 </View>
               ) : null
@@ -421,7 +421,7 @@ export default function NexusChat() {
             value={input}
             onChangeText={setInput}
             placeholder="Ask anything..."
-            placeholderTextColor="#333"
+            placeholderTextColor="#6C7079"
             multiline
             blurOnSubmit={false}
             onSubmitEditing={() => { if (input.trim()) sendMessage(input.trim()); }}
@@ -432,8 +432,8 @@ export default function NexusChat() {
             disabled={!input.trim() || isStreaming}
           >
             {isStreaming
-              ? <ActivityIndicator size="small" color="#000" />
-              : <Feather name="send" size={18} color="#000" />}
+              ? <ActivityIndicator size="small" color="#0E1525" />
+              : <Feather name="send" size={18} color="#0E1525" />}
           </Pressable>
         </View>
       </KeyboardAvoidingView>
@@ -444,7 +444,7 @@ export default function NexusChat() {
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Select Model</Text>
             <Pressable onPress={() => setShowModelPicker(false)} style={styles.modalClose}>
-              <Feather name="x" size={20} color="#666" />
+              <Feather name="x" size={20} color="#C2C8CC" />
             </Pressable>
           </View>
           <ScrollView style={styles.modalScroll}>
@@ -462,7 +462,7 @@ export default function NexusChat() {
                   )}
                   <Text style={styles.modelRowLabel}>{m.label}</Text>
                 </View>
-                {selectedModel === m.id && <Feather name="check" size={16} color="#00d4ff" />}
+                {selectedModel === m.id && <Feather name="check" size={16} color="#F26207" />}
               </Pressable>
             ))}
           </ScrollView>
@@ -475,7 +475,7 @@ export default function NexusChat() {
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Mode</Text>
             <Pressable onPress={() => setShowPromptPicker(false)} style={styles.modalClose}>
-              <Feather name="x" size={20} color="#666" />
+              <Feather name="x" size={20} color="#C2C8CC" />
             </Pressable>
           </View>
           <ScrollView style={styles.modalScroll}>
@@ -489,7 +489,7 @@ export default function NexusChat() {
                   <Text style={styles.modelRowLabel}>{p.label}</Text>
                   <Text style={styles.promptDesc} numberOfLines={2}>{p.prompt.slice(0, 80)}…</Text>
                 </View>
-                {selectedPrompt === p.id && <Feather name="check" size={16} color="#00d4ff" />}
+                {selectedPrompt === p.id && <Feather name="check" size={16} color="#F26207" />}
               </Pressable>
             ))}
           </ScrollView>
@@ -500,57 +500,57 @@ export default function NexusChat() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#000" },
+  root: { flex: 1, backgroundColor: "#0E1525" },
 
   header: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 16, paddingBottom: 12,
-    borderBottomWidth: 1, borderBottomColor: "#111",
+    borderBottomWidth: 1, borderBottomColor: "#2B3245",
   },
   headerLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
   headerRight: { flexDirection: "row", alignItems: "center", gap: 8 },
   logo: {
     width: 36, height: 36, borderRadius: 8,
-    backgroundColor: "#00d4ff18", borderWidth: 1, borderColor: "#00d4ff44",
+    backgroundColor: "#F2620722", borderWidth: 1, borderColor: "#F2620766",
     alignItems: "center", justifyContent: "center",
   },
-  logoText: { color: "#00d4ff", fontSize: 18, fontWeight: "800" },
+  logoText: { color: "#F26207", fontSize: 18, fontWeight: "800" },
   headerTitle: { color: "#fff", fontSize: 16, fontWeight: "800", letterSpacing: 2 },
-  headerSub: { color: "#00d4ff", fontSize: 10, fontWeight: "600", letterSpacing: 1, marginTop: 1 },
+  headerSub: { color: "#F26207", fontSize: 10, fontWeight: "600", letterSpacing: 1, marginTop: 1 },
   iconBtn: {
     width: 36, height: 36, borderRadius: 8,
-    backgroundColor: "#0a0a0a", borderWidth: 1, borderColor: "#1a1a1a",
+    backgroundColor: "#1C2333", borderWidth: 1, borderColor: "#2B3245",
     alignItems: "center", justifyContent: "center",
   },
 
   modelBar: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 16, paddingVertical: 8,
-    borderBottomWidth: 1, borderBottomColor: "#111", backgroundColor: "#050505",
+    borderBottomWidth: 1, borderBottomColor: "#2B3245", backgroundColor: "#0E1525",
   },
   modelBarLeft: { flexDirection: "row", alignItems: "center", gap: 8 },
   uncensoredBadge: {
-    backgroundColor: "#00d4ff18", borderWidth: 1, borderColor: "#00d4ff44",
+    backgroundColor: "#F2620722", borderWidth: 1, borderColor: "#F2620766",
     borderRadius: 4, paddingHorizontal: 6, paddingVertical: 2,
   },
-  uncensoredText: { color: "#00d4ff", fontSize: 9, fontWeight: "800", letterSpacing: 1 },
-  modelName: { color: "#888", fontSize: 12, fontWeight: "500" },
+  uncensoredText: { color: "#F26207", fontSize: 9, fontWeight: "800", letterSpacing: 1 },
+  modelName: { color: "#C2C8CC", fontSize: 12, fontWeight: "500" },
 
   empty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 10, paddingHorizontal: 20 },
   emptyLogo: {
     width: 80, height: 80, borderRadius: 20,
-    backgroundColor: "#00d4ff12", borderWidth: 1, borderColor: "#00d4ff33",
+    backgroundColor: "#F2620718", borderWidth: 1, borderColor: "#F2620744",
     alignItems: "center", justifyContent: "center", marginBottom: 8,
   },
-  emptyLogoText: { color: "#00d4ff", fontSize: 40, fontWeight: "900" },
+  emptyLogoText: { color: "#F26207", fontSize: 40, fontWeight: "900" },
   emptyTitle: { color: "#fff", fontSize: 28, fontWeight: "900", letterSpacing: 4 },
-  emptySub: { color: "#444", fontSize: 13, textAlign: "center", marginBottom: 8 },
+  emptySub: { color: "#9DA2A6", fontSize: 13, textAlign: "center", marginBottom: 8 },
   chipRow: { flexDirection: "row", gap: 8, flexWrap: "wrap", justifyContent: "center" },
   chip: {
-    backgroundColor: "#0a0a0a", borderWidth: 1, borderColor: "#1a1a1a",
+    backgroundColor: "#1C2333", borderWidth: 1, borderColor: "#2B3245",
     borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, marginBottom: 4,
   },
-  chipText: { color: "#555", fontSize: 13 },
+  chipText: { color: "#9DA2A6", fontSize: 13 },
 
   listContent: { paddingHorizontal: 12, paddingVertical: 12 },
   msgRow: { flexDirection: "row", marginBottom: 16, alignItems: "flex-start", gap: 8 },
@@ -558,18 +558,18 @@ const styles = StyleSheet.create({
   rowAssistant: { justifyContent: "flex-start" },
   aiBadge: {
     width: 28, height: 28, borderRadius: 6,
-    backgroundColor: "#00d4ff18", borderWidth: 1, borderColor: "#00d4ff33",
+    backgroundColor: "#F2620722", borderWidth: 1, borderColor: "#F2620744",
     alignItems: "center", justifyContent: "center", flexShrink: 0, marginTop: 2,
   },
-  aiBadgeText: { color: "#00d4ff", fontSize: 9, fontWeight: "800" },
+  aiBadgeText: { color: "#F26207", fontSize: 9, fontWeight: "800" },
 
   bubbleCol: { maxWidth: "82%", gap: 4 },
   bubble: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10 },
-  userBubble: { backgroundColor: "#00d4ff18", borderWidth: 1, borderColor: "#00d4ff33", borderBottomRightRadius: 2 },
-  aiBubble: { backgroundColor: "#0a0a0a", borderWidth: 1, borderColor: "#1a1a1a", borderBottomLeftRadius: 2 },
+  userBubble: { backgroundColor: "#F2620722", borderWidth: 1, borderColor: "#F2620744", borderBottomRightRadius: 2 },
+  aiBubble: { backgroundColor: "#1C2333", borderWidth: 1, borderColor: "#2B3245", borderBottomLeftRadius: 2 },
   bubbleText: { fontSize: 15, lineHeight: 22 },
-  userText: { color: "#e0e0e0" },
-  aiText: { color: "#ccc" },
+  userText: { color: "#F5F9FC" },
+  aiText: { color: "#F5F9FC" },
 
   dlBtn: {
     flexDirection: "row", alignItems: "center", gap: 5,
@@ -577,54 +577,54 @@ const styles = StyleSheet.create({
     borderRadius: 6, borderWidth: 1,
     alignSelf: "flex-start",
   },
-  dlBtnAi: { borderColor: "#1a1a1a", backgroundColor: "#080808" },
-  dlBtnUser: { borderColor: "#00d4ff22", backgroundColor: "#00d4ff08", alignSelf: "flex-end" },
-  dlBtnText: { color: "#333", fontSize: 11, fontWeight: "600" },
-  dlBtnTextUser: { color: "#00d4ff66" },
+  dlBtnAi: { borderColor: "#2B3245", backgroundColor: "#0E1525" },
+  dlBtnUser: { borderColor: "#F2620733", backgroundColor: "#F2620710", alignSelf: "flex-end" },
+  dlBtnText: { color: "#6C7079", fontSize: 11, fontWeight: "600" },
+  dlBtnTextUser: { color: "#F2620799" },
 
   typingRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginBottom: 12, paddingHorizontal: 12 },
   typingBubble: {
-    backgroundColor: "#0a0a0a", borderRadius: 12, borderWidth: 1,
-    borderColor: "#1a1a1a", paddingHorizontal: 18, paddingVertical: 12,
+    backgroundColor: "#1C2333", borderRadius: 12, borderWidth: 1,
+    borderColor: "#2B3245", paddingHorizontal: 18, paddingVertical: 12,
   },
 
   inputBar: {
     flexDirection: "row", alignItems: "flex-end",
     paddingHorizontal: 12, paddingTop: 10,
-    borderTopWidth: 1, borderTopColor: "#111", backgroundColor: "#000", gap: 8,
+    borderTopWidth: 1, borderTopColor: "#2B3245", backgroundColor: "#0E1525", gap: 8,
   },
   input: {
-    flex: 1, backgroundColor: "#0a0a0a", borderRadius: 12,
+    flex: 1, backgroundColor: "#1C2333", borderRadius: 12,
     paddingHorizontal: 14, paddingVertical: 10,
-    color: "#e0e0e0", fontSize: 15, maxHeight: 120,
-    borderWidth: 1, borderColor: "#1a1a1a",
+    color: "#F5F9FC", fontSize: 15, maxHeight: 120,
+    borderWidth: 1, borderColor: "#2B3245",
   },
   sendBtn: {
-    width: 44, height: 44, borderRadius: 12, backgroundColor: "#00d4ff",
+    width: 44, height: 44, borderRadius: 12, backgroundColor: "#F26207",
     alignItems: "center", justifyContent: "center", flexShrink: 0,
   },
-  sendOff: { backgroundColor: "#111" },
+  sendOff: { backgroundColor: "#2B3245" },
 
-  modalRoot: { flex: 1, backgroundColor: "#000" },
+  modalRoot: { flex: 1, backgroundColor: "#0E1525" },
   modalHeader: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 20, paddingBottom: 14,
-    borderBottomWidth: 1, borderBottomColor: "#111",
+    borderBottomWidth: 1, borderBottomColor: "#2B3245",
   },
   modalTitle: { color: "#fff", fontSize: 18, fontWeight: "800" },
   modalClose: {
     width: 34, height: 34, borderRadius: 8,
-    backgroundColor: "#0a0a0a", borderWidth: 1, borderColor: "#1a1a1a",
+    backgroundColor: "#1C2333", borderWidth: 1, borderColor: "#2B3245",
     alignItems: "center", justifyContent: "center",
   },
   modalScroll: { flex: 1 },
   modelRow: {
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     paddingHorizontal: 20, paddingVertical: 16,
-    borderBottomWidth: 1, borderBottomColor: "#0d0d0d",
+    borderBottomWidth: 1, borderBottomColor: "#0E1525",
   },
-  modelRowActive: { backgroundColor: "#00d4ff08" },
+  modelRowActive: { backgroundColor: "#F2620710" },
   modelRowLeft: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },
-  modelRowLabel: { color: "#ddd", fontSize: 15, fontWeight: "600" },
-  promptDesc: { color: "#444", fontSize: 12, marginTop: 3, maxWidth: 280 },
+  modelRowLabel: { color: "#F5F9FC", fontSize: 15, fontWeight: "600" },
+  promptDesc: { color: "#9DA2A6", fontSize: 12, marginTop: 3, maxWidth: 280 },
 });

@@ -189,14 +189,14 @@ export default function UploadScreen() {
       {/* Header */}
       <View style={[styles.header, { paddingTop: Platform.OS === "web" ? webPad : insets.top + 10 }]}>
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <Feather name="arrow-left" size={20} color="#aaa" />
+          <Feather name="arrow-left" size={20} color="#F5F9FC" />
         </Pressable>
         <View>
           <Text style={styles.headerTitle}>UPLOADS</Text>
           <Text style={styles.headerSub}>APK & File Manager</Text>
         </View>
         <Pressable style={styles.iconBtn} onPress={fetchFiles}>
-          <Feather name="refresh-cw" size={18} color="#666" />
+          <Feather name="refresh-cw" size={18} color="#C2C8CC" />
         </Pressable>
       </View>
 
@@ -208,9 +208,9 @@ export default function UploadScreen() {
           disabled={uploading}
         >
           {uploading ? (
-            <ActivityIndicator color="#000" size="small" />
+            <ActivityIndicator color="#0E1525" size="small" />
           ) : (
-            <Feather name="upload" size={20} color="#000" />
+            <Feather name="upload" size={20} color="#0E1525" />
           )}
           <Text style={styles.uploadBtnText}>
             {uploading ? "Uploading..." : "Pick & Upload File"}
@@ -234,11 +234,11 @@ export default function UploadScreen() {
       {/* File List */}
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator color="#00d4ff" />
+          <ActivityIndicator color="#F26207" />
         </View>
       ) : files.length === 0 ? (
         <View style={styles.centered}>
-          <Feather name="inbox" size={48} color="#333" />
+          <Feather name="inbox" size={48} color="#6C7079" />
           <Text style={styles.emptyText}>No files uploaded yet</Text>
           <Text style={styles.emptySubText}>Upload an APK or any file to get started</Text>
         </View>
@@ -253,7 +253,7 @@ export default function UploadScreen() {
                 <Feather
                   name={item.isApk ? "package" : "file"}
                   size={22}
-                  color={item.isApk ? "#00d4ff" : "#666"}
+                  color={item.isApk ? "#F26207" : "#C2C8CC"}
                 />
               </View>
               <View style={styles.fileInfo}>
@@ -274,7 +274,7 @@ export default function UploadScreen() {
                 onPress={() => deleteFile(item.filename)}
                 hitSlop={8}
               >
-                <Feather name="trash-2" size={16} color="#555" />
+                <Feather name="trash-2" size={16} color="#9DA2A6" />
               </Pressable>
             </View>
           )}
@@ -285,7 +285,7 @@ export default function UploadScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#0a0a0a" },
+  container: { flex: 1, backgroundColor: "#1C2333" },
 
   header: {
     flexDirection: "row",
@@ -294,12 +294,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingBottom: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#1a1a1a",
+    borderBottomColor: "#2B3245",
   },
   backBtn: { padding: 6 },
   iconBtn: { padding: 6 },
   headerTitle: { color: "#fff", fontSize: 16, fontWeight: "800", letterSpacing: 2 },
-  headerSub: { color: "#00d4ff", fontSize: 10, fontWeight: "600", letterSpacing: 1, marginTop: 1 },
+  headerSub: { color: "#F26207", fontSize: 10, fontWeight: "600", letterSpacing: 1, marginTop: 1 },
 
   uploadSection: {
     margin: 16,
@@ -310,13 +310,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 10,
-    backgroundColor: "#00d4ff",
+    backgroundColor: "#F26207",
     borderRadius: 12,
     paddingVertical: 16,
   },
   uploadBtnDisabled: { opacity: 0.6 },
-  uploadBtnText: { color: "#000", fontSize: 15, fontWeight: "700" },
-  limitNote: { color: "#444", fontSize: 11, textAlign: "center" },
+  uploadBtnText: { color: "#0E1525", fontSize: 15, fontWeight: "700" },
+  limitNote: { color: "#9DA2A6", fontSize: 11, textAlign: "center" },
 
   progressContainer: {
     marginHorizontal: 16,
@@ -325,56 +325,56 @@ const styles = StyleSheet.create({
   },
   progressTrack: {
     height: 4,
-    backgroundColor: "#1a1a1a",
+    backgroundColor: "#2B3245",
     borderRadius: 2,
     overflow: "hidden",
   },
   progressFill: {
     height: "100%",
-    backgroundColor: "#00d4ff",
+    backgroundColor: "#F26207",
     borderRadius: 2,
   },
-  progressText: { color: "#555", fontSize: 11 },
+  progressText: { color: "#9DA2A6", fontSize: 11 },
 
   centered: { flex: 1, alignItems: "center", justifyContent: "center", gap: 8 },
-  emptyText: { color: "#444", fontSize: 16, fontWeight: "600", marginTop: 12 },
-  emptySubText: { color: "#333", fontSize: 13 },
+  emptyText: { color: "#9DA2A6", fontSize: 16, fontWeight: "600", marginTop: 12 },
+  emptySubText: { color: "#6C7079", fontSize: 13 },
 
   listContent: { paddingHorizontal: 16, paddingBottom: 40 },
 
   fileCard: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#111",
+    backgroundColor: "#2B3245",
     borderRadius: 12,
     padding: 14,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: "#1a1a1a",
+    borderColor: "#2B3245",
     gap: 12,
   },
   fileIcon: {
     width: 40,
     height: 40,
-    backgroundColor: "#1a1a1a",
+    backgroundColor: "#2B3245",
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
   },
   fileInfo: { flex: 1, gap: 4 },
-  fileName: { color: "#eee", fontSize: 13, fontWeight: "600" },
+  fileName: { color: "#F5F9FC", fontSize: 13, fontWeight: "600" },
   fileMeta: { flexDirection: "row", alignItems: "center", gap: 6 },
   apkBadge: {
-    backgroundColor: "#00d4ff22",
+    backgroundColor: "#F2620733",
     borderRadius: 4,
     paddingHorizontal: 6,
     paddingVertical: 1,
     borderWidth: 1,
-    borderColor: "#00d4ff44",
+    borderColor: "#F2620766",
   },
-  apkBadgeText: { color: "#00d4ff", fontSize: 9, fontWeight: "700", letterSpacing: 0.5 },
-  fileSize: { color: "#555", fontSize: 11 },
-  fileDot: { color: "#333", fontSize: 11 },
-  fileDate: { color: "#555", fontSize: 11 },
+  apkBadgeText: { color: "#F26207", fontSize: 9, fontWeight: "700", letterSpacing: 0.5 },
+  fileSize: { color: "#9DA2A6", fontSize: 11 },
+  fileDot: { color: "#6C7079", fontSize: 11 },
+  fileDate: { color: "#9DA2A6", fontSize: 11 },
   deleteBtn: { padding: 6 },
 });

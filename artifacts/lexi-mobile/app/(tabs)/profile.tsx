@@ -22,7 +22,7 @@ export default function ProfileScreen() {
     <View style={[styles.container, { paddingTop: insets.top }]}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={20} color="#aaa" />
+          <Feather name="arrow-left" size={20} color="#F5F9FC" />
         </Pressable>
         <Text style={styles.title}>Account</Text>
         <View style={{ width: 36 }} />
@@ -30,7 +30,7 @@ export default function ProfileScreen() {
 
       <View style={styles.body}>
         {isLoading ? (
-          <ActivityIndicator color="#7c3aed" size="large" />
+          <ActivityIndicator color="#F26207" size="large" />
         ) : isAuthenticated && user ? (
           <View style={styles.card}>
             {user.profileImageUrl ? (
@@ -40,7 +40,7 @@ export default function ProfileScreen() {
               />
             ) : (
               <View style={styles.avatarPlaceholder}>
-                <Feather name="user" size={32} color="#7c3aed" />
+                <Feather name="user" size={32} color="#F26207" />
               </View>
             )}
 
@@ -53,19 +53,19 @@ export default function ProfileScreen() {
             ) : null}
 
             <View style={styles.badge}>
-              <Feather name="check-circle" size={14} color="#22c55e" />
+              <Feather name="check-circle" size={14} color="#56D364" />
               <Text style={styles.badgeText}>Signed in — all features free</Text>
             </View>
 
             <Pressable style={styles.logoutBtn} onPress={logout}>
-              <Feather name="log-out" size={16} color="#ef4444" />
+              <Feather name="log-out" size={16} color="#F73E3E" />
               <Text style={styles.logoutText}>Sign out</Text>
             </Pressable>
           </View>
         ) : (
           <View style={styles.card}>
             <View style={styles.avatarPlaceholder}>
-              <Feather name="user" size={32} color="#555" />
+              <Feather name="user" size={32} color="#9DA2A6" />
             </View>
 
             <Text style={styles.name}>Not signed in</Text>
@@ -88,7 +88,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#080810",
+    backgroundColor: "#0E1525",
   },
   header: {
     flexDirection: "row",
@@ -97,7 +97,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: "#1a1a2e",
+    borderBottomColor: "#1C2333",
   },
   backBtn: {
     width: 36,
@@ -118,10 +118,10 @@ const styles = StyleSheet.create({
   },
   card: {
     width: "100%",
-    backgroundColor: "#0f0f1e",
+    backgroundColor: "#0E1525",
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#1a1a2e",
+    borderColor: "#1C2333",
     padding: 28,
     alignItems: "center",
     gap: 12,
@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: "#1a1a2e",
+    backgroundColor: "#1C2333",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 4,
@@ -147,12 +147,12 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
   },
   email: {
-    color: "#888",
+    color: "#C2C8CC",
     fontSize: 14,
     fontFamily: "Inter_400Regular",
   },
   sub: {
-    color: "#666",
+    color: "#C2C8CC",
     fontSize: 14,
     fontFamily: "Inter_400Regular",
     textAlign: "center",
@@ -163,14 +163,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "#052e16",
+    backgroundColor: "#1C2333",
     borderRadius: 20,
     paddingHorizontal: 12,
     paddingVertical: 6,
     marginTop: 4,
   },
   badgeText: {
-    color: "#22c55e",
+    color: "#56D364",
     fontSize: 13,
     fontFamily: "Inter_500Medium",
   },
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: "#7c3aed",
+    backgroundColor: "#F26207",
     borderRadius: 10,
     paddingHorizontal: 24,
     paddingVertical: 12,
@@ -196,17 +196,17 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     borderWidth: 1,
-    borderColor: "#3f0000",
+    borderColor: "#2B3245",
     borderRadius: 10,
     paddingHorizontal: 24,
     paddingVertical: 12,
     marginTop: 8,
     width: "100%",
     justifyContent: "center",
-    backgroundColor: "#1a0000",
+    backgroundColor: "#1C2333",
   },
   logoutText: {
-    color: "#ef4444",
+    color: "#F73E3E",
     fontSize: 15,
     fontFamily: "Inter_600SemiBold",
   },

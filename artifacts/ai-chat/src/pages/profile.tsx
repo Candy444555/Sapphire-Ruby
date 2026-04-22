@@ -10,6 +10,7 @@ import {
   ExternalLink,
   Mail
 } from "lucide-react";
+import { useRootMode } from "@/lib/root-mode";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -25,6 +26,7 @@ export default function ProfilePage() {
   const [, navigate] = useLocation();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const { enabled: rootEnabled, setEnabled: setRootEnabled } = useRootMode();
 
   useEffect(() => {
     fetchUser();
@@ -117,6 +119,26 @@ export default function ProfilePage() {
                 <p className="text-[11px] text-[#8b949e] leading-relaxed">
                   Your session is protected by Replit OIDC. All data is encrypted and synced across your devices automatically. 
                   Terminal root access requires active authentication.
+                </p>
+              </div>
+
+              {/* Root Mode (ported from Lexi mobile) */}
+              <div className="p-5 bg-[#161b22] border border-[#30363d] rounded-xl space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-4 h-4 text-[#d29922]" />
+                    <span className="text-[#e6edf3] text-sm font-bold">Root Mode</span>
+                  </div>
+                  <button
+                    onClick={() => setRootEnabled(!rootEnabled)}
+                    aria-label="Toggle root mode"
+                    className={`relative w-11 h-6 rounded-full transition-colors ${rootEnabled ? "bg-[#d29922]" : "bg-[#30363d]"}`}
+                  >
+                    <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-[#e6edf3] transition-transform ${rootEnabled ? "translate-x-5" : "translate-x-0.5"}`} />
+                  </button>
+                </div>
+                <p className="text-[11px] text-[#8b949e] leading-relaxed">
+                  When enabled, terminal commands run with elevated privileges and the AI assistant operates without confirmation prompts. {rootEnabled ? <span className="text-[#d29922] font-bold">ACTIVE</span> : <span className="text-[#8b949e]">Disabled</span>}
                 </p>
               </div>
             </div>

@@ -10,6 +10,7 @@ import SoftwarePage from "@/pages/software";
 import UploadPage from "@/pages/upload";
 import ProfilePage from "@/pages/profile";
 import NotFound from "@/pages/not-found";
+import { RootModeProvider } from "@/lib/root-mode";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,10 +40,12 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-          <Router />
-        </WouterRouter>
-        <Toaster />
+        <RootModeProvider>
+          <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+            <Router />
+          </WouterRouter>
+          <Toaster />
+        </RootModeProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );

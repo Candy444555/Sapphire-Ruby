@@ -5,16 +5,20 @@ import {
   ActivityIndicator,
   Image,
   Pressable,
+  ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useAuth } from "@/lib/auth";
+import { useRootMode } from "@/lib/rootMode";
 
 export default function ProfileScreen() {
   const { user, isLoading, isAuthenticated, login, logout } = useAuth();
+  const { enabled: rootEnabled, setEnabled: setRootEnabled } = useRootMode();
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -28,7 +32,7 @@ export default function ProfileScreen() {
         <View style={{ width: 36 }} />
       </View>
 
-      <View style={styles.body}>
+      <ScrollView contentContainerStyle={styles.body}>
         {isLoading ? (
           <ActivityIndicator color="#F26207" size="large" />
         ) : isAuthenticated && user ? (
@@ -80,7 +84,44 @@ export default function ProfileScreen() {
             </Pressable>
           </View>
         )}
-      </View>
+
+        {/* Root Mode */}
+        <View style={[styles.card, { marginTop: 16 }]}>
+          <View style={styles.rowBetween}>
+            <View style={styles.rowLeft}>
+              <Feather name="shield" size={18} color="#F26207" />
+              <Text style={styles.rootTitle}>Root Mode</Text>
+            </View>
+            <Switch
+              value={rootEnabled}
+              onValueChange={setRootEnabled}
+              trackColor={{ true: "#F26207", false: "#2B3245" }}
+              thumbColor="#F5F9FC"
+            />
+          </View>
+          <Text style={styles.rootSub}>
+            Unlocks the in-app Terminal and the &quot;Root Shell&quot; AI persona. Lexi will give you exact `su` commands and you can execute them directly.
+          </Text>
+
+          {rootEnabled && (
+            <Pressable style={styles.openTerminalBtn} onPress={() => router.push("/(tabs)/terminal")}>
+              <Feather name="terminal" size={14} color="#0E1525" />
+              <Text style={styles.openTerminalText}>Open Terminal</Text>
+            </Pressable>
+          )}
+
+          <View style={styles.guide}>
+            <Text style={styles.guideHead}>Guide</Text>
+            <Text style={styles.guideStep}>1. Your device must be rooted (Magisk / KernelSU). On a stock phone, `su` won&apos;t exist and commands will fall back to a regular `sh` shell.</Text>
+            <Text style={styles.guideStep}>2. Build Lexi with EAS (`eas build -p android`) and install the APK. Root execution will not work in Expo Go.</Text>
+            <Text style={styles.guideStep}>3. Toggle Root Mode on. A Terminal icon appears in the chat header and the &quot;Root Shell&quot; persona unlocks in the prompt picker.</Text>
+            <Text style={styles.guideStep}>4. In the Terminal, leave &quot;Use su&quot; on for root commands. Magisk will prompt you the first time — grant Lexi root.</Text>
+            <Text style={styles.guideStep}>5. In Chat, switch the persona to Root Shell. Ask things like &quot;dump /data/system/packages.xml&quot; or &quot;list every running pid with its uid&quot;. Lexi will reply with copy-pasteable `bash` blocks.</Text>
+            <Text style={styles.guideStep}>6. Quick commands sit above the input — tap to run instantly. Use the trash icon to clear output.</Text>
+            <Text style={styles.guideWarn}>Root mode lets Lexi modify system files and partitions. You can brick your device. Read every command before running it.</Text>
+          </View>
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -111,11 +152,45 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
   },
   body: {
-    flex: 1,
+    flexGrow: 1,
     alignItems: "center",
-    justifyContent: "center",
     padding: 24,
+    paddingBottom: 48,
   },
+  rowBetween: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  rowLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
+  rootTitle: { color: "#F5F9FC", fontSize: 16, fontFamily: "Inter_600SemiBold" },
+  rootSub: { color: "#9DA2A6", fontSize: 13, lineHeight: 19, fontFamily: "Inter_400Regular", marginTop: 4 },
+  openTerminalBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: "#F26207",
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginTop: 10,
+    alignSelf: "flex-start",
+  },
+  openTerminalText: { color: "#0E1525", fontSize: 13, fontFamily: "Inter_600SemiBold" },
+  guide: {
+    marginTop: 14,
+    width: "100%",
+    backgroundColor: "#0B1020",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#1C2333",
+    padding: 14,
+    gap: 8,
+  },
+  guideHead: { color: "#F26207", fontSize: 12, fontFamily: "JetBrainsMono_700Bold", letterSpacing: 1, textTransform: "uppercase" },
+  guideStep: { color: "#C2C8CC", fontSize: 13, lineHeight: 19, fontFamily: "Inter_400Regular" },
+  guideWarn: { color: "#F73E3E", fontSize: 12, lineHeight: 17, fontFamily: "Inter_500Medium", marginTop: 6 },
   card: {
     width: "100%",
     backgroundColor: "#0E1525",

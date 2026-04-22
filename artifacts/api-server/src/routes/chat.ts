@@ -177,9 +177,9 @@ async function streamChat(
   systemPrompt: string | undefined,
   res: Response
 ) {
-  const apiKey = process.env.FEATHERLESS_API_KEY;
+  const apiKey = process.env.FEATHERLESS_API_TOKEN ?? process.env.FEATHERLESS_API_KEY;
   if (!apiKey) {
-    res.status(500).json({ error: "FEATHERLESS_API_KEY is not configured" });
+    res.status(500).json({ error: "FEATHERLESS_API_TOKEN is not configured" });
     return;
   }
 

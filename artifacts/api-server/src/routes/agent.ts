@@ -291,9 +291,9 @@ router.post("/agent", async (req: Request, res: Response) => {
   const { model, messages, systemPrompt, sessionId: requestedSessionId } = parsed.data;
   const modelId = model ?? "lexi-uncensored-v2-8b";
 
-  const apiKey = process.env.FEATHERLESS_API_KEY;
+  const apiKey = process.env.FEATHERLESS_API_TOKEN ?? process.env.FEATHERLESS_API_KEY;
   if (!apiKey) {
-    res.status(500).json({ error: "FEATHERLESS_API_KEY is not configured" });
+    res.status(500).json({ error: "FEATHERLESS_API_TOKEN is not configured" });
     return;
   }
 

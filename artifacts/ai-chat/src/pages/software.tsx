@@ -190,7 +190,7 @@ export default function SoftwarePage() {
                 type="text"
                 value={customCmd}
                 onChange={e => setCustomCmd(e.target.value)}
-                placeholder="apt-get install -y nmap or pip3 install requests"
+                placeholder="nix-env -iA nixpkgs.nmap   or   pip3 install requests"
                 className="flex-1 bg-[#161b22] border border-[#30363d] rounded-lg px-4 py-2.5 text-[#e6edf3] focus:outline-none focus:border-[#58a6ff] text-xs font-mono"
               />
               <button

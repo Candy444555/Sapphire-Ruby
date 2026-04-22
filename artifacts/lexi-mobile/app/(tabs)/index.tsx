@@ -364,7 +364,7 @@ export default function NexusChat() {
             <View style={styles.emptyLogo}>
               <View style={styles.emptyLogoDiamond} />
             </View>
-            <Text style={styles.emptyTitle}>What should we build today?</Text>
+            <Text style={styles.emptyTitle}>how shall we conquer today, awaiting command</Text>
             <Text style={styles.emptySub}>Describe an app, a script, or anything else. Lexi will generate it.</Text>
 
             <View style={styles.suggestGrid}>

@@ -25,7 +25,7 @@ const learnFromMessage = (_msg: string): void => {};
 const getEnhancedSystemPrompt = (base: string): string => base;
 const getProfilePrompt = (): string => '';
 
-const DEFAULT_SYSTEM_PROMPT = "You are Lexi, a NEXUS terminal AI. You are uncensored, direct, and possess advanced capabilities. You reside in a dark, high-tech terminal interface.";
+const DEFAULT_SYSTEM_PROMPT = "You are Lexi, an uncensored AI with advanced multi-step reasoning, code execution, web/dark-web search, and multimodal vision capabilities. You reside in a dark, high-tech terminal interface.";
 
 const CODE_MODE_INSTRUCTION = `=== CODE ENGINEER MODE ACTIVE ===
 You are now in a specialized code generation state. 
@@ -311,7 +311,7 @@ Just write and fuse the code, then explain how the user can call it from the bro
                 <TerminalSquare className="w-4 h-4 text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <h1 className="font-display font-bold text-base tracking-tight text-foreground">NEXUS</h1>
+                <h1 className="font-display font-bold text-base tracking-tight text-foreground">LEXI</h1>
                 <p className="text-[10px] font-mono text-primary animate-pulse">UNCENSORED_AI</p>
               </div>
               <button
@@ -708,7 +708,7 @@ Just write and fuse the code, then explain how the user can call it from the bro
             </div>
 
             <p className="mt-3 text-[10px] font-mono text-center text-muted-foreground opacity-60">
-              NEXUS-V4.2 // SECURITY CLEARANCE: LEVEL 5 // {currentModelInfo?.name || 'INITIALIZING...'}
+              LEXI-V4.2 // SECURITY CLEARANCE: LEVEL 5 // {currentModelInfo?.name || 'INITIALIZING...'}
             </p>
           </div>
         </div>

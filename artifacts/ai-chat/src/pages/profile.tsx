@@ -89,7 +89,7 @@ export default function ProfilePage() {
                 
                 <div className="text-center space-y-1">
                   <h2 className="text-xl font-bold text-[#e6edf3]">
-                    {[user.firstName, user.lastName].filter(Boolean).join(" ") || "Nexuser"}
+                    {[user.firstName, user.lastName].filter(Boolean).join(" ") || "Lexi User"}
                   </h2>
                   <div className="flex items-center justify-center gap-1.5 text-xs text-[#8b949e]">
                     <Mail className="w-3 h-3" />
@@ -114,7 +114,7 @@ export default function ProfilePage() {
               {/* Security info */}
               <div className="p-5 bg-[#161b22] border border-[#30363d] rounded-xl space-y-3">
                 <div className="flex items-center gap-2 text-[#58a6ff] text-[10px] font-bold uppercase tracking-widest">
-                  <Shield className="w-3.5 h-3.5" /> Nexus Shield Security
+                  <Shield className="w-3.5 h-3.5" /> Lexi Shield Security
                 </div>
                 <p className="text-[11px] text-[#8b949e] leading-relaxed">
                   Your session is protected by Replit OIDC. All data is encrypted and synced across your devices automatically. 
@@ -165,7 +165,7 @@ export default function ProfilePage() {
 
           <div className="pt-8 text-center border-t border-[#30363d]">
             <a href="https://replit.com" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-[10px] text-[#8b949e] hover:text-[#e6edf3] transition-colors">
-              Lexi Nexus Web v1.0.0 <ExternalLink className="w-3 h-3" />
+              Lexi Web v1.0.0 <ExternalLink className="w-3 h-3" />
             </a>
           </div>
 

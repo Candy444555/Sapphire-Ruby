@@ -14,6 +14,9 @@ import githubRouter from "./github";
 import githubBuildApkRouter from "./github-build-apk";
 import softwareRouter from "./software";
 import authRouter from "./auth";
+import storageRouter from "./storage";
+import mediaRouter from "./media";
+import codeRunRouter from "./code-run";
 
 const router: IRouter = Router();
 
@@ -32,5 +35,8 @@ router.use(uploadRouter);
 router.use(githubRouter);
 router.use(githubBuildApkRouter);
 router.use(softwareRouter);
+router.use(storageRouter);
+router.use(mediaRouter);
+router.use(codeRunRouter);
 
 export default router;

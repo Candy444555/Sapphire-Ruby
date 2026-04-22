@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/lexi-mobile/"
+title = "Lexi Mobile"
+version = "1.0.0"
+id = "artifacts/lexi-mobile"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/lexi-mobile/" ]
+localPort = 25098
+
+[services.development]
+run = "pnpm --filter @workspace/lexi-mobile run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/lexi-mobile", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/lexi-mobile", "run", "serve" ]
+
+[services.env]
+PORT = "25098"
+BASE_PATH = "/lexi-mobile/"

@@ -11,8 +11,8 @@ export type Conversation = {
   updatedAt: number;
 };
 
-const CONVERSATIONS_KEY = "nexus_conversations";
-const ACTIVE_ID_KEY = "nexus_active_conversation";
+const CONVERSATIONS_KEY = "lexi_conversations";
+const ACTIVE_ID_KEY = "lexi_active_conversation";
 
 function generateId() {
   const arr = new Uint8Array(12);

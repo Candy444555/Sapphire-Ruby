@@ -1,0 +1,71 @@
+{
+  "expo": {
+    "name": "Lexi",
+    "slug": "lexi-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "lexi-mobile",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0d1117"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Lexi uses the camera so you can send photos and live shots into your conversation.",
+        "NSPhotoLibraryUsageDescription": "Lexi needs photo library access to attach images to your messages.",
+        "NSMicrophoneUsageDescription": "Lexi uses the microphone for voice messages.",
+        "NSLocationWhenInUseUsageDescription": "Lexi can use your location to give context-aware answers.",
+        "NSContactsUsageDescription": "Lexi can read your contacts to help you message, call, or look someone up.",
+        "NSCalendarsUsageDescription": "Lexi can read your calendar to help you plan and manage events.",
+        "NSRemindersUsageDescription": "Lexi can read and create reminders for you.",
+        "NSMotionUsageDescription": "Lexi uses motion data for activity-aware features.",
+        "NSFaceIDUsageDescription": "Use Face ID to unlock Lexi.",
+        "NSBluetoothAlwaysUsageDescription": "Lexi uses Bluetooth to interact with nearby devices.",
+        "NSLocalNetworkUsageDescription": "Lexi uses the local network to discover devices."
+      }
+    },
+    "android": {
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "READ_CONTACTS",
+        "READ_CALENDAR",
+        "WRITE_CALENDAR",
+        "READ_MEDIA_IMAGES",
+        "READ_MEDIA_VIDEO",
+        "READ_MEDIA_AUDIO",
+        "BLUETOOTH_CONNECT",
+        "POST_NOTIFICATIONS",
+        "VIBRATE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/images/icon.png"
+    },
+    "plugins": [
+      [
+        "expo-router",
+        {
+          "origin": "https://replit.com/"
+        }
+      ],
+      "expo-font",
+      "expo-web-browser",
+      "expo-image-picker",
+      "expo-location",
+      "expo-contacts",
+      "expo-calendar"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

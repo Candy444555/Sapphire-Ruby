@@ -5,6 +5,10 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import ChatPage from "@/pages/chat";
 import TerminalPage from "@/pages/terminal";
 import PhoneLookupPage from "@/pages/phone-lookup";
+import GithubPage from "@/pages/github";
+import SoftwarePage from "@/pages/software";
+import UploadPage from "@/pages/upload";
+import ProfilePage from "@/pages/profile";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -22,6 +26,10 @@ function Router() {
       <Route path="/" component={ChatPage} />
       <Route path="/terminal" component={TerminalPage} />
       <Route path="/phone-lookup" component={PhoneLookupPage} />
+      <Route path="/github" component={GithubPage} />
+      <Route path="/software" component={SoftwarePage} />
+      <Route path="/upload" component={UploadPage} />
+      <Route path="/profile" component={ProfilePage} />
       <Route component={NotFound} />
     </Switch>
   );

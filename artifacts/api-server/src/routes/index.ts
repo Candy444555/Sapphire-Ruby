@@ -17,6 +17,7 @@ import authRouter from "./auth";
 import storageRouter from "./storage";
 import mediaRouter from "./media";
 import codeRunRouter from "./code-run";
+import secretsRouter from "./secrets";
 
 const router: IRouter = Router();
 
@@ -38,5 +39,6 @@ router.use(softwareRouter);
 router.use(storageRouter);
 router.use(mediaRouter);
 router.use(codeRunRouter);
+router.use(secretsRouter);
 
 export default router;

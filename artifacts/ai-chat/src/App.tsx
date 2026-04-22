@@ -9,6 +9,7 @@ import GithubPage from "@/pages/github";
 import SoftwarePage from "@/pages/software";
 import UploadPage from "@/pages/upload";
 import ProfilePage from "@/pages/profile";
+import SecretsPage from "@/pages/secrets";
 import NotFound from "@/pages/not-found";
 import { RootModeProvider } from "@/lib/root-mode";
 
@@ -31,6 +32,7 @@ function Router() {
       <Route path="/software" component={SoftwarePage} />
       <Route path="/upload" component={UploadPage} />
       <Route path="/profile" component={ProfilePage} />
+      <Route path="/secrets" component={SecretsPage} />
       <Route component={NotFound} />
     </Switch>
   );

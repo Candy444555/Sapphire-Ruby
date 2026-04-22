@@ -5,7 +5,7 @@ import fs from "fs";
 
 const router = Router();
 
-const UPLOADS_DIR = "/home/runner/workspace/lexi-uploads";
+const UPLOADS_DIR = "/home/runner/lexi-uploads";
 
 if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });

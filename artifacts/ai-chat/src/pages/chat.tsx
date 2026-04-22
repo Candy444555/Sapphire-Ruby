@@ -7,8 +7,9 @@ import {
   Cpu, Sparkles, TerminalSquare,
   AlertCircle, Plus, MessageSquare, X, Zap, Phone, RefreshCw, Brain, Bot, Bolt, BookOpen, User, FileCode2,
   Github, Package, UploadCloud,
-  Paperclip, Loader2 as UploadLoader, XCircle, Shield
+  Paperclip, Loader2 as UploadLoader, XCircle, Shield, Wand2
 } from 'lucide-react';
+import { TorStatus } from '@/components/tor-status';
 import { useModels } from '@/hooks/use-models';
 import { useChat } from '@/hooks/use-chat';
 import { useAgentChat } from '@/hooks/use-agent-chat';
@@ -146,9 +147,26 @@ export default function Chat() {
     ? agentChat.messages.find((m) => m.role === 'assistant' && m.needsInput)
     : undefined;
 
-  // Auto-scroll
+  // Smart auto-scroll: only auto-scroll if user is already near the bottom.
+  // This prevents the page from yanking back down while the user is reading earlier messages.
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const userScrolledUpRef = useRef(false);
+
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const c = scrollContainerRef.current;
+    if (!c) return;
+    const onScroll = () => {
+      const distanceFromBottom = c.scrollHeight - c.scrollTop - c.clientHeight;
+      userScrolledUpRef.current = distanceFromBottom > 120;
+    };
+    c.addEventListener('scroll', onScroll, { passive: true });
+    return () => c.removeEventListener('scroll', onScroll);
+  }, []);
+
+  useEffect(() => {
+    if (!userScrolledUpRef.current) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
   }, [messages, isStreaming]);
 
   // Auto-resize textarea
@@ -300,7 +318,7 @@ Just write and fuse the code, then explain how the user can call it from the bro
         {isSidebarOpen && (
           <motion.div
             initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 300, opacity: 1 }}
+            animate={{ width: 360, opacity: 1 }}
             exit={{ width: 0, opacity: 0 }}
             transition={{ duration: 0.3, ease: 'easeInOut' }}
             className="h-full bg-sidebar border-r border-sidebar-border flex flex-col flex-shrink-0 z-20 overflow-hidden"
@@ -354,24 +372,26 @@ Just write and fuse the code, then explain how the user can call it from the bro
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-semibold truncate leading-none">
-                          {convo.messages[0]?.content.slice(0, 32) || 'New Conversation'}
+                        <span className="text-xs font-semibold truncate leading-none pr-8">
+                          {convo.messages[0]?.content.slice(0, 40) || 'New Conversation'}
                         </span>
                         <span className="text-[10px] font-mono opacity-50 shrink-0">
                           {formatTime(convo.updatedAt)}
                         </span>
                       </div>
-                      <p className="text-[10px] font-mono opacity-60 truncate">
-                        {convo.messages[convo.messages.length - 1]?.content.slice(0, 48) || 'No messages'}
+                      <p className="text-[10px] font-mono opacity-60 truncate pr-8">
+                        {convo.messages[convo.messages.length - 1]?.content.slice(0, 56) || 'No messages'}
                       </p>
 
-                      <div
-                        role="button"
+                      <button
+                        type="button"
+                        aria-label="Delete conversation"
                         onClick={(e) => handleDeleteConvo(e, convo.id)}
-                        className="absolute right-2 bottom-2 p-1.5 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all"
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg opacity-100 sm:opacity-0 sm:group-hover:opacity-100 hover:bg-destructive/20 hover:text-destructive transition-all z-10"
                       >
-                        <Trash2 className="w-3 h-3" />
-                      </div>
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </button>
                   ))}
                 </div>
@@ -395,7 +415,7 @@ Just write and fuse the code, then explain how the user can call it from the bro
                           : 'bg-card/40 border-sidebar-border text-muted-foreground hover:border-sidebar-border-hover hover:text-foreground'
                       }`}
                     >
-                      <span className="truncate mr-2">{m.name}</span>
+                      <span className="mr-2 break-words text-left">{m.name}</span>
                       {m.uncensored && (
                         <span className="text-[9px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 shrink-0">
                           RAW
@@ -500,32 +520,50 @@ Just write and fuse the code, then explain how the user can call it from the bro
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col relative h-full min-w-0">
 
-        {/* Header Navigation - Ported from Mobile */}
-        <div className="flex items-center justify-end gap-2 p-4 border-b border-border bg-card/30">
-          <Link to="/github">
-            <button className="p-2 rounded-lg bg-card/60 border border-border text-muted-foreground hover:border-primary/40 hover:text-primary transition-all">
-              <Github className="w-4 h-4" />
+        {/* Header Navigation */}
+        <div className="flex items-center justify-between gap-2 p-4 border-b border-border bg-card/30">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleNewChat}
+              title="New chat"
+              className="p-2 rounded-lg bg-primary/10 border border-primary/30 text-primary hover:bg-primary hover:text-white transition-all"
+            >
+              <Plus className="w-4 h-4" />
             </button>
-          </Link>
-          <Link to="/software">
-            <button className="p-2 rounded-lg bg-card/60 border border-border text-muted-foreground hover:border-primary/40 hover:text-primary transition-all">
-              <Package className="w-4 h-4" />
-            </button>
-          </Link>
-          <Link to="/upload">
-            <button className="p-2 rounded-lg bg-card/60 border border-border text-muted-foreground hover:border-primary/40 hover:text-primary transition-all">
-              <UploadCloud className="w-4 h-4" />
-            </button>
-          </Link>
-          <Link to="/profile">
-            <button className="p-2 rounded-lg bg-card/60 border border-border text-muted-foreground hover:border-primary/40 hover:text-primary transition-all">
-              <User className="w-4 h-4" />
-            </button>
-          </Link>
+            <TorStatus />
+          </div>
+          <div className="flex items-center gap-2">
+            <Link to="/self-modify">
+              <button title="Self-modify (hot reload)" className="p-2 rounded-lg bg-card/60 border border-border text-muted-foreground hover:border-accent/40 hover:text-accent transition-all">
+                <Wand2 className="w-4 h-4" />
+              </button>
+            </Link>
+            <Link to="/github">
+              <button className="p-2 rounded-lg bg-card/60 border border-border text-muted-foreground hover:border-primary/40 hover:text-primary transition-all">
+                <Github className="w-4 h-4" />
+              </button>
+            </Link>
+            <Link to="/software">
+              <button className="p-2 rounded-lg bg-card/60 border border-border text-muted-foreground hover:border-primary/40 hover:text-primary transition-all">
+                <Package className="w-4 h-4" />
+              </button>
+            </Link>
+            <Link to="/upload">
+              <button className="p-2 rounded-lg bg-card/60 border border-border text-muted-foreground hover:border-primary/40 hover:text-primary transition-all">
+                <UploadCloud className="w-4 h-4" />
+              </button>
+            </Link>
+            <Link to="/profile">
+              <button className="p-2 rounded-lg bg-card/60 border border-border text-muted-foreground hover:border-primary/40 hover:text-primary transition-all">
+                <User className="w-4 h-4" />
+              </button>
+            </Link>
+          </div>
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto pt-6 pb-40 px-4 custom-scrollbar">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto pt-6 pb-40 px-4 custom-scrollbar">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-center opacity-60">
               {agentMode ? (
@@ -567,6 +605,12 @@ Just write and fuse the code, then explain how the user can call it from the bro
                     />
                   ))
               }
+              {!agentMode && isStreaming && regularChat.messages[regularChat.messages.length - 1]?.role === 'assistant' && !regularChat.messages[regularChat.messages.length - 1]?.content && (
+                <div className="mx-auto max-w-lg mt-2 p-3 rounded-xl bg-primary/5 border border-primary/20 text-primary flex items-center gap-3">
+                  <Brain className="w-4 h-4 shrink-0 animate-pulse" />
+                  <p className="text-sm font-medium">Lexi is thinking…</p>
+                </div>
+              )}
               {isRetrying && !error && (
                 <div className="mx-auto max-w-lg mt-4 p-3 rounded-xl bg-primary/10 border border-primary/30 text-primary flex items-center gap-3 animate-pulse">
                   <RefreshCw className="w-4 h-4 shrink-0 animate-spin" />

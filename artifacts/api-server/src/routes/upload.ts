@@ -59,7 +59,16 @@ const upload = multer({
   },
 });
 
-router.post("/upload", upload.single("file"), (req: Request, res: Response) => {
+router.post("/upload", (req: Request, res: Response, next) => {
+  upload.single("file")(req, res, (err: unknown) => {
+    if (err) {
+      const message = err instanceof Error ? err.message : "Upload failed";
+      res.status(400).json({ error: message });
+      return;
+    }
+    next();
+  });
+}, (req: Request, res: Response) => {
   if (!req.file) {
     res.status(400).json({ error: "No file uploaded" });
     return;

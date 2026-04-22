@@ -4,12 +4,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ChatPage from "@/pages/chat";
 import TerminalPage from "@/pages/terminal";
-import PhoneLookupPage from "@/pages/phone-lookup";
 import GithubPage from "@/pages/github";
 import SoftwarePage from "@/pages/software";
 import UploadPage from "@/pages/upload";
 import ProfilePage from "@/pages/profile";
 import SecretsPage from "@/pages/secrets";
+import SelfModifyPage from "@/pages/self-modify";
 import NotFound from "@/pages/not-found";
 import { RootModeProvider } from "@/lib/root-mode";
 
@@ -27,12 +27,12 @@ function Router() {
     <Switch>
       <Route path="/" component={ChatPage} />
       <Route path="/terminal" component={TerminalPage} />
-      <Route path="/phone-lookup" component={PhoneLookupPage} />
       <Route path="/github" component={GithubPage} />
       <Route path="/software" component={SoftwarePage} />
       <Route path="/upload" component={UploadPage} />
       <Route path="/profile" component={ProfilePage} />
       <Route path="/secrets" component={SecretsPage} />
+      <Route path="/self-modify" component={SelfModifyPage} />
       <Route component={NotFound} />
     </Switch>
   );

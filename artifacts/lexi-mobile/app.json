@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "NEXUS",
+    "name": "Lexi",
     "slug": "lexi-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/images/icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#080810"
+      "backgroundColor": "#0E1525"
     },
     "ios": {
       "supportsTablet": false,
@@ -54,12 +54,7 @@
       "favicon": "./assets/images/icon.png"
     },
     "plugins": [
-      [
-        "expo-router",
-        {
-          "origin": "https://replit.com/"
-        }
-      ],
+      "expo-router",
       "expo-font",
       "expo-web-browser",
       [

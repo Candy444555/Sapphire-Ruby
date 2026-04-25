@@ -8,7 +8,9 @@
     "scheme": "lexi-mobile",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
-    "runtimeVersion": { "policy": "appVersion" },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
     "splash": {
       "image": "./assets/images/icon.png",
       "resizeMode": "contain",
@@ -30,12 +32,14 @@
         "NSFaceIDUsageDescription": "Use Face ID to unlock Lexi.",
         "NSBluetoothAlwaysUsageDescription": "Lexi uses Bluetooth to interact with nearby devices.",
         "NSLocalNetworkUsageDescription": "Lexi uses the local network to discover devices.",
-        "NSAppTransportSecurity": { "NSAllowsArbitraryLoads": true }
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true
+        }
       }
     },
     "android": {
       "package": "com.lexi.mobile",
-      "versionCode": 1,
+      "versionCode": 3,
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
@@ -70,7 +74,23 @@
       "expo-image-picker",
       "expo-location",
       "expo-contacts",
-      "expo-calendar"
+      "expo-calendar",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "2.0.21",
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "buildToolsVersion": "35.0.0",
+            "minSdkVersion": 24,
+            "usesCleartextTraffic": true
+          },
+          "ios": {
+            "deploymentTarget": "15.1"
+          }
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

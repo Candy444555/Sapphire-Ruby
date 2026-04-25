@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Lexi",
-    "slug": "lexi-mobile",
+    "slug": "workspace",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -76,7 +76,11 @@
       "typedRoutes": true,
       "reactCompiler": true
     },
+    "owner": "rubywilliam444",
     "extra": {
+      "eas": {
+        "projectId": "be4ef1a2-df99-4894-ad39-44169d937309"
+      },
       "apiDomain": ""
     }
   }

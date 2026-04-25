@@ -14,9 +14,6 @@
       },
       "ios": {
         "simulator": true
-      },
-      "env": {
-        "EXPO_PUBLIC_DOMAIN": ""
       }
     },
     "preview": {
@@ -27,9 +24,6 @@
       },
       "ios": {
         "simulator": false
-      },
-      "env": {
-        "EXPO_PUBLIC_DOMAIN": ""
       }
     },
     "personal": {
@@ -44,8 +38,7 @@
         "simulator": false
       },
       "env": {
-        "APP_VARIANT": "personal",
-        "EXPO_PUBLIC_DOMAIN": ""
+        "APP_VARIANT": "personal"
       }
     },
     "production": {
@@ -54,9 +47,6 @@
       "autoIncrement": true,
       "android": {
         "buildType": "apk"
-      },
-      "env": {
-        "EXPO_PUBLIC_DOMAIN": ""
       }
     }
   },

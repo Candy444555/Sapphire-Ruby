@@ -39,7 +39,7 @@
     },
     "android": {
       "package": "com.lexi.mobile",
-      "versionCode": 3,
+      "versionCode": 4,
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",

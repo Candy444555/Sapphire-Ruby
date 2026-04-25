@@ -63,7 +63,7 @@ export default function ProfileScreen() {
     setBuildLoading(true);
     setBuildError("");
     try {
-      const r = await fetch(getApiUrl("/eas/latest-apk"));
+      const r = await fetch(getApiUrl("/api/eas/latest-apk"));
       const j = await r.json();
       if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
       setBuild(j);

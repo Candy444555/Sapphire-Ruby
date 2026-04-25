@@ -36,10 +36,6 @@ export default function TabLayout() {
         options={{ title: "Terminal", tabBarIcon: ({ color }) => <Feather name="terminal" size={22} color={color} /> }}
       />
       <Tabs.Screen
-        name="phone"
-        options={{ title: "Phone", tabBarIcon: ({ color }) => <Feather name="phone" size={22} color={color} /> }}
-      />
-      <Tabs.Screen
         name="github"
         options={{ title: "GitHub", tabBarIcon: ({ color }) => <Feather name="github" size={22} color={color} /> }}
       />

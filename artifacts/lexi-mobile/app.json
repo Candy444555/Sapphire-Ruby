@@ -8,6 +8,7 @@
     "scheme": "lexi-mobile",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
+    "runtimeVersion": { "policy": "appVersion" },
     "splash": {
       "image": "./assets/images/icon.png",
       "resizeMode": "contain",
@@ -15,6 +16,8 @@
     },
     "ios": {
       "supportsTablet": false,
+      "bundleIdentifier": "com.lexi.mobile",
+      "buildNumber": "1",
       "infoPlist": {
         "NSCameraUsageDescription": "Lexi uses the camera so you can send photos and live shots into your conversation.",
         "NSPhotoLibraryUsageDescription": "Lexi needs photo library access to attach images to your messages.",
@@ -26,11 +29,18 @@
         "NSMotionUsageDescription": "Lexi uses motion data for activity-aware features.",
         "NSFaceIDUsageDescription": "Use Face ID to unlock Lexi.",
         "NSBluetoothAlwaysUsageDescription": "Lexi uses Bluetooth to interact with nearby devices.",
-        "NSLocalNetworkUsageDescription": "Lexi uses the local network to discover devices."
+        "NSLocalNetworkUsageDescription": "Lexi uses the local network to discover devices.",
+        "NSAppTransportSecurity": { "NSAllowsArbitraryLoads": true }
       }
     },
     "android": {
+      "package": "com.lexi.mobile",
+      "versionCode": 1,
+      "usesCleartextTraffic": true,
       "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
+        "ACCESS_WIFI_STATE",
         "CAMERA",
         "RECORD_AUDIO",
         "ACCESS_FINE_LOCATION",
@@ -66,6 +76,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "00000000-0000-0000-0000-000000000000"
+      },
+      "apiDomain": ""
     }
   }
 }

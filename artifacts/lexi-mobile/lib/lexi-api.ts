@@ -1,7 +1,82 @@
 import { fetch as expoFetch } from "expo/fetch";
+import Constants from "expo-constants";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export const BASE = `https://${process.env.EXPO_PUBLIC_DOMAIN ?? ""}`;
-export const API = `${BASE}/api`;
+// =================== Network base URL resolution ===================
+// Priority:
+//  1. Runtime override saved in AsyncStorage  (user can change at any time)
+//  2. EXPO_PUBLIC_DOMAIN baked at build time  (eas.json env)
+//  3. expo.extra.apiDomain in app.json        (build-time fallback)
+//  4. Empty string → caller will fail with a clear error
+
+const STORAGE_KEY = "@lexi/api_domain";
+
+function clean(d: string | undefined | null): string {
+  if (!d) return "";
+  return d.trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+}
+
+let _cachedBase: string | null = null;
+let _runtimeOverride: string | null = null;
+
+export function defaultBakedDomain(): string {
+  return (
+    clean(process.env.EXPO_PUBLIC_DOMAIN) ||
+    clean((Constants.expoConfig?.extra as { apiDomain?: string } | undefined)?.apiDomain) ||
+    ""
+  );
+}
+
+export async function loadApiDomain(): Promise<string> {
+  try {
+    const stored = await AsyncStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      _runtimeOverride = clean(stored);
+    }
+  } catch {
+    /* ignore */
+  }
+  _cachedBase = _runtimeOverride || defaultBakedDomain();
+  return _cachedBase;
+}
+
+export async function setApiDomain(domain: string): Promise<void> {
+  const cleaned = clean(domain);
+  _runtimeOverride = cleaned;
+  _cachedBase = cleaned || defaultBakedDomain();
+  try {
+    if (cleaned) await AsyncStorage.setItem(STORAGE_KEY, cleaned);
+    else await AsyncStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
+export function getApiBase(): string {
+  if (_cachedBase === null) _cachedBase = defaultBakedDomain();
+  return _cachedBase ? `https://${_cachedBase}` : "";
+}
+
+export function getApiUrl(path: string = ""): string {
+  const base = getApiBase();
+  if (!base) return path;
+  const suffix = path.startsWith("/") ? path : `/${path}`;
+  return `${base}${suffix}`;
+}
+
+// Eagerly hydrate from storage on module load so all helpers see the right base ASAP.
+loadApiDomain().catch(() => {});
+
+// Backwards-compatible exports that other files import as constants.
+// Kept as getters so they pick up runtime overrides on first read.
+export const BASE = new Proxy({} as { toString(): string }, {
+  get: () => () => getApiBase(),
+});
+export const API = new Proxy({} as { toString(): string }, {
+  get: () => () => getApiUrl("/api"),
+});
+
+const apiUrl = (suffix: string) => getApiUrl(`/api${suffix}`);
 
 export type ChatMsg = { role: "user" | "assistant" | "system"; content: string };
 
@@ -12,7 +87,7 @@ export async function streamLexi(
   opts: { model?: string; systemPrompt?: string; signal?: AbortSignal } = {},
 ): Promise<void> {
   const model = opts.model ?? "lexi-uncensored-v2-8b";
-  const res = await expoFetch(`${API}/chat`, {
+  const res = await expoFetch(apiUrl("/chat"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ model, messages, systemPrompt: opts.systemPrompt }),
@@ -63,7 +138,7 @@ export async function streamAgent(
   onEvent: (ev: AgentRawEvent) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  const res = await expoFetch(`${API}/agent`, {
+  const res = await expoFetch(apiUrl("/agent"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -98,7 +173,7 @@ export async function streamAgent(
 
 // =================== Vision / image gen ===================
 export async function generateImage(prompt: string): Promise<string> {
-  const res = await fetch(`${API}/media/image`, {
+  const res = await fetch(apiUrl("/media/image"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ prompt }),
@@ -109,7 +184,7 @@ export async function generateImage(prompt: string): Promise<string> {
 }
 
 export async function analyzeImages(prompt: string, imageDataUrls: string[]): Promise<string> {
-  const res = await fetch(`${API}/media/vision`, {
+  const res = await fetch(apiUrl("/media/vision"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ prompt, imageDataUrls }),
@@ -121,7 +196,7 @@ export async function analyzeImages(prompt: string, imageDataUrls: string[]): Pr
 
 // =================== Code run ===================
 export async function runCode(language: string, code: string) {
-  const res = await fetch(`${API}/code/run`, {
+  const res = await fetch(apiUrl("/code/run"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ language, code }),
@@ -135,24 +210,39 @@ export async function runCode(language: string, code: string) {
 export type ModelInfo = { id: string; name: string; provider?: string; uncensored?: boolean };
 export async function listModels(): Promise<ModelInfo[]> {
   try {
-    const res = await fetch(`${API}/models`);
+    const res = await fetch(apiUrl("/models"));
     if (!res.ok) return [];
     const json = await res.json();
     return (json.models ?? []) as ModelInfo[];
   } catch { return []; }
 }
 
+// =================== Connectivity check ===================
+export async function pingServer(): Promise<{ ok: boolean; status?: number; error?: string }> {
+  const url = apiUrl("/health");
+  if (!getApiBase()) return { ok: false, error: "No API URL configured" };
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 6000);
+    const res = await fetch(url, { signal: ctrl.signal });
+    clearTimeout(t);
+    return { ok: res.ok, status: res.status };
+  } catch (e: any) {
+    return { ok: false, error: e?.message ?? "Network error" };
+  }
+}
+
 // =================== Terminal session ===================
 export async function termCreateSession(): Promise<{ sessionId: string; cwd: string }> {
-  const res = await fetch(`${API}/terminal/session`, { method: "POST" });
+  const res = await fetch(apiUrl("/terminal/session"), { method: "POST" });
   if (!res.ok) throw new Error(`Terminal session failed (${res.status})`);
   return res.json();
 }
 export async function termDestroySession(id: string) {
-  try { await fetch(`${API}/terminal/session/${id}`, { method: "DELETE" }); } catch {}
+  try { await fetch(apiUrl(`/terminal/session/${id}`), { method: "DELETE" }); } catch {}
 }
 export async function termExec(sessionId: string, command: string) {
-  const res = await fetch(`${API}/terminal/exec`, {
+  const res = await fetch(apiUrl("/terminal/exec"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ sessionId, command }),
@@ -165,7 +255,7 @@ export async function termExec(sessionId: string, command: string) {
 
 // =================== SSH ===================
 export async function sshConnect(cfg: { host: string; port: number; username: string; password?: string; privateKey?: string }) {
-  const res = await fetch(`${API}/terminal/ssh/connect`, {
+  const res = await fetch(apiUrl("/terminal/ssh/connect"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(cfg),
@@ -175,10 +265,10 @@ export async function sshConnect(cfg: { host: string; port: number; username: st
   return data as { sessionId: string; host: string; username: string };
 }
 export async function sshDisconnect(sessionId: string) {
-  try { await fetch(`${API}/terminal/ssh/session/${sessionId}`, { method: "DELETE" }); } catch {}
+  try { await fetch(apiUrl(`/terminal/ssh/session/${sessionId}`), { method: "DELETE" }); } catch {}
 }
 export async function sshExec(sessionId: string, command: string) {
-  const res = await fetch(`${API}/terminal/ssh/exec`, {
+  const res = await fetch(apiUrl("/terminal/ssh/exec"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ sessionId, command }),
@@ -188,27 +278,15 @@ export async function sshExec(sessionId: string, command: string) {
   return data as { output: string; exitCode: number; cwd: string };
 }
 
-// =================== Phone lookup ===================
-export async function phoneLookup(phoneNumber: string) {
-  const res = await fetch(`${API}/phone/lookup`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ phoneNumber }),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.error ?? "Lookup failed");
-  return data;
-}
-
 // =================== GitHub ===================
 export async function ghGet(path: string) {
-  const res = await fetch(`${API}/github${path}`);
+  const res = await fetch(apiUrl(`/github${path}`));
   const data = await res.json();
   if (!res.ok) throw new Error(data.error ?? `Request failed (${res.status})`);
   return data;
 }
 export async function ghPost(path: string, body: any) {
-  const res = await fetch(`${API}/github${path}`, {
+  const res = await fetch(apiUrl(`/github${path}`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -220,15 +298,15 @@ export async function ghPost(path: string, body: any) {
 
 // =================== Software ===================
 export async function softwareCatalog() {
-  const res = await fetch(`${API}/software/catalog`);
+  const res = await fetch(apiUrl("/software/catalog"));
   return res.json();
 }
 export async function softwareStatus() {
-  const res = await fetch(`${API}/software/status`);
+  const res = await fetch(apiUrl("/software/status"));
   return res.json();
 }
 export async function softwareInstall(slug: string) {
-  const res = await fetch(`${API}/software/install`, {
+  const res = await fetch(apiUrl("/software/install"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ slug }),
@@ -238,45 +316,45 @@ export async function softwareInstall(slug: string) {
 
 // =================== Uploads ===================
 export async function listUploads() {
-  const res = await fetch(`${API}/uploads`);
+  const res = await fetch(apiUrl("/uploads"));
   if (!res.ok) return [];
   const data = await res.json();
   return data.uploads ?? data ?? [];
 }
 export async function deleteUpload(filename: string) {
-  await fetch(`${API}/uploads/${encodeURIComponent(filename)}`, { method: "DELETE" });
+  await fetch(apiUrl(`/uploads/${encodeURIComponent(filename)}`), { method: "DELETE" });
 }
 export async function uploadFile(uri: string, filename: string, mime: string): Promise<any> {
   const form = new FormData();
   // @ts-ignore - RN FormData file shape
   form.append("file", { uri, name: filename, type: mime });
-  const res = await fetch(`${API}/upload`, { method: "POST", body: form as any });
+  const res = await fetch(apiUrl("/upload"), { method: "POST", body: form as any });
   return res.json();
 }
 
 // =================== VPN / Tor ===================
 export async function vpnStatus() {
   try {
-    const res = await fetch(`${API}/vpn/status`);
+    const res = await fetch(apiUrl("/vpn/status"));
     if (!res.ok) return null;
     return await res.json();
   } catch { return null; }
 }
 export async function vpnRotate() {
-  try { await fetch(`${API}/vpn/rotate`, { method: "POST" }); } catch {}
+  try { await fetch(apiUrl("/vpn/rotate"), { method: "POST" }); } catch {}
 }
 
 // =================== Self-patch (server CRUD only) ===================
 export async function listSelfPatches() {
   try {
-    const res = await fetch(`${API}/self-patch`);
+    const res = await fetch(apiUrl("/self-patch"));
     if (!res.ok) return [];
     const data = await res.json();
     return data.extensions ?? [];
   } catch { return []; }
 }
 export async function createSelfPatch(name: string, code: string, description?: string) {
-  const res = await fetch(`${API}/self-patch`, {
+  const res = await fetch(apiUrl("/self-patch"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, code, description }),
@@ -284,43 +362,43 @@ export async function createSelfPatch(name: string, code: string, description?: 
   return res.ok;
 }
 export async function deleteSelfPatch(slug: string) {
-  const res = await fetch(`${API}/self-patch/${encodeURIComponent(slug)}`, { method: "DELETE" });
+  const res = await fetch(apiUrl(`/self-patch/${encodeURIComponent(slug)}`), { method: "DELETE" });
   return res.ok;
 }
 export async function clearSelfPatches() {
-  try { await fetch(`${API}/self-patch`, { method: "DELETE" }); } catch {}
+  try { await fetch(apiUrl("/self-patch"), { method: "DELETE" }); } catch {}
 }
 
 // =================== Python scripts ===================
 export async function listPythonScripts() {
   try {
-    const res = await fetch(`${API}/python-scripts`);
+    const res = await fetch(apiUrl("/python-scripts"));
     if (!res.ok) return [];
     const data = await res.json();
     return data.scripts ?? [];
   } catch { return []; }
 }
 export async function deletePythonScript(slug: string) {
-  const res = await fetch(`${API}/python-scripts/${encodeURIComponent(slug)}`, { method: "DELETE" });
+  const res = await fetch(apiUrl(`/python-scripts/${encodeURIComponent(slug)}`), { method: "DELETE" });
   return res.ok;
 }
 export async function clearPythonScripts() {
-  try { await fetch(`${API}/python-scripts`, { method: "DELETE" }); } catch {}
+  try { await fetch(apiUrl("/python-scripts"), { method: "DELETE" }); } catch {}
 }
 
 // =================== Project file URLs ===================
 export function projectFileUrl(projectId: string, mainFile: string, download = false) {
   const params = new URLSearchParams({ path: mainFile });
   if (download) params.set("download", "1");
-  return `${API}/projects/${projectId}/file?${params.toString()}`;
+  return apiUrl(`/projects/${projectId}/file?${params.toString()}`);
 }
 export function projectDownloadUrl(projectId: string) {
-  return `${API}/projects/${projectId}/download`;
+  return apiUrl(`/projects/${projectId}/download`);
 }
 
 // =================== EAS APK build status ===================
 export async function easBuildStatus(buildId: string) {
-  const res = await fetch(`${API}/build-apk/${buildId}/status`);
+  const res = await fetch(apiUrl(`/build-apk/${buildId}/status`));
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error ?? `Status check failed (${res.status})`);

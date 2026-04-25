@@ -15,7 +15,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
-import { API, deleteUpload, listUploads, uploadFile } from "@/lib/lexi-api";
+import { getApiUrl, deleteUpload, listUploads, uploadFile } from "@/lib/lexi-api";
 
 interface UploadItem { filename: string; size?: number; mtime?: string; url?: string }
 
@@ -92,7 +92,7 @@ export default function UploadScreen() {
       <ScrollView contentContainerStyle={{ padding: 14, paddingBottom: insets.bottom + 32, gap: 8 }}>
         {loading && <ActivityIndicator color={colors.primary} />}
         {items.map((it) => {
-          const url = it.url ?? `${API}/uploads/${encodeURIComponent(it.filename)}`;
+          const url = it.url ?? getApiUrl(`/api/uploads/${encodeURIComponent(it.filename)}`);
           return (
             <View key={it.filename} style={[styles.row, { borderColor: colors.border, backgroundColor: colors.card }]}>
               <Feather name="file" size={16} color={colors.primary} />

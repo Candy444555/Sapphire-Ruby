@@ -2,16 +2,19 @@ import { Feather } from "@expo/vector-icons";
 import * as Contacts from "expo-contacts";
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Pressable,
   ScrollView,
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   View,
 } from "react-native";
+import { defaultBakedDomain, getApiBase, loadApiDomain, pingServer, setApiDomain } from "@/lib/lexi-api";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
@@ -35,6 +38,44 @@ export default function ProfileScreen() {
   const [granted, setGranted] = useState<Record<PermName, boolean>>({
     camera: false, photos: false, location: false, contacts: false,
   });
+
+  // Server URL settings (lets the APK connect to any server post-install)
+  const [serverInput, setServerInput] = useState("");
+  const [currentBase, setCurrentBase] = useState("");
+  const [pingState, setPingState] = useState<"idle" | "checking" | "ok" | "fail">("idle");
+  const [pingMsg, setPingMsg] = useState<string>("");
+
+  useEffect(() => {
+    (async () => {
+      await loadApiDomain();
+      const base = getApiBase();
+      setCurrentBase(base);
+      setServerInput(base.replace(/^https?:\/\//, ""));
+    })();
+  }, []);
+
+  const saveServer = async () => {
+    await setApiDomain(serverInput);
+    setCurrentBase(getApiBase());
+    setPingState("idle");
+    Alert.alert("Saved", "Server URL updated. Tap Test to verify.");
+  };
+
+  const resetServer = async () => {
+    await setApiDomain("");
+    const fallback = defaultBakedDomain();
+    setServerInput(fallback);
+    setCurrentBase(getApiBase());
+    setPingState("idle");
+  };
+
+  const testServer = async () => {
+    setPingState("checking");
+    setPingMsg("");
+    const r = await pingServer();
+    if (r.ok) { setPingState("ok"); setPingMsg(`Connected (HTTP ${r.status ?? 200})`); }
+    else { setPingState("fail"); setPingMsg(r.error ?? `HTTP ${r.status ?? "??"}`); }
+  };
 
   const ask = async (name: PermName) => {
     try {
@@ -160,6 +201,48 @@ export default function ProfileScreen() {
             </Pressable>
           </View>
         ))}
+      </View>
+
+      <View style={[styles.cardLeft, { backgroundColor: colors.card, borderColor: colors.border, gap: 8 }]}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Feather name="globe" size={16} color={colors.accent} />
+          <Text style={{ color: colors.accent, fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.5 }}>SERVER URL</Text>
+        </View>
+        <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>
+          Where Lexi connects. Enter the host of your API server (no https://). Leave blank to use the build-time default.
+        </Text>
+        <TextInput
+          value={serverInput}
+          onChangeText={setServerInput}
+          placeholder="e.g. abc123.replit.dev"
+          placeholderTextColor={colors.mutedForeground}
+          autoCapitalize="none"
+          autoCorrect={false}
+          style={{
+            borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8,
+            color: colors.foreground, backgroundColor: colors.background, fontFamily: "Inter_500Medium", fontSize: 13,
+          }}
+        />
+        <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>
+          Active: {currentBase || "(none — set one to enable network)"}
+        </Text>
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <Pressable onPress={saveServer} style={{ flex: 1, padding: 10, borderRadius: 10, backgroundColor: colors.primary, alignItems: "center" }}>
+            <Text style={{ color: "#000", fontFamily: "Inter_600SemiBold", fontSize: 12 }}>Save</Text>
+          </Pressable>
+          <Pressable onPress={testServer} style={{ flex: 1, padding: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 6 }}>
+            {pingState === "checking" ? <ActivityIndicator size="small" color={colors.primary} /> : null}
+            <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>Test</Text>
+          </Pressable>
+          <Pressable onPress={resetServer} style={{ padding: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, alignItems: "center" }}>
+            <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>Reset</Text>
+          </Pressable>
+        </View>
+        {pingState !== "idle" && pingState !== "checking" && (
+          <Text style={{ color: pingState === "ok" ? colors.tint : colors.destructive, fontSize: 11, fontFamily: "Inter_500Medium" }}>
+            {pingState === "ok" ? "✓ " : "✗ "}{pingMsg}
+          </Text>
+        )}
       </View>
 
       <Text style={[styles.section, { color: colors.mutedForeground }]}>NATIVE ACCESS</Text>

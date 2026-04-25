@@ -110,7 +110,7 @@ router.get("/projects", (_req: Request, res: Response) => {
 // GET /api/projects/:projectId/file — serve a file (for preview or download)
 // filePath passed as query param ?path=subdir/file.html
 router.get("/projects/:projectId/file", (req: Request, res: Response) => {
-  const { projectId } = req.params;
+  const projectId = String(req.params.projectId);
   const filePath = (req.query.path as string) ?? "";
 
   if (!projectId || !/^[a-zA-Z0-9_-]+$/.test(projectId)) {
@@ -146,7 +146,7 @@ router.get("/projects/:projectId/file", (req: Request, res: Response) => {
 
 // GET /api/projects/:projectId/download — download entire project as zip
 router.get("/projects/:projectId/download", (req: Request, res: Response) => {
-  const { projectId } = req.params;
+  const projectId = String(req.params.projectId);
 
   if (!projectId || !/^[a-zA-Z0-9_-]+$/.test(projectId)) {
     res.status(400).json({ error: "Invalid project ID" });
@@ -189,7 +189,7 @@ router.get("/projects/:projectId/download", (req: Request, res: Response) => {
 
 // DELETE /api/projects/:projectId — remove a project
 router.delete("/projects/:projectId", (req: Request, res: Response) => {
-  const { projectId } = req.params;
+  const projectId = String(req.params.projectId);
 
   if (!projectId || !/^[a-zA-Z0-9_-]+$/.test(projectId)) {
     res.status(400).json({ error: "Invalid project ID" });

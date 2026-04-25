@@ -10,6 +10,7 @@ export type AgentEvent =
   | { type: "self_patch"; name: string; description: string }
   | { type: "self_patch_error"; name: string; error: string }
   | { type: "project_complete"; projectId: string; name: string; path: string; mainFile: string; projectType: string }
+  | { type: "session"; sessionId: string }
   | { type: "thinking" }
   | { type: "done" }
   | { type: "error"; message: string };

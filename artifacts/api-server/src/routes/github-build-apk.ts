@@ -19,7 +19,7 @@ function githubHeaders(token: string): Record<string, string> {
   };
 }
 
-async function githubFetch(path: string, options: RequestInit = {}) {
+async function githubFetch(path: string, options: RequestInit = {}): Promise<any> {
   const token = getToken();
   const res = await fetch(`${GITHUB_API}${path}`, {
     ...options,

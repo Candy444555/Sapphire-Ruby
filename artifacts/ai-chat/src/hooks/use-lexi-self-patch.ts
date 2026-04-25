@@ -21,8 +21,8 @@ export function useLexiSelfPatch() {
     if (oldTag) oldTag.remove();
 
     // Callback hook for when extensions register themselves
-    (window as Record<string, unknown>).__lexiExtensionLoaded = (_name: string) => {
-      const registry = (window as Record<string, unknown>).LexiExtensions as
+    (window as unknown as Record<string, unknown>).__lexiExtensionLoaded = (_name: string) => {
+      const registry = (window as unknown as Record<string, unknown>).LexiExtensions as
         | Record<string, LexiExtension>
         | undefined;
       if (registry) {
@@ -35,7 +35,7 @@ export function useLexiSelfPatch() {
     script.src = `${import.meta.env.BASE_URL}lexi-extensions.js?t=${Date.now()}`;
     script.async = true;
     script.onload = () => {
-      const registry = (window as Record<string, unknown>).LexiExtensions as
+      const registry = (window as unknown as Record<string, unknown>).LexiExtensions as
         | Record<string, LexiExtension>
         | undefined;
       if (registry) setExtensions(Object.values(registry));
@@ -76,7 +76,7 @@ export function useLexiSelfPatch() {
       const res = await fetch(`${API_BASE}/self-patch/${encodeURIComponent(slug)}`, { method: "DELETE" });
       if (!res.ok) return false;
       // Remove from window registry immediately
-      const registry = (window as Record<string, unknown>).LexiExtensions as Record<string, unknown> | undefined;
+      const registry = (window as unknown as Record<string, unknown>).LexiExtensions as Record<string, unknown> | undefined;
       if (registry) delete registry[slug];
       setExtensions((prev) => prev.filter((e) => e.name !== slug));
       setTimeout(() => loadExtensionsFile(), 300);
@@ -90,7 +90,7 @@ export function useLexiSelfPatch() {
   const clearExtensions = useCallback(async () => {
     await fetch(`${API_BASE}/self-patch`, { method: "DELETE" });
     // Remove the loaded extensions from window too
-    delete (window as Record<string, unknown>).LexiExtensions;
+    delete (window as unknown as Record<string, unknown>).LexiExtensions;
     setExtensions([]);
     setTimeout(() => loadExtensionsFile(), 300);
   }, [loadExtensionsFile]);
@@ -101,7 +101,7 @@ export function useLexiSelfPatch() {
     const list = extensions
       .map((e) => `  • ${e.name}: ${e.description || "(no description)"}`)
       .join("\n");
-    const codeMemory = (window as Record<string, unknown>).LexiCodeMemory as
+    const codeMemory = (window as unknown as Record<string, unknown>).LexiCodeMemory as
       | Record<string, LexiExtension>
       | undefined;
     const codeList = codeMemory

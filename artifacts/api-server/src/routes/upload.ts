@@ -110,7 +110,7 @@ router.get("/uploads", (_req: Request, res: Response) => {
 });
 
 router.get("/uploads/:filename", (req: Request, res: Response) => {
-  const filename = path.basename(req.params.filename);
+  const filename = path.basename(String(req.params.filename));
   const filePath = path.join(UPLOADS_DIR, filename);
   if (!fs.existsSync(filePath)) {
     res.status(404).json({ error: "File not found" });
@@ -126,7 +126,7 @@ router.get("/uploads/:filename", (req: Request, res: Response) => {
 });
 
 router.delete("/uploads/:filename", (req: Request, res: Response) => {
-  const filename = path.basename(req.params.filename);
+  const filename = path.basename(String(req.params.filename));
   const filePath = path.join(UPLOADS_DIR, filename);
   if (!fs.existsSync(filePath)) {
     res.status(404).json({ error: "File not found" });

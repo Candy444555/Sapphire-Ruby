@@ -175,7 +175,7 @@ router.post("/build-apk", async (req: Request, res: Response) => {
 
 // GET /api/build-apk/:easBuildId/status
 router.get("/build-apk/:easBuildId/status", async (req: Request, res: Response) => {
-  const { easBuildId } = req.params;
+  const easBuildId = String(req.params.easBuildId);
   if (!easBuildId || !/^[a-zA-Z0-9_-]+$/.test(easBuildId)) {
     res.status(400).json({ error: "Invalid build ID" });
     return;

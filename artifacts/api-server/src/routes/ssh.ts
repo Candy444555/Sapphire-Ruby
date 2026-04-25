@@ -156,7 +156,8 @@ router.post("/terminal/ssh/exec", (req: Request, res: Response) => {
 });
 
 router.get("/terminal/ssh/session/:id", (req: Request, res: Response) => {
-  const session = sessions.get(req.params.id);
+  const id = String(req.params.id);
+  const session = sessions.get(id);
   if (!session || !session.ready) {
     res.status(404).json({ error: "Session not found" });
     return;
@@ -165,10 +166,11 @@ router.get("/terminal/ssh/session/:id", (req: Request, res: Response) => {
 });
 
 router.delete("/terminal/ssh/session/:id", (req: Request, res: Response) => {
-  const session = sessions.get(req.params.id);
+  const id = String(req.params.id);
+  const session = sessions.get(id);
   if (session) {
     try { session.client.end(); } catch { /* ignore */ }
-    sessions.delete(req.params.id);
+    sessions.delete(id);
   }
   res.json({ ok: true });
 });

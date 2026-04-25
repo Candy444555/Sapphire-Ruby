@@ -246,7 +246,7 @@ router.post("/python-scripts", (req: Request, res: Response) => {
 
 // DELETE /:slug — remove a single Python script
 router.delete("/python-scripts/:slug", (req: Request, res: Response) => {
-  const { slug } = req.params;
+  const slug = String(req.params.slug);
   const ok = deletePythonScript(slug);
   res.json({ ok, slug });
 });

@@ -40,7 +40,8 @@ router.post("/terminal/exec", async (req: Request, res: Response) => {
 });
 
 router.get("/terminal/session/:id", (req: Request, res: Response) => {
-  const session = sessions.get(req.params.id);
+  const id = String(req.params.id);
+  const session = sessions.get(id);
   if (!session) {
     res.status(404).json({ error: "Session not found" });
     return;
@@ -49,10 +50,11 @@ router.get("/terminal/session/:id", (req: Request, res: Response) => {
 });
 
 router.delete("/terminal/session/:id", (req: Request, res: Response) => {
-  const session = sessions.get(req.params.id);
+  const id = String(req.params.id);
+  const session = sessions.get(id);
   if (session) {
     try { session.proc.kill(); } catch { /* ignore */ }
-    sessions.delete(req.params.id);
+    sessions.delete(id);
   }
   res.json({ ok: true });
 });

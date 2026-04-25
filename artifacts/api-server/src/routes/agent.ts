@@ -22,7 +22,7 @@ async function fetchFeatherless(
   modelEndpoint: string,
   apiKey: string,
   maxTokens?: number
-): Promise<Response> {
+): Promise<globalThis.Response> {
   const timeoutController = new AbortController();
   const timer = setTimeout(() => timeoutController.abort(), AI_CALL_TIMEOUT_MS);
 

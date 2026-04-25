@@ -134,7 +134,7 @@ async function fetchFeatherless(
   hfMessages: { role: string; content: string }[],
   apiKey: string,
   attempt: number
-): Promise<Response> {
+): Promise<globalThis.Response> {
   const fetchOptions: RequestInit & { agent?: unknown } = {
     method: "POST",
     headers: buildPrivacyHeaders(apiKey),

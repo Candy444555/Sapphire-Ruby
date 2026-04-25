@@ -36,7 +36,6 @@
     "android": {
       "package": "com.lexi.mobile",
       "versionCode": 1,
-      "usesCleartextTraffic": true,
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
@@ -78,9 +77,6 @@
       "reactCompiler": true
     },
     "extra": {
-      "eas": {
-        "projectId": "00000000-0000-0000-0000-000000000000"
-      },
       "apiDomain": ""
     }
   }

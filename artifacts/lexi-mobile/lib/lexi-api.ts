@@ -219,7 +219,7 @@ export async function listModels(): Promise<ModelInfo[]> {
 
 // =================== Connectivity check ===================
 export async function pingServer(): Promise<{ ok: boolean; status?: number; error?: string }> {
-  const url = apiUrl("/health");
+  const url = apiUrl("/healthz");
   if (!getApiBase()) return { ok: false, error: "No API URL configured" };
   try {
     const ctrl = new AbortController();

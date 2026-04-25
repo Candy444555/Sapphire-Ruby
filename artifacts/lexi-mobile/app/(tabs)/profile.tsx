@@ -6,6 +6,7 @@ import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -14,7 +15,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { defaultBakedDomain, getApiBase, loadApiDomain, pingServer, setApiDomain } from "@/lib/lexi-api";
+import { defaultBakedDomain, getApiBase, getApiUrl, loadApiDomain, pingServer, setApiDomain } from "@/lib/lexi-api";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
@@ -44,6 +45,36 @@ export default function ProfileScreen() {
   const [currentBase, setCurrentBase] = useState("");
   const [pingState, setPingState] = useState<"idle" | "checking" | "ok" | "fail">("idle");
   const [pingMsg, setPingMsg] = useState<string>("");
+
+  // Latest APK build (fetched from server which calls Expo via EXPO_TOKEN)
+  type BuildInfo = {
+    found: boolean;
+    project?: string;
+    build?: {
+      id: string; profile: string; channel: string; appVersion: string;
+      versionCode: string; completedAt: string; apkUrl: string; pageUrl: string;
+    };
+  };
+  const [build, setBuild] = useState<BuildInfo | null>(null);
+  const [buildLoading, setBuildLoading] = useState(false);
+  const [buildError, setBuildError] = useState<string>("");
+
+  const loadBuild = async () => {
+    setBuildLoading(true);
+    setBuildError("");
+    try {
+      const r = await fetch(getApiUrl("/eas/latest-apk"));
+      const j = await r.json();
+      if (!r.ok) throw new Error(j.error || `HTTP ${r.status}`);
+      setBuild(j);
+    } catch (e) {
+      setBuildError(e instanceof Error ? e.message : "Failed");
+    } finally {
+      setBuildLoading(false);
+    }
+  };
+
+  useEffect(() => { loadBuild(); }, []);
 
   useEffect(() => {
     (async () => {
@@ -243,6 +274,50 @@ export default function ProfileScreen() {
             {pingState === "ok" ? "✓ " : "✗ "}{pingMsg}
           </Text>
         )}
+      </View>
+
+      <View style={[styles.cardLeft, { backgroundColor: colors.card, borderColor: colors.border, gap: 8 }]}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Feather name="download-cloud" size={16} color={colors.accent} />
+          <Text style={{ flex: 1, color: colors.accent, fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.5 }}>LATEST APK</Text>
+          <Pressable onPress={loadBuild} hitSlop={6} disabled={buildLoading}>
+            {buildLoading ? <ActivityIndicator size="small" color={colors.primary} /> : <Feather name="refresh-cw" size={14} color={colors.mutedForeground} />}
+          </Pressable>
+        </View>
+        {buildError ? (
+          <Text style={{ color: colors.destructive, fontSize: 11, fontFamily: "Inter_500Medium" }}>✗ {buildError}</Text>
+        ) : build === null ? (
+          <Text style={{ color: colors.mutedForeground, fontSize: 11, fontStyle: "italic" }}>Loading…</Text>
+        ) : !build.found ? (
+          <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>No successful builds yet for {build.project ?? "project"}.</Text>
+        ) : build.build ? (
+          <>
+            <Text style={{ color: colors.foreground, fontFamily: "Inter_500Medium", fontSize: 13 }}>
+              v{build.build.appVersion} ({build.build.versionCode}) · {build.build.profile}
+            </Text>
+            <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>
+              Built {new Date(build.build.completedAt).toLocaleString()}
+            </Text>
+            <Text style={{ color: colors.mutedForeground, fontSize: 11 }} numberOfLines={1}>
+              {build.project}
+            </Text>
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 4 }}>
+              <Pressable
+                onPress={() => Linking.openURL(build.build!.apkUrl)}
+                style={{ flex: 1, padding: 10, borderRadius: 10, backgroundColor: colors.primary, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 6 }}
+              >
+                <Feather name="download" size={14} color="#000" />
+                <Text style={{ color: "#000", fontFamily: "Inter_600SemiBold", fontSize: 12 }}>Download APK</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => Linking.openURL(build.build!.pageUrl)}
+                style={{ padding: 10, borderRadius: 10, borderWidth: 1, borderColor: colors.border, alignItems: "center" }}
+              >
+                <Feather name="external-link" size={14} color={colors.foreground} />
+              </Pressable>
+            </View>
+          </>
+        ) : null}
       </View>
 
       <Text style={[styles.section, { color: colors.mutedForeground }]}>NATIVE ACCESS</Text>

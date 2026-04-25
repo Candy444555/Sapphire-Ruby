@@ -17,6 +17,7 @@ import storageRouter from "./storage";
 import mediaRouter from "./media";
 import codeRunRouter from "./code-run";
 import secretsRouter from "./secrets";
+import easBuildsRouter from "./eas-builds";
 
 const router: IRouter = Router();
 
@@ -38,5 +39,6 @@ router.use(storageRouter);
 router.use(mediaRouter);
 router.use(codeRunRouter);
 router.use(secretsRouter);
+router.use(easBuildsRouter);
 
 export default router;

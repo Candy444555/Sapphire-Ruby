@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Lexi",
-    "slug": "workspace",
+    "slug": "my-new-project",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -79,7 +79,7 @@
     "owner": "rubywilliam444",
     "extra": {
       "eas": {
-        "projectId": "be4ef1a2-df99-4894-ad39-44169d937309"
+        "projectId": "7ccd35ca-bf3d-460e-a3a1-b4ad337478a6"
       },
       "apiDomain": ""
     }

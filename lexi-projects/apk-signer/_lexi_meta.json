@@ -1,0 +1,6 @@
+{
+  "name": "APK Signer",
+  "type": "script",
+  "mainFile": "apksigner.sh",
+  "path": "/home/runner/workspace/lexi-projects/apk-signer"
+}

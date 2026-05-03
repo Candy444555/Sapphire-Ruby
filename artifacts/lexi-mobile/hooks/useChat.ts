@@ -26,7 +26,6 @@ export function useChat({ conversationId, initialMessages = [], onMessagesChange
   useEffect(() => {
     if (prevConvIdRef.current === conversationId) return;
     prevConvIdRef.current = conversationId;
-    if (initialMessages.length === 0 && messagesRef.current.length > 0) return;
     messagesRef.current = initialMessages;
     setMessages(initialMessages);
     setError(null);

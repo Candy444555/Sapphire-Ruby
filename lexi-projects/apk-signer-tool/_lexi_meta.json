@@ -1,0 +1,6 @@
+{
+  "name": "APK Signer Tool",
+  "type": "tool",
+  "mainFile": "keystore.jks",
+  "path": "/home/runner/workspace/lexi-projects/apk-signer-tool"
+}

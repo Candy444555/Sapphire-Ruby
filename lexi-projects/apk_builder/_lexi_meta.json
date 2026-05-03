@@ -1,0 +1,6 @@
+{
+  "name": "APK Builder",
+  "type": "apk",
+  "mainFile": "output.apk",
+  "path": "/home/runner/workspace/lexi-projects/apk_builder"
+}

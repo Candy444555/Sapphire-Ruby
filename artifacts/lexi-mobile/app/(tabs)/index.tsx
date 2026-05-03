@@ -253,7 +253,6 @@ export default function ChatScreen() {
           contentContainerStyle={{ padding: 12, paddingBottom: 24, gap: 10 }}
           keyboardShouldPersistTaps="handled"
           keyboardDismissMode="interactive"
-          onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
           ListHeaderComponent={
             <>
               {showGuide && mode === "agent" && (

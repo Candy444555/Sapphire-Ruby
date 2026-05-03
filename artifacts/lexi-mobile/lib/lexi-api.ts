@@ -10,6 +10,31 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 //  4. Empty string → caller will fail with a clear error
 
 const STORAGE_KEY = "@lexi/api_domain";
+const OR_KEY_STORAGE = "@lexi/openrouter_key";
+
+let _openRouterKey: string | null = null;
+
+export async function loadOpenRouterKey(): Promise<string> {
+  try {
+    const stored = await AsyncStorage.getItem(OR_KEY_STORAGE);
+    _openRouterKey = stored ?? "";
+  } catch { /* ignore */ }
+  return _openRouterKey ?? "";
+}
+
+export async function setOpenRouterKey(key: string): Promise<void> {
+  _openRouterKey = key.trim();
+  try {
+    if (_openRouterKey) await AsyncStorage.setItem(OR_KEY_STORAGE, _openRouterKey);
+    else await AsyncStorage.removeItem(OR_KEY_STORAGE);
+  } catch { /* ignore */ }
+}
+
+export function getOpenRouterKey(): string {
+  return _openRouterKey ?? "";
+}
+
+loadOpenRouterKey().catch(() => {});
 
 function clean(d: string | undefined | null): string {
   if (!d) return "";
@@ -80,12 +105,76 @@ const apiUrl = (suffix: string) => getApiUrl(`/api${suffix}`);
 
 export type ChatMsg = { role: "user" | "assistant" | "system"; content: string };
 
+// OpenRouter direct uncensored models (used when no API server is set)
+export const DIRECT_MODELS = [
+  { id: "meta-llama/llama-3.1-8b-instruct:free", name: "Llama 3.1 8B (Free)", uncensored: false },
+  { id: "nousresearch/hermes-3-llama-3.1-8b", name: "Hermes 3 8B (Uncensored)", uncensored: true },
+  { id: "gryphe/mythomax-l2-13b", name: "MythoMax 13B (Uncensored)", uncensored: true },
+  { id: "pygmalionai/mythalion-13b", name: "Mythalion 13B (Uncensored)", uncensored: true },
+  { id: "sao10k/l3-euryale-70b", name: "Euryale 70B (Uncensored)", uncensored: true },
+  { id: "openai/gpt-4o-mini", name: "GPT-4o Mini", uncensored: false },
+];
+
+async function streamOpenRouterDirect(
+  messages: ChatMsg[],
+  onToken: (chunk: string) => void,
+  opts: { model?: string; systemPrompt?: string; signal?: AbortSignal } = {},
+): Promise<void> {
+  const key = getOpenRouterKey();
+  if (!key) throw new Error("No OpenRouter API key set. Add it in Profile settings.");
+  const model = opts.model ?? "nousresearch/hermes-3-llama-3.1-8b";
+  const allMessages: ChatMsg[] = opts.systemPrompt
+    ? [{ role: "system", content: opts.systemPrompt }, ...messages]
+    : messages;
+  const res = await expoFetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${key}`,
+      "HTTP-Referer": "https://lexi.app",
+      "X-Title": "Lexi",
+    },
+    body: JSON.stringify({ model, messages: allMessages, stream: true }),
+    signal: opts.signal,
+  });
+  if (!res.ok || !res.body) {
+    let msg = `OpenRouter error: HTTP ${res.status}`;
+    try { const j = await res.json(); msg = (j as any)?.error?.message ?? msg; } catch {}
+    throw new Error(msg);
+  }
+  const reader = (res.body as ReadableStream<Uint8Array>).getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let i: number;
+    while ((i = buf.indexOf("\n")) >= 0) {
+      const line = buf.slice(0, i).trim();
+      buf = buf.slice(i + 1);
+      if (!line.startsWith("data: ")) continue;
+      const payload = line.slice(6).trim();
+      if (!payload || payload === "[DONE]") return;
+      try {
+        const tok = JSON.parse(payload);
+        const content = tok?.choices?.[0]?.delta?.content;
+        if (typeof content === "string" && content) onToken(content);
+      } catch { /* skip malformed lines */ }
+    }
+  }
+}
+
 // =================== Streaming chat (regular) ===================
 export async function streamLexi(
   messages: ChatMsg[],
   onToken: (chunk: string) => void,
   opts: { model?: string; systemPrompt?: string; signal?: AbortSignal } = {},
 ): Promise<void> {
+  // If no API server is configured, go directly to OpenRouter
+  if (!getApiBase()) {
+    return streamOpenRouterDirect(messages, onToken, opts);
+  }
   const model = opts.model ?? "lexi-uncensored-v2-8b";
   const res = await expoFetch(apiUrl("/chat"), {
     method: "POST",
@@ -209,12 +298,13 @@ export async function runCode(language: string, code: string) {
 // =================== Models ===================
 export type ModelInfo = { id: string; name: string; provider?: string; uncensored?: boolean };
 export async function listModels(): Promise<ModelInfo[]> {
+  if (!getApiBase()) return DIRECT_MODELS;
   try {
     const res = await fetch(apiUrl("/models"));
-    if (!res.ok) return [];
+    if (!res.ok) return DIRECT_MODELS;
     const json = await res.json();
     return (json.models ?? []) as ModelInfo[];
-  } catch { return []; }
+  } catch { return DIRECT_MODELS; }
 }
 
 // =================== Connectivity check ===================

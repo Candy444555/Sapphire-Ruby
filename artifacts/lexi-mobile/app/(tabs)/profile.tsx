@@ -15,7 +15,8 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { defaultBakedDomain, getApiBase, getApiUrl, loadApiDomain, pingServer, setApiDomain } from "@/lib/lexi-api";
+import { defaultBakedDomain, getApiBase, getApiUrl, loadApiDomain, pingServer, setApiDomain, getOpenRouterKey, setOpenRouterKey, loadOpenRouterKey } from "@/lib/lexi-api";
+import { useOtaUpdate } from "@/hooks/useOtaUpdate";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
@@ -45,6 +46,11 @@ export default function ProfileScreen() {
   const [currentBase, setCurrentBase] = useState("");
   const [pingState, setPingState] = useState<"idle" | "checking" | "ok" | "fail">("idle");
   const [pingMsg, setPingMsg] = useState<string>("");
+
+  const [orKey, setOrKey] = useState("");
+  const [orKeySaved, setOrKeySaved] = useState(false);
+
+  const ota = useOtaUpdate();
 
   // Latest APK build (fetched from server which calls Expo via EXPO_TOKEN)
   type BuildInfo = {
@@ -82,8 +88,16 @@ export default function ProfileScreen() {
       const base = getApiBase();
       setCurrentBase(base);
       setServerInput(base.replace(/^https?:\/\//, ""));
+      const key = await loadOpenRouterKey();
+      setOrKey(key);
     })();
   }, []);
+
+  const saveOrKey = async () => {
+    await setOpenRouterKey(orKey);
+    setOrKeySaved(true);
+    setTimeout(() => setOrKeySaved(false), 2000);
+  };
 
   const saveServer = async () => {
     await setApiDomain(serverInput);
@@ -232,6 +246,82 @@ export default function ProfileScreen() {
             </Pressable>
           </View>
         ))}
+      </View>
+
+      <View style={[styles.cardLeft, { backgroundColor: colors.card, borderColor: colors.border, gap: 8 }]}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Feather name="zap" size={16} color={colors.accent} />
+          <Text style={{ color: colors.accent, fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.5 }}>OPENROUTER API KEY</Text>
+        </View>
+        <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>
+          Paste your OpenRouter key to chat directly from your phone without a server. Get one free at openrouter.ai.
+        </Text>
+        <TextInput
+          value={orKey}
+          onChangeText={setOrKey}
+          placeholder="sk-or-v1-..."
+          placeholderTextColor={colors.mutedForeground}
+          autoCapitalize="none"
+          autoCorrect={false}
+          secureTextEntry
+          style={{
+            borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8,
+            color: colors.foreground, backgroundColor: colors.background, fontFamily: "Inter_500Medium", fontSize: 13,
+          }}
+        />
+        <Pressable onPress={saveOrKey} style={{ padding: 10, borderRadius: 10, backgroundColor: orKeySaved ? "#238636" : colors.primary, alignItems: "center" }}>
+          <Text style={{ color: "#000", fontFamily: "Inter_600SemiBold", fontSize: 12 }}>
+            {orKeySaved ? "Saved!" : "Save Key"}
+          </Text>
+        </Pressable>
+        {!getApiBase() && !orKey && (
+          <Text style={{ color: colors.destructive, fontSize: 11, fontFamily: "Inter_500Medium" }}>
+            No server or API key set — chat won't work until you add one.
+          </Text>
+        )}
+      </View>
+
+      <View style={[styles.cardLeft, { backgroundColor: colors.card, borderColor: colors.border, gap: 8 }]}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Feather name="refresh-cw" size={16} color={colors.accent} />
+          <Text style={{ flex: 1, color: colors.accent, fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.5 }}>OVER-THE-AIR UPDATE</Text>
+          <Pressable onPress={ota.checkForUpdate} hitSlop={8} disabled={ota.state.status === "checking"}>
+            {ota.state.status === "checking"
+              ? <ActivityIndicator size="small" color={colors.primary} />
+              : <Feather name="refresh-cw" size={14} color={colors.mutedForeground} />}
+          </Pressable>
+        </View>
+        {ota.state.status === "idle" && (
+          <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Checking on startup…</Text>
+        )}
+        {ota.state.status === "upToDate" && (
+          <Text style={{ color: "#238636", fontSize: 11, fontFamily: "Inter_500Medium" }}>App is up to date</Text>
+        )}
+        {ota.state.status === "available" && (
+          <>
+            <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_500Medium" }}>Update available!</Text>
+            <Pressable onPress={ota.downloadAndApply} style={{ padding: 10, borderRadius: 10, backgroundColor: colors.primary, alignItems: "center" }}>
+              <Text style={{ color: "#000", fontFamily: "Inter_600SemiBold", fontSize: 12 }}>Download & Install</Text>
+            </Pressable>
+          </>
+        )}
+        {ota.state.status === "downloading" && (
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Downloading update…</Text>
+          </View>
+        )}
+        {ota.state.status === "ready" && (
+          <>
+            <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_500Medium" }}>Update downloaded! Restart to apply.</Text>
+            <Pressable onPress={ota.applyNow} style={{ padding: 10, borderRadius: 10, backgroundColor: "#238636", alignItems: "center" }}>
+              <Text style={{ color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 12 }}>Restart Now</Text>
+            </Pressable>
+          </>
+        )}
+        {ota.state.status === "error" && (
+          <Text style={{ color: colors.destructive, fontSize: 11, fontFamily: "Inter_500Medium" }}>✗ {ota.state.message}</Text>
+        )}
       </View>
 
       <View style={[styles.cardLeft, { backgroundColor: colors.card, borderColor: colors.border, gap: 8 }]}>

@@ -57,7 +57,6 @@ export function useAgentChat({ conversationId, initialMessages, onMessagesChange
     if (conversationId !== prevConvId.current) {
       prevConvId.current = conversationId;
       const next = initialMessages && initialMessages.length > 0 ? hydrate(initialMessages) : [];
-      if (next.length === 0 && messagesRef.current.length > 0) return;
       messagesRef.current = next;
       setMessages(next);
       setError(null);

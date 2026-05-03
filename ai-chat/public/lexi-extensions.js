@@ -2976,3 +2976,129 @@
     console.error("[Lexi] Extension failed to load: python_install_the_missing_package_moae1onl", e);
   }
 })();
+
+// ============================================================
+// LEXI EXTENSION: python_define_the_device_information_mogzms7c
+// Added: 2026-04-27T09:21:34.539Z
+// Description: Auto-learned python code: Define the device information
+// ============================================================
+(function registerExtension_python_define_the_device_information_mogzms7c() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["python_define_the_device_information_mogzms7c"]) return;
+
+  try {
+    
+    const memory = {
+      name: "python_define_the_device_information_mogzms7c",
+      description: "Define the device information",
+      language: "python",
+      source: "import os\nimport subprocess\n\n# Define the device information\ndevice_name = \"your_device_name\"\ndevice_model = \"your_device_model\"\ndevice_bootloader = \"your_bootloader\"\n\n# Define the exploit tool and module\nexploit_tool = \"metasploit\"\nexploit_module = \"exploit/android/samsung/lockscreen\"\n\n# Define the payload and Lhost\npayload = \"android/meterpreter/reverse_tcp\"\nLhost = \"192.168.1.100\"\n\n# Check if the device is compatible\nprint(f\"Checking if {device_name} is compatible with {exploit_tool}...\")",
+      loadedAt: "2026-04-27T09:21:34.536Z",
+    };
+    if (!window.LexiCodeMemory) window.LexiCodeMemory = {};
+    window.LexiCodeMemory["python_define_the_device_information_mogzms7c"] = memory;
+    window.getLexiCodeMemory = function getLexiCodeMemory(name) {
+      return name ? window.LexiCodeMemory?.[name] : window.LexiCodeMemory;
+    };
+    
+
+    window.LexiExtensions["python_define_the_device_information_mogzms7c"] = {
+      name: "python_define_the_device_information_mogzms7c",
+      description: "Auto-learned python code: Define the device information",
+      loadedAt: "2026-04-27T09:21:34.539Z",
+    };
+
+    console.log("[Lexi] Extension loaded: python_define_the_device_information_mogzms7c");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("python_define_the_device_information_mogzms7c");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: python_define_the_device_information_mogzms7c", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: python_define_the_device_information_mogzpmqf
+// Added: 2026-04-27T09:23:47.415Z
+// Description: Auto-learned python code: Define the device information
+// ============================================================
+(function registerExtension_python_define_the_device_information_mogzpmqf() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["python_define_the_device_information_mogzpmqf"]) return;
+
+  try {
+    
+    const memory = {
+      name: "python_define_the_device_information_mogzpmqf",
+      description: "Define the device information",
+      language: "python",
+      source: "run this script import os\nimport subprocess\n\n# Define the device information\ndevice_name = \"your_device_name\"\ndevice_model = \"your_device_model\"\ndevice_bootloader = \"your_bootloader\"\n\n# Define the exploit tool and module\nexploit_tool = \"metasploit\"\nexploit_module = \"exploit/android/samsung/lockscreen\"\n\n# Define the payload and Lhost\npayload = \"android/meterpreter/reverse_tcp\"\nLhost = \"192.168.1.100\"\n\n# Check if the device is compatible\nprint(f\"Checking if {device_name} is compatible with {exploit_tool}...\")",
+      loadedAt: "2026-04-27T09:23:47.415Z",
+    };
+    if (!window.LexiCodeMemory) window.LexiCodeMemory = {};
+    window.LexiCodeMemory["python_define_the_device_information_mogzpmqf"] = memory;
+    window.getLexiCodeMemory = function getLexiCodeMemory(name) {
+      return name ? window.LexiCodeMemory?.[name] : window.LexiCodeMemory;
+    };
+    
+
+    window.LexiExtensions["python_define_the_device_information_mogzpmqf"] = {
+      name: "python_define_the_device_information_mogzpmqf",
+      description: "Auto-learned python code: Define the device information",
+      loadedAt: "2026-04-27T09:23:47.415Z",
+    };
+
+    console.log("[Lexi] Extension loaded: python_define_the_device_information_mogzpmqf");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("python_define_the_device_information_mogzpmqf");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: python_define_the_device_information_mogzpmqf", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: slug
+// Added: 2026-04-27T18:15:39.742Z
+// Description: desc
+// ============================================================
+(function registerExtension_slug() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["slug"]) return;
+
+  try {
+    // js
+
+    window.LexiExtensions["slug"] = {
+      name: "slug",
+      description: "desc",
+      loadedAt: "2026-04-27T18:15:39.742Z",
+    };
+
+    console.log("[Lexi] Extension loaded: slug");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("slug");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: slug", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: slug
+// Added: 2026-04-27T18:54:48.108Z
+// Description: desc
+// ============================================================
+(function registerExtension_slug() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["slug"]) return;
+
+  try {
+    // js
+
+    window.LexiExtensions["slug"] = {
+      name: "slug",
+      description: "desc",
+      loadedAt: "2026-04-27T18:54:48.108Z",
+    };
+
+    console.log("[Lexi] Extension loaded: slug");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("slug");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: slug", e);
+  }
+})();

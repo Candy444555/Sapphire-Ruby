@@ -1,0 +1,6 @@
+{
+  "name": "APK Builder",
+  "type": "apk",
+  "mainFile": "apk_file.apk",
+  "path": "/home/runner/workspace/lexi-projects/expo-build"
+}

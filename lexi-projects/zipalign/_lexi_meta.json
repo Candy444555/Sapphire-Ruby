@@ -1,0 +1,6 @@
+{
+  "name": "ZipAlign",
+  "type": "tool",
+  "mainFile": "zipalign",
+  "path": "/home/runner/workspace/lexi-projects/zipalign"
+}

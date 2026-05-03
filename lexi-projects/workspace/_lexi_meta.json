@@ -1,0 +1,6 @@
+{
+  "name": "Read, Write, and Execute File System",
+  "type": "script",
+  "mainFile": "fix_project_config.py",
+  "path": "/home/runner/workspace"
+}

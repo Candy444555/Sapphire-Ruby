@@ -147,27 +147,8 @@ export default function Chat() {
     ? agentChat.messages.find((m) => m.role === 'assistant' && m.needsInput)
     : undefined;
 
-  // Smart auto-scroll: only auto-scroll if user is already near the bottom.
-  // This prevents the page from yanking back down while the user is reading earlier messages.
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const userScrolledUpRef = useRef(false);
 
-  useEffect(() => {
-    const c = scrollContainerRef.current;
-    if (!c) return;
-    const onScroll = () => {
-      const distanceFromBottom = c.scrollHeight - c.scrollTop - c.clientHeight;
-      userScrolledUpRef.current = distanceFromBottom > 120;
-    };
-    c.addEventListener('scroll', onScroll, { passive: true });
-    return () => c.removeEventListener('scroll', onScroll);
-  }, []);
-
-  useEffect(() => {
-    if (!userScrolledUpRef.current) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages, isStreaming]);
 
   // Auto-resize textarea
   useEffect(() => {

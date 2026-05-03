@@ -1,0 +1,6 @@
+{
+  "name": "Name",
+  "type": "web|app|image|video|document|apk|zip",
+  "mainFile": "file.ext",
+  "path": "/path"
+}

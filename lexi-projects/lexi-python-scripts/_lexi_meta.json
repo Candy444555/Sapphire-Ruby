@@ -1,0 +1,6 @@
+{
+  "name": "Fix Circular Import",
+  "type": "script",
+  "mainFile": "lexi_apk.py",
+  "path": "/home/runner/workspace/lexi-python-scripts"
+}

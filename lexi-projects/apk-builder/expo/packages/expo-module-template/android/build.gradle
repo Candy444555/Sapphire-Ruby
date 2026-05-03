@@ -1,0 +1,18 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = '<%- project.package %>'
+version = '<% if (type === 'remote') { %><%- project.version %><% } else { %>0.1.0<% } %>'
+
+android {
+  namespace "<%- project.package %>"
+  defaultConfig {
+    versionCode 1
+    versionName "<% if (type === 'remote') { %><%- project.version %><% } else { %>0.1.0<% } %>"
+  }
+  lintOptions {
+    abortOnError false
+  }
+}

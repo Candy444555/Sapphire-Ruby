@@ -1,0 +1,6 @@
+{
+  "name": "APK Aligner",
+  "type": "apk",
+  "mainFile": "lexi_aligned.apk",
+  "path": "/home/runner/workspace/lexi-projects/apk-aligner"
+}

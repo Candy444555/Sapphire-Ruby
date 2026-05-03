@@ -8,6 +8,14 @@
     "scheme": "lexi-mobile",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "sdkVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/7ccd35ca-bf3d-460e-a3a1-b4ad337478a6",
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD"
+    },
     "splash": {
       "image": "./assets/images/icon.png",
       "resizeMode": "contain",
@@ -36,7 +44,7 @@
     },
     "android": {
       "package": "com.lexi.mobile",
-      "versionCode": 6,
+      "versionCode": 8,
       "permissions": [
         "INTERNET",
         "ACCESS_NETWORK_STATE",
@@ -72,6 +80,7 @@
       "expo-location",
       "expo-contacts",
       "expo-calendar",
+      "expo-updates",
       [
         "expo-build-properties",
         {

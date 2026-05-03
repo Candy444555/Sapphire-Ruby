@@ -60,6 +60,7 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
+    "@expo/config-plugins": "^10.1.2",
     "expo-build-properties": "^1.0.10",
     "expo-calendar": "^15.0.8",
     "expo-clipboard": "^8.0.8",

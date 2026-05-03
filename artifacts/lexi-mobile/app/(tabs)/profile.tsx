@@ -299,7 +299,7 @@ export default function ProfileScreen() {
           <Text style={{ flex: 1, color: colors.accent, fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.5 }}>FEATHERLESS.AI API KEY</Text>
         </View>
         <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>
-          Paste your Featherless.ai key to chat directly from your phone without a server. Get one at featherless.ai.
+          Required for all AI features — chat, image analysis, and models. Works on WiFi and cellular. Get a free key at featherless.ai.
         </Text>
         <TextInput
           value={orKey}
@@ -338,9 +338,9 @@ export default function ProfileScreen() {
         {keyTestState === "fail" && keyTestError ? (
           <Text style={{ color: colors.destructive, fontSize: 11, fontFamily: "Inter_500Medium" }}>{keyTestError}</Text>
         ) : null}
-        {!getApiBase() && !getFeatherlessKey() && keyTestState === "idle" && (
+        {!getFeatherlessKey() && keyTestState === "idle" && (
           <Text style={{ color: colors.destructive, fontSize: 11, fontFamily: "Inter_500Medium" }}>
-            No server or Featherless.ai key set — chat won't work until you add one.
+            Add your Featherless.ai key above — it's needed for all AI features.
           </Text>
         )}
       </View>
@@ -351,7 +351,7 @@ export default function ProfileScreen() {
           <Text style={{ flex: 1, color: colors.accent, fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.5 }}>SERVER URL</Text>
         </View>
         <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>
-          Where Lexi connects. Enter the host of your API server (no https://). Leave blank to use the build-time default.
+          Optional. Only needed for APK builds, terminal, and VPN features. AI chat works without this on any connection.
         </Text>
         <TextInput
           value={serverInput}
@@ -366,7 +366,7 @@ export default function ProfileScreen() {
           }}
         />
         <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>
-          Active: {currentBase || "(none — set one to enable network)"}
+          Active: {currentBase || "(none — AI features work without this)"}
         </Text>
         <View style={{ flexDirection: "row", gap: 8 }}>
           <Pressable onPress={saveServer} style={{ flex: 1, padding: 10, borderRadius: 10, backgroundColor: colors.primary, alignItems: "center" }}>
@@ -397,7 +397,7 @@ export default function ProfileScreen() {
         </View>
 
         <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>
-          Build a fresh APK from the current Replit code and download it to your phone. Takes 10–20 min.
+          Build a fresh APK from Replit. Requires a server URL above. Takes 10–20 min.
         </Text>
 
         {/* Build trigger button */}

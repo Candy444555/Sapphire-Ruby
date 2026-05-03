@@ -11,6 +11,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const STORAGE_KEY = "@lexi/api_domain";
 const FL_KEY_STORAGE = "@lexi/featherless_key";
+const FL_BASE = "https://api.featherless.ai/v1";
 
 let _featherlessKey: string | null = null;
 
@@ -114,9 +115,18 @@ const apiUrl = (suffix: string) => getApiUrl(`/api${suffix}`);
 
 export type ChatMsg = { role: "user" | "assistant" | "system"; content: string };
 
-// Featherless.ai models — Lexi model is the default
+// Featherless.ai models — curated list, always available
 export const DIRECT_MODELS = [
-  { id: "Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2", name: "Lexi Uncensored V2", uncensored: true },
+  { id: "Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2",  name: "Lexi Uncensored V2 8B",   uncensored: true },
+  { id: "Orenguteng/Llama-3.3-70B-Lexi-Uncensored-V2", name: "Lexi Uncensored V2 70B",  uncensored: true },
+  { id: "NousResearch/Hermes-3-Llama-3.1-8B",          name: "Hermes 3 8B",              uncensored: true },
+  { id: "NousResearch/Hermes-3-Llama-3.1-70B",         name: "Hermes 3 70B",             uncensored: true },
+  { id: "meta-llama/Llama-3.1-8B-Instruct",            name: "Llama 3.1 8B" },
+  { id: "meta-llama/Llama-3.1-70B-Instruct",           name: "Llama 3.1 70B" },
+  { id: "meta-llama/Llama-3.2-11B-Vision-Instruct",    name: "Llama 3.2 Vision 11B" },
+  { id: "mistralai/Mistral-7B-Instruct-v0.3",          name: "Mistral 7B" },
+  { id: "mistralai/Mistral-Nemo-Instruct-2407",        name: "Mistral Nemo 12B" },
+  { id: "Qwen/Qwen2.5-72B-Instruct",                  name: "Qwen 2.5 72B" },
 ];
 
 export async function testFeatherlessKey(key: string): Promise<{ ok: boolean; error?: string }> {
@@ -192,46 +202,13 @@ async function streamFeatherlessDirect(
 }
 
 // =================== Streaming chat (regular) ===================
+// Always goes directly to Featherless.ai — no server needed
 export async function streamLexi(
   messages: ChatMsg[],
   onToken: (chunk: string) => void,
   opts: { model?: string; systemPrompt?: string; signal?: AbortSignal } = {},
 ): Promise<void> {
-  // If no API server is configured, go directly to Featherless.ai
-  if (!getApiBase()) {
-    return streamFeatherlessDirect(messages, onToken, opts);
-  }
-  const model = opts.model ?? "lexi-uncensored-v2-8b";
-  const res = await expoFetch(apiUrl("/chat"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model, messages, systemPrompt: opts.systemPrompt }),
-    signal: opts.signal,
-  });
-  if (!res.ok || !res.body) throw new Error(`Chat failed: HTTP ${res.status}`);
-  const reader = (res.body as ReadableStream<Uint8Array>).getReader();
-  const decoder = new TextDecoder();
-  let buf = "";
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += decoder.decode(value, { stream: true });
-    let i: number;
-    while ((i = buf.indexOf("\n\n")) >= 0) {
-      const ev = buf.slice(0, i);
-      buf = buf.slice(i + 2);
-      if (!ev.startsWith("data: ")) continue;
-      const payload = ev.slice(6).trim();
-      if (!payload || payload === "[DONE]") return;
-      if (payload.startsWith("[ERROR]")) throw new Error(payload.slice(8));
-      try {
-        const tok = JSON.parse(payload);
-        if (typeof tok === "string") onToken(tok);
-      } catch {
-        onToken(payload);
-      }
-    }
-  }
+  return streamFeatherlessDirect(messages, onToken, opts);
 }
 
 // =================== Streaming agent ===================
@@ -253,60 +230,88 @@ export async function streamAgent(
   onEvent: (ev: AgentRawEvent) => void,
   signal?: AbortSignal,
 ): Promise<void> {
-  const res = await expoFetch(apiUrl("/agent"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    signal,
-  });
-  if (!res.ok || !res.body) {
-    let msg = `HTTP ${res.status}`;
-    try { const j = await res.json(); msg = (j as any)?.error ?? msg; } catch {}
-    throw new Error(msg);
-  }
-  const reader = (res.body as ReadableStream<Uint8Array>).getReader();
-  const decoder = new TextDecoder();
-  let buf = "";
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += decoder.decode(value, { stream: true });
-    let i: number;
-    while ((i = buf.indexOf("\n\n")) >= 0) {
-      const ev = buf.slice(0, i);
-      buf = buf.slice(i + 2);
-      if (!ev.startsWith("data: ")) continue;
-      const payload = ev.slice(6).trim();
-      if (!payload || payload === "[DONE]") return;
-      try {
-        const parsed = JSON.parse(payload) as AgentRawEvent;
-        onEvent(parsed);
-      } catch {}
+  // If API server is configured, use it (full code execution agent)
+  if (getApiBase()) {
+    const res = await expoFetch(apiUrl("/agent"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal,
+    });
+    if (!res.ok || !res.body) {
+      let msg = `HTTP ${res.status}`;
+      try { const j = await res.json(); msg = (j as any)?.error ?? msg; } catch {}
+      throw new Error(msg);
     }
+    const reader = (res.body as ReadableStream<Uint8Array>).getReader();
+    const decoder = new TextDecoder();
+    let buf = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      let i: number;
+      while ((i = buf.indexOf("\n\n")) >= 0) {
+        const ev = buf.slice(0, i);
+        buf = buf.slice(i + 2);
+        if (!ev.startsWith("data: ")) continue;
+        const payload = ev.slice(6).trim();
+        if (!payload || payload === "[DONE]") return;
+        try { onEvent(JSON.parse(payload) as AgentRawEvent); } catch {}
+      }
+    }
+    return;
   }
+
+  // No server — run as a pure LLM agent directly on Featherless.ai
+  const key = getFeatherlessKey();
+  if (!key) throw new Error("No Featherless.ai key set. Add it in Profile settings.");
+  const sessionId = `local-${Date.now()}`;
+  onEvent({ type: "session", sessionId });
+  onEvent({ type: "thinking" });
+  const model = body.model ?? "Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2";
+  await streamFeatherlessDirect(body.messages, (chunk) => {
+    onEvent({ type: "text", content: chunk });
+  }, { model, systemPrompt: body.systemPrompt, signal });
+  onEvent({ type: "done" });
 }
 
 // =================== Vision / image gen ===================
+
+// Image generation via Pollinations.ai — free, no API key required
 export async function generateImage(prompt: string): Promise<string> {
-  const res = await fetch(apiUrl("/media/image"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt }),
-  });
-  const json = await res.json();
-  if (!json.dataUrl) throw new Error(json.error ?? "Image generation failed");
-  return json.dataUrl as string;
+  const seed = Date.now();
+  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=768&height=768&nologo=true&model=flux&seed=${seed}`;
+  // Verify the image is reachable before returning the URL
+  const res = await fetch(url, { method: "HEAD" });
+  if (!res.ok) throw new Error(`Image generation failed (HTTP ${res.status})`);
+  return url;
 }
 
+// Vision analysis via Featherless.ai — direct, no server needed
 export async function analyzeImages(prompt: string, imageDataUrls: string[]): Promise<string> {
-  const res = await fetch(apiUrl("/media/vision"), {
+  const key = getFeatherlessKey();
+  if (!key) throw new Error("No Featherless.ai key set. Add it in Profile settings.");
+  const imageContent = imageDataUrls.map((url) => ({
+    type: "image_url" as const,
+    image_url: { url },
+  }));
+  const res = await expoFetch(`${FL_BASE}/chat/completions`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prompt, imageDataUrls }),
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${key}`,
+    },
+    body: JSON.stringify({
+      model: "meta-llama/Llama-3.2-11B-Vision-Instruct",
+      messages: [{ role: "user", content: [{ type: "text", text: prompt }, ...imageContent] }],
+      max_tokens: 1024,
+      stream: false,
+    }),
   });
-  const json = await res.json();
-  if (json.error) throw new Error(json.error);
-  return json.analysis as string;
+  const json = await res.json() as any;
+  if (!res.ok) throw new Error(json.error?.message ?? `Vision failed: HTTP ${res.status}`);
+  return json.choices?.[0]?.message?.content ?? "";
 }
 
 // =================== Code run ===================
@@ -323,13 +328,23 @@ export async function runCode(language: string, code: string) {
 
 // =================== Models ===================
 export type ModelInfo = { id: string; name: string; provider?: string; uncensored?: boolean };
+
+// Always fetches from Featherless.ai — returns curated list if key missing or fetch fails
 export async function listModels(): Promise<ModelInfo[]> {
-  if (!getApiBase()) return DIRECT_MODELS;
+  const key = getFeatherlessKey();
+  if (!key) return DIRECT_MODELS;
   try {
-    const res = await fetch(apiUrl("/models"));
+    const res = await fetch(`${FL_BASE}/models`, {
+      headers: { "Authorization": `Bearer ${key}` },
+    });
     if (!res.ok) return DIRECT_MODELS;
-    const json = await res.json();
-    return (json.models ?? []) as ModelInfo[];
+    const json = await res.json() as any;
+    const models: ModelInfo[] = (json.data ?? []).map((m: any) => ({
+      id: m.id,
+      name: m.id.split("/").pop()?.replace(/-/g, " ") ?? m.id,
+      provider: "featherless",
+    }));
+    return models.length > 0 ? models : DIRECT_MODELS;
   } catch { return DIRECT_MODELS; }
 }
 

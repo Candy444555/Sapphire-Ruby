@@ -1,29 +1,35 @@
 import { Feather } from "@expo/vector-icons";
 import React, { useEffect, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
-import { vpnRotate, vpnStatus } from "@/lib/lexi-api";
+import { getApiBase, vpnRotate, vpnStatus } from "@/lib/lexi-api";
 
 export function VpnIndicator() {
   const colors = useColors();
   const [info, setInfo] = useState<{ enabled?: boolean; ip?: string; country?: string } | null>(null);
   const [rotating, setRotating] = useState(false);
 
-  const fetchStatus = async () => setInfo(await vpnStatus());
+  const fetchStatus = async () => {
+    if (!getApiBase()) return;
+    setInfo(await vpnStatus());
+  };
 
   useEffect(() => {
+    if (!getApiBase()) return;
     fetchStatus();
     const id = setInterval(fetchStatus, 30000);
     return () => clearInterval(id);
   }, []);
 
+  if (!getApiBase()) return null;
+
+  const on = !!info?.enabled;
   const onRotate = async () => {
     setRotating(true);
     try { await vpnRotate(); await fetchStatus(); } finally { setRotating(false); }
   };
 
-  const on = !!info?.enabled;
   return (
     <Pressable onPress={onRotate} disabled={!on || rotating} style={[styles.wrap, { borderColor: colors.border, backgroundColor: colors.muted }]}>
       <Feather name="globe" size={12} color={on ? "#3fb950" : colors.mutedForeground} />

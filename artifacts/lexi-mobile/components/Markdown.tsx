@@ -112,7 +112,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     fontSize: 13,
   },
-  codeWrap: { borderRadius: 10, overflow: "hidden", borderWidth: 1 },
+  codeWrap: { borderRadius: 10, overflow: "hidden", borderWidth: 1, marginHorizontal: -14 },
   codeHead: {
     flexDirection: "row",
     alignItems: "center",

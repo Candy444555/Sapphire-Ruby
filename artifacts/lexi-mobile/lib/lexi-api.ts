@@ -391,15 +391,19 @@ export async function softwareCatalog() {
   const res = await fetch(apiUrl("/software/catalog"));
   return res.json();
 }
-export async function softwareStatus() {
-  const res = await fetch(apiUrl("/software/status"));
+export async function softwareStatus(ids: string[]) {
+  const res = await fetch(apiUrl("/software/status"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+  });
   return res.json();
 }
-export async function softwareInstall(slug: string) {
+export async function softwareInstall(id: string) {
   const res = await fetch(apiUrl("/software/install"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ slug }),
+    body: JSON.stringify({ id }),
   });
   return res.json();
 }

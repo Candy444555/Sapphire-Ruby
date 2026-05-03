@@ -58,7 +58,7 @@ export function ChatMessage({ msg }: { msg: DisplayMsg }) {
 }
 
 const styles = StyleSheet.create({
-  bubble: { maxWidth: "92%", paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16, borderWidth: 1 },
+  bubble: { maxWidth: "92%", paddingHorizontal: 14, paddingTop: 10, paddingBottom: 12, borderRadius: 16, borderWidth: 1, overflow: "hidden" },
   img: { width: 200, height: 200, borderRadius: 10, marginBottom: 8 },
   copy: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 8, alignSelf: "flex-start" },
 });

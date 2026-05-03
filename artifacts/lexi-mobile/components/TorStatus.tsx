@@ -3,13 +3,14 @@ import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
-import { vpnStatus } from "@/lib/lexi-api";
+import { getApiBase, vpnStatus } from "@/lib/lexi-api";
 
 export function TorStatus() {
   const colors = useColors();
   const [info, setInfo] = useState<{ enabled?: boolean; ip?: string; country?: string } | null>(null);
 
   useEffect(() => {
+    if (!getApiBase()) return;
     let alive = true;
     const tick = async () => {
       const v = await vpnStatus();
@@ -20,6 +21,8 @@ export function TorStatus() {
     const id = setInterval(tick, 30000);
     return () => { alive = false; clearInterval(id); };
   }, []);
+
+  if (!getApiBase()) return null;
 
   const on = !!info?.enabled;
 

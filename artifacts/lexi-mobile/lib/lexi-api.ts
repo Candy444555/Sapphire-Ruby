@@ -43,7 +43,11 @@ loadFeatherlessKey().catch(() => {});
 
 function clean(d: string | undefined | null): string {
   if (!d) return "";
-  return d.trim().replace(/^https?:\/\//i, "").replace(/\/+$/, "");
+  return d
+    .trim()
+    .replace(/^https?:\/\//i, "")
+    .replace(/\/+$/, "")
+    .replace(/\/(api-server|api)(\/.*)?$/, ""); // strip path prefixes the client adds itself
 }
 
 let _cachedBase: string | null = null;
@@ -463,17 +467,18 @@ export type ApkBuildResult =
   | { ok: false; error: string; detail?: string };
 
 export async function triggerApkBuild(profile = "preview"): Promise<ApkBuildResult> {
+  const url = apiUrl("/eas/build");
   try {
-    const res = await expoFetch(apiUrl("/eas/build"), {
+    const res = await expoFetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ profile }),
     });
     const json = await res.json() as ApkBuildResult;
-    if (!res.ok) return { ok: false, error: (json as any).error ?? `HTTP ${res.status}`, detail: (json as any).detail };
+    if (!res.ok) return { ok: false, error: (json as any).error ?? `HTTP ${res.status}`, detail: `URL tried: ${url}\n${(json as any).detail ?? ""}` };
     return json;
   } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "Network error" };
+    return { ok: false, error: e instanceof Error ? e.message : "Network error", detail: `URL tried: ${url}` };
   }
 }
 

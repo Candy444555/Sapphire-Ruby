@@ -92,7 +92,8 @@ export default function ProfileScreen() {
     }
     setBuilding(true);
     setBuildSubmitted(false);
-    setBuildLog("Submitting build to EAS…");
+    const resolvedUrl = getApiBase();
+    setBuildLog(`POSTing to ${resolvedUrl}/api/eas/build …`);
     try {
       const result = await triggerApkBuild("preview");
       if (!result.ok) {

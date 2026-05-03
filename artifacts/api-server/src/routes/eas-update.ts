@@ -26,7 +26,7 @@ router.post("/eas/push-update", (req: Request, res: Response) => {
   res.setHeader("Cache-Control", "no-cache");
   res.flushHeaders();
 
-  const cmd = `${EAS_BIN} update --channel ${channel} --message "${message.replace(/"/g, "")}" --non-interactive --auto`;
+  const cmd = `${EAS_BIN} update --channel ${channel} --message "${message.replace(/"/g, "")}" --non-interactive`;
   res.write(`Running: ${cmd}\n`);
 
   const child = exec(cmd, {

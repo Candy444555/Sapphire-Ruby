@@ -293,6 +293,14 @@ export default function ProfileScreen() {
         <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>
           Publish a new JS bundle to all installed copies of Lexi. Your data, conversations and settings are always preserved — only the app code updates.
         </Text>
+        {/* Auto-detected server pill */}
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.muted, borderWidth: 1, borderColor: getApiBase() ? "#3fb95044" : colors.border }}>
+          <Feather name="server" size={11} color={getApiBase() ? "#3fb950" : colors.mutedForeground} />
+          <Text style={{ flex: 1, color: getApiBase() ? "#3fb950" : colors.mutedForeground, fontSize: 10, fontFamily: "Inter_500Medium" }} numberOfLines={1}>
+            {getApiBase() ? `AUTO · ${getApiBase().replace("https://", "")}` : "No server — set URL below"}
+          </Text>
+        </View>
+
         {!getApiBase() ? (
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8, padding: 10, borderRadius: 10, backgroundColor: colors.muted, borderWidth: 1, borderColor: colors.border }}>
             <Feather name="alert-circle" size={14} color={colors.destructive} />
@@ -320,7 +328,12 @@ export default function ProfileScreen() {
                 try {
                   const res = await pushEasUpdate("personal", pushMsg || "OTA update");
                   const text = await res.text();
+                  const succeeded = text.includes("exited with code 0") || text.includes("Published");
                   setPushLog(text);
+                  if (succeeded) {
+                    setPushLog((prev) => prev + "\n\n⟳ Checking your phone for the new bundle…");
+                    await ota.checkAndApply();
+                  }
                 } catch (e) {
                   setPushLog(`Error: ${e instanceof Error ? e.message : "unknown"}`);
                 } finally {

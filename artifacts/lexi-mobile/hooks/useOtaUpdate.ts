@@ -16,18 +16,21 @@ export function useOtaUpdate() {
   const checkForUpdate = async () => {
     if (__DEV__) {
       setState({ status: "upToDate" });
-      return;
+      return false;
     }
     setState({ status: "checking" });
     try {
       const result = await Updates.checkForUpdateAsync();
       if (result.isAvailable) {
         setState({ status: "available" });
+        return true;
       } else {
         setState({ status: "upToDate" });
+        return false;
       }
     } catch (e) {
       setState({ status: "error", message: e instanceof Error ? e.message : "Update check failed" });
+      return false;
     }
   };
 
@@ -45,10 +48,18 @@ export function useOtaUpdate() {
     await Updates.reloadAsync();
   };
 
+  /** One-shot: check → if available download → mark ready (user then taps Restart) */
+  const checkAndApply = async () => {
+    const available = await checkForUpdate();
+    if (available) {
+      await downloadAndApply();
+    }
+  };
+
   useEffect(() => {
     const timer = setTimeout(() => checkForUpdate(), 3000);
     return () => clearTimeout(timer);
   }, []);
 
-  return { state, checkForUpdate, downloadAndApply, applyNow };
+  return { state, checkForUpdate, downloadAndApply, applyNow, checkAndApply };
 }

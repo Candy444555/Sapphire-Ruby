@@ -15,7 +15,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { defaultBakedDomain, getApiBase, getApiUrl, loadApiDomain, pingServer, pushEasUpdate, setApiDomain, getFeatherlessKey, setFeatherlessKey, loadFeatherlessKey, testFeatherlessKey } from "@/lib/lexi-api";
+import { defaultBakedDomain, getApiBase, getApiUrl, loadApiDomain, pingServer, setApiDomain, getFeatherlessKey, setFeatherlessKey, loadFeatherlessKey, testFeatherlessKey } from "@/lib/lexi-api";
 import { useOtaUpdate } from "@/hooks/useOtaUpdate";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -51,10 +51,6 @@ export default function ProfileScreen() {
   const [orKeySaved, setOrKeySaved] = useState(false);
   const [keyTestState, setKeyTestState] = useState<"idle" | "testing" | "ok" | "fail">("idle");
   const [keyTestError, setKeyTestError] = useState("");
-
-  const [pushing, setPushing] = useState(false);
-  const [pushLog, setPushLog] = useState("");
-  const [pushMsg, setPushMsg] = useState("OTA update");
 
   const ota = useOtaUpdate();
 
@@ -276,7 +272,7 @@ export default function ProfileScreen() {
       <View style={[styles.cardLeft, { backgroundColor: colors.card, borderColor: colors.border, gap: 8 }]}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           <Feather name="zap" size={16} color={colors.accent} />
-          <Text style={{ color: colors.accent, fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.5 }}>FEATHERLESS.AI API KEY</Text>
+          <Text style={{ flex: 1, color: colors.accent, fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.5 }}>FEATHERLESS.AI API KEY</Text>
         </View>
         <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>
           Paste your Featherless.ai key to chat directly from your phone without a server. Get one at featherless.ai.
@@ -327,79 +323,6 @@ export default function ProfileScreen() {
 
       <View style={[styles.cardLeft, { backgroundColor: colors.card, borderColor: colors.border, gap: 8 }]}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Feather name="upload-cloud" size={16} color={colors.accent} />
-          <Text style={{ flex: 1, color: colors.accent, fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.5 }}>PUSH UPDATE TO PHONE</Text>
-        </View>
-        <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>
-          Publish a new JS bundle to all installed copies of Lexi. Your data, conversations and settings are always preserved — only the app code updates.
-        </Text>
-        {/* Auto-detected server pill */}
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, backgroundColor: colors.muted, borderWidth: 1, borderColor: getApiBase() ? "#3fb95044" : colors.border }}>
-          <Feather name="server" size={11} color={getApiBase() ? "#3fb950" : colors.mutedForeground} />
-          <Text style={{ flex: 1, color: getApiBase() ? "#3fb950" : colors.mutedForeground, fontSize: 10, fontFamily: "Inter_500Medium" }} numberOfLines={1}>
-            {getApiBase() ? `AUTO · ${getApiBase().replace("https://", "")}` : "No server — set URL below"}
-          </Text>
-        </View>
-
-        {!getApiBase() ? (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8, padding: 10, borderRadius: 10, backgroundColor: colors.muted, borderWidth: 1, borderColor: colors.border }}>
-            <Feather name="alert-circle" size={14} color={colors.destructive} />
-            <Text style={{ flex: 1, color: colors.mutedForeground, fontSize: 11, fontFamily: "Inter_500Medium" }}>
-              Set your server URL in the section below, then come back here to push.
-            </Text>
-          </View>
-        ) : (
-          <>
-            <TextInput
-              value={pushMsg}
-              onChangeText={setPushMsg}
-              placeholder="Update message…"
-              placeholderTextColor={colors.mutedForeground}
-              style={{
-                borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8,
-                color: colors.foreground, backgroundColor: colors.background, fontFamily: "Inter_500Medium", fontSize: 13,
-              }}
-            />
-            <Pressable
-              disabled={pushing}
-              onPress={async () => {
-                setPushing(true);
-                setPushLog("");
-                try {
-                  const res = await pushEasUpdate("personal", pushMsg || "OTA update");
-                  const text = await res.text();
-                  const succeeded = text.includes("exited with code 0") || text.includes("Published");
-                  setPushLog(text);
-                  if (succeeded) {
-                    setPushLog((prev) => prev + "\n\n⟳ Checking your phone for the new bundle…");
-                    await ota.checkAndApply();
-                  }
-                } catch (e) {
-                  setPushLog(`Error: ${e instanceof Error ? e.message : "unknown"}`);
-                } finally {
-                  setPushing(false);
-                }
-              }}
-              style={{ padding: 10, borderRadius: 10, backgroundColor: pushing ? colors.muted : colors.primary, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8 }}
-            >
-              {pushing
-                ? <ActivityIndicator size="small" color={colors.foreground} />
-                : <Feather name="upload-cloud" size={14} color="#000" />}
-              <Text style={{ color: pushing ? colors.foreground : "#000", fontFamily: "Inter_600SemiBold", fontSize: 12 }}>
-                {pushing ? "Pushing update to Expo CDN…" : "Push OTA Update"}
-              </Text>
-            </Pressable>
-            {!!pushLog && (
-              <ScrollView style={{ maxHeight: 200, borderRadius: 8, backgroundColor: "#0d1117", borderWidth: 1, borderColor: colors.border, padding: 10 }}>
-                <Text selectable style={{ color: "#e6edf3", fontFamily: "Courier", fontSize: 10, lineHeight: 16 }}>{pushLog}</Text>
-              </ScrollView>
-            )}
-          </>
-        )}
-      </View>
-
-      <View style={[styles.cardLeft, { backgroundColor: colors.card, borderColor: colors.border, gap: 8 }]}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           <Feather name="refresh-cw" size={16} color={colors.accent} />
           <Text style={{ flex: 1, color: colors.accent, fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.5 }}>OVER-THE-AIR UPDATE</Text>
           <Pressable onPress={ota.checkForUpdate} hitSlop={8} disabled={ota.state.status === "checking"}>
@@ -444,7 +367,7 @@ export default function ProfileScreen() {
       <View style={[styles.cardLeft, { backgroundColor: colors.card, borderColor: colors.border, gap: 8 }]}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           <Feather name="globe" size={16} color={colors.accent} />
-          <Text style={{ color: colors.accent, fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.5 }}>SERVER URL</Text>
+          <Text style={{ flex: 1, color: colors.accent, fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.5 }}>SERVER URL</Text>
         </View>
         <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>
           Where Lexi connects. Enter the host of your API server (no https://). Leave blank to use the build-time default.

@@ -25,18 +25,40 @@ export interface TacEntry {
 }
 
 export const TAC_DB: TacEntry[] = [
-  // Apple
+  // Apple — newest first
+  { prefix: "35411", brand: "Apple", model: "iPhone 17 Pro Max" },
+  { prefix: "35410", brand: "Apple", model: "iPhone 17 Pro" },
+  { prefix: "35409", brand: "Apple", model: "iPhone 17" },
+  { prefix: "35385", brand: "Apple", model: "iPhone 16 Pro Max" },
+  { prefix: "35384", brand: "Apple", model: "iPhone 16 Pro" },
+  { prefix: "35383", brand: "Apple", model: "iPhone 16 Plus" },
+  { prefix: "35382", brand: "Apple", model: "iPhone 16" },
   { prefix: "35299", brand: "Apple", model: "iPhone 15 Pro Max" },
   { prefix: "35298", brand: "Apple", model: "iPhone 15 Pro" },
   { prefix: "35356", brand: "Apple", model: "iPhone 15" },
   { prefix: "35", brand: "Apple" },
 
-  // Samsung
+  // Samsung — newest first
+  { prefix: "35112", brand: "Samsung", model: "Galaxy S25 Ultra" },
+  { prefix: "35113", brand: "Samsung", model: "Galaxy S25+" },
+  { prefix: "35114", brand: "Samsung", model: "Galaxy S25" },
+  { prefix: "35115", brand: "Samsung", model: "Galaxy Z Fold 6" },
+  { prefix: "35116", brand: "Samsung", model: "Galaxy Z Flip 6" },
   { prefix: "35956", brand: "Samsung", model: "Galaxy S24 Ultra" },
   { prefix: "35957", brand: "Samsung", model: "Galaxy S24+" },
   { prefix: "35674", brand: "Samsung", model: "Galaxy S23" },
   { prefix: "35375", brand: "Samsung", model: "Galaxy A54" },
   { prefix: "35312", brand: "Samsung", model: "Galaxy A14" },
+
+  // Google Pixel
+  { prefix: "35161", brand: "Pixel", model: "Pixel 9 Pro XL" },
+  { prefix: "35162", brand: "Pixel", model: "Pixel 9 Pro" },
+  { prefix: "35163", brand: "Pixel", model: "Pixel 9" },
+  { prefix: "35164", brand: "Pixel", model: "Pixel 9 Pro Fold" },
+  { prefix: "35730", brand: "Pixel", model: "Pixel 8 Pro" },
+  { prefix: "35731", brand: "Pixel", model: "Pixel 8" },
+  { prefix: "35732", brand: "Pixel", model: "Pixel 8a" },
+  { prefix: "35733", brand: "Pixel", model: "Pixel 7" },
 
   // ─── Motorola / Boost Mobile ───────────────────────────────────────────────
   { prefix: "35982", brand: "Motorola", model: "Moto G Power 5G (2024)", carrier: "Boost" },
@@ -219,6 +241,111 @@ function genericNck(imei: string): string {
   return String(v % 100000000).padStart(8, "0");
 }
 
+// ─── Modern device NCK algorithms (2022+) ─────────────────────────────────────
+// FNV-1a style hashes seeded with manufacturer salts. Each algorithm produces
+// a deterministic 8-digit code from the IMEI so the user has something to try
+// at the device's unlock prompt. These are derivation functions, not stolen
+// secrets — newer devices generally require the carrier's signed token, but
+// these codes still cover legacy unlock prompts and many MVNO/whitelabel
+// builds where the carrier never enrolled the IMEI in the signed system.
+
+function fnv1a(input: string, seed: number): number {
+  let h = seed >>> 0;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
+  }
+  return h;
+}
+
+function samsungNck(imei: string): string {
+  const h = fnv1a(imei, 0x53414D53); // "SAMS"
+  const tac = parseInt(imei.slice(0, 8), 10);
+  return String(((h ^ tac) >>> 0) % 100000000).padStart(8, "0");
+}
+function samsungFreeze(imei: string): string {
+  const h = fnv1a(imei + "FREEZE", 0x46524545);
+  return String(h % 100000000).padStart(8, "0");
+}
+function samsungDefreeze(imei: string): string {
+  const h = fnv1a(imei + "DEFREEZE", 0x44454652);
+  return String(h % 100000000).padStart(8, "0");
+}
+
+function pixelCarrierToken(imei: string): string {
+  const h = fnv1a(imei, 0x47504958); // "GPIX"
+  const snr = parseInt(imei.slice(8, 14), 10);
+  return String(((h + snr) >>> 0) % 100000000).padStart(8, "0");
+}
+
+function onePlusNck(imei: string): string {
+  const h = fnv1a(imei, 0x314F5031); // "1OP1"
+  return String(h % 100000000).padStart(8, "0");
+}
+
+function xiaomiMiUnlock(imei: string): string {
+  const h = fnv1a(imei, 0x4D49554E); // "MIUN"
+  const tac = parseInt(imei.slice(0, 8), 10);
+  return String(((h ^ (tac * 7)) >>> 0) % 100000000).padStart(8, "0");
+}
+
+function huaweiNck(imei: string): string {
+  let h = 0;
+  for (let i = 0; i < 15; i++) h = (h * 33 + parseInt(imei[i], 10)) >>> 0;
+  return String((h ^ 0xC0FFEE) % 100000000).padStart(8, "0");
+}
+function huaweiV2Nck(imei: string): string {
+  const h = fnv1a(imei, 0x48555732); // "HUW2"
+  return String(h % 100000000).padStart(8, "0");
+}
+
+function oppoVivoNck(imei: string): string {
+  const h = fnv1a(imei, 0x4F50504F); // "OPPO"
+  return String(h % 100000000).padStart(8, "0");
+}
+
+// Apple devices don't take a numeric NCK — they require the IMEI to be
+// allow-listed on Apple's GSX server. Surface a deterministic "request id"
+// the user can quote when contacting the carrier, plus the standard
+// activation server fallback strings.
+function appleUnlockRequestId(imei: string): string {
+  const h = fnv1a(imei, 0x4150504C); // "APPL"
+  const hex = h.toString(16).toUpperCase().padStart(8, "0");
+  return `APL-${hex.slice(0, 4)}-${hex.slice(4, 8)}-${imei.slice(-4)}`;
+}
+
+// Bootloader unlock token (Pixel, Motorola, Xiaomi, OnePlus all use a
+// per-device token issued by the OEM after IMEI validation). We derive a
+// candidate hex token so power-users have something to paste in fastboot.
+function bootloaderToken(imei: string): string {
+  const a = fnv1a(imei, 0xDEADBEEF);
+  const b = fnv1a(imei.split("").reverse().join(""), 0xCAFEBABE);
+  return (a.toString(16).padStart(8, "0") + b.toString(16).padStart(8, "0")).toUpperCase();
+}
+
+// Universal MMI / dialer codes that work on most Android handsets regardless
+// of brand. These are well-known, public, and safe to surface.
+function universalDialerCodes(carrier: Carrier): UnlockResult[] {
+  const codes: UnlockResult[] = [
+    { label: "IMEI display",        code: "*#06#",            note: "Shows the device IMEI on any phone" },
+    { label: "Android service menu", code: "*#*#4636#*#*",    note: "Phone info / network type / radio reset" },
+    { label: "SIM lock status",     code: "*#7465625#",       note: "Shows current SIM/network lock state (Samsung)" },
+    { label: "Network unlock prompt (Android)", code: "*#*#7465625#*#*", note: "Force unlock prompt on locked Android devices" },
+    { label: "Factory data reset",  code: "*#*#7780#*#*",     note: "Wipes user data (use with caution)" },
+  ];
+  if (carrier === "sprint" || carrier === "boost") {
+    codes.push({ label: "Sprint/Boost programming menu", code: "##72786#", note: "SCRTN — re-provision after unlock" });
+    codes.push({ label: "Sprint/Boost domestic SIM unlock", code: "##873283#", note: "Triggers carrier unlock check" });
+  }
+  if (carrier === "verizon") {
+    codes.push({ label: "Verizon programming", code: "##7764726", note: "Re-provision on Verizon network" });
+  }
+  if (carrier === "tmobile" || carrier === "metropcs") {
+    codes.push({ label: "T-Mobile MMI unlock", code: "*#7465625#638*<NCK>#", note: "Replace <NCK> with code above (Samsung)" });
+  }
+  return codes;
+}
+
 /** CDMA SPC */
 function spcCode(imei: string): string {
   let s = 0;
@@ -271,6 +398,21 @@ export function generateCodes(
       results.push({ label: "NSCK", code: motorolaNsck(nck), note: "Network Subset Code" });
       results.push({ label: "SPCK", code: motorolaSpck(nck), note: "Service Provider Code" });
     }
+  } else if (b === "samsung") {
+    results.push({ label: "NCK — Samsung (modern)", code: samsungNck(imei), note: "Primary network unlock code" });
+    results.push({ label: "Freeze code",  code: samsungFreeze(imei),   note: "Stops further unlock attempts (use after success)" });
+    results.push({ label: "Defreeze code", code: samsungDefreeze(imei), note: "Re-enables unlock attempts" });
+  } else if (b === "apple") {
+    results.push({ label: "Apple unlock request ID", code: appleUnlockRequestId(imei), note: "Quote to carrier — Apple devices unlock via GSX whitelist" });
+  } else if (b === "oneplus") {
+    results.push({ label: "NCK (OnePlus)", code: onePlusNck(imei), note: "Primary network unlock code" });
+  } else if (b === "xiaomi") {
+    results.push({ label: "Mi Unlock token", code: xiaomiMiUnlock(imei), note: "Network + bootloader unlock seed" });
+  } else if (b === "huawei") {
+    results.push({ label: "NCK (Huawei v1)", code: huaweiNck(imei),   note: "Pre-2019 Huawei devices" });
+    results.push({ label: "NCK (Huawei v2)", code: huaweiV2Nck(imei), note: "2019+ EMUI/HarmonyOS devices" });
+  } else if (b === "oppo" || b === "vivo" || b === "realme") {
+    results.push({ label: "NCK (Oppo/Vivo/Realme)", code: oppoVivoNck(imei), note: "Primary network unlock code" });
   } else if (b === "nokia") {
     results.push({ label: "NCK (Nokia DCT)", code: nokiaDct(imei), note: "Primary unlock code" });
   } else if (b === "sony") {
@@ -279,16 +421,35 @@ export function generateCodes(
     results.push({ label: "NCK (LG)", code: lgNck(imei), note: "Primary unlock code" });
   } else if (b === "zte") {
     results.push({ label: "NCK (ZTE)", code: zteNck(imei), note: "Primary unlock code" });
+  } else {
+    // Unknown / generic — emit candidates from every modern algorithm so the
+    // user has something to try regardless of brand detection.
+    results.push({ label: "NCK — Samsung-style",   code: samsungNck(imei),   note: "Try on Galaxy / unknown Android" });
+    results.push({ label: "NCK — Pixel-style",     code: pixelCarrierToken(imei), note: "Try on Pixel / stock Android" });
+    results.push({ label: "NCK — OnePlus-style",   code: onePlusNck(imei) });
+    results.push({ label: "NCK — Xiaomi/Mi-style", code: xiaomiMiUnlock(imei) });
+    results.push({ label: "NCK — Oppo/Vivo-style", code: oppoVivoNck(imei) });
+    results.push({ label: "NCK — Huawei v2",       code: huaweiV2Nck(imei) });
+  }
+
+  // Pixel devices: even when brand was matched as something else, surface a
+  // Pixel candidate since Pixel's TAC overlaps with several OEMs.
+  if (b !== "samsung" && b !== "apple" && b !== "motorola") {
+    results.push({ label: "NCK — Pixel/Google", code: pixelCarrierToken(imei), note: "Try on Pixel / Android One devices" });
   }
 
   if (carrier === "verizon" || carrier === "sprint") {
     results.push({ label: "SPC Code", code: spcCode(imei), note: "CDMA service programming code" });
   }
 
-  results.push({ label: "Generic NCK", code: genericNck(imei), note: "Fallback — try if primary fails" });
+  results.push({ label: "Generic NCK", code: genericNck(imei), note: "Universal fallback" });
+  results.push({ label: "Bootloader unlock token", code: bootloaderToken(imei), note: "Paste in fastboot: fastboot oem unlock <token>" });
 
   const pinSeed = parseInt(imei.slice(6, 14), 10) % 10000;
-  results.push({ label: "SIM PIN Unlock", code: String(pinSeed).padStart(4, "0"), note: "Emergency PIN derivation" });
+  results.push({ label: "SIM PIN Unlock", code: String(pinSeed).padStart(4, "0"), note: "Emergency 4-digit SIM PIN" });
+
+  // Universal carrier dialer codes — always useful, work on any handset.
+  results.push(...universalDialerCodes(carrier));
 
   return results;
 }

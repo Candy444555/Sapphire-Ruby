@@ -16,6 +16,7 @@ import {
   View,
 } from "react-native";
 import { defaultBakedDomain, getApiBase, getApiUrl, loadApiDomain, pingServer, setApiDomain, getFeatherlessKey, setFeatherlessKey, loadFeatherlessKey, testFeatherlessKey, triggerApkBuild } from "@/lib/lexi-api";
+import { saveApkToPhone } from "@/lib/save-to-device";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
@@ -66,6 +67,7 @@ export default function ProfileScreen() {
   const [building, setBuilding] = useState(false);
   const [buildLog, setBuildLog] = useState("");
   const [buildSubmitted, setBuildSubmitted] = useState(false);
+  const [savingApk, setSavingApk] = useState(false);
 
   const loadBuild = async () => {
     setBuildLoading(true);
@@ -454,11 +456,26 @@ export default function ProfileScreen() {
             </Text>
             <View style={{ flexDirection: "row", gap: 8 }}>
               <Pressable
-                onPress={() => Linking.openURL(build.build!.apkUrl)}
-                style={{ flex: 1, padding: 10, borderRadius: 10, backgroundColor: colors.primary, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 6 }}
+                onPress={async () => {
+                  if (savingApk) return;
+                  setSavingApk(true);
+                  try {
+                    await saveApkToPhone(build.build!.apkUrl, `lexi_v${build.build!.appVersion}.apk`);
+                  } catch (e) {
+                    Alert.alert("Save failed", e instanceof Error ? e.message : "Could not save APK.");
+                  } finally {
+                    setSavingApk(false);
+                  }
+                }}
+                disabled={savingApk}
+                style={{ flex: 1, padding: 10, borderRadius: 10, backgroundColor: savingApk ? colors.muted : colors.primary, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 6 }}
               >
-                <Feather name="download" size={14} color="#000" />
-                <Text style={{ color: "#000", fontFamily: "Inter_600SemiBold", fontSize: 12 }}>Download APK</Text>
+                {savingApk
+                  ? <ActivityIndicator size="small" color={colors.foreground} />
+                  : <Feather name="download" size={14} color="#000" />}
+                <Text style={{ color: savingApk ? colors.foreground : "#000", fontFamily: "Inter_600SemiBold", fontSize: 12 }}>
+                  {savingApk ? "Saving to phone…" : "Save APK to Phone"}
+                </Text>
               </Pressable>
               <Pressable
                 onPress={() => Linking.openURL(build.build!.pageUrl)}

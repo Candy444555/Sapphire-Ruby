@@ -83,6 +83,14 @@
       "expo-contacts",
       "expo-calendar",
       [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow Lexi to save images to your gallery.",
+          "savePhotosPermission": "Allow Lexi to save files to your gallery.",
+          "isAccessMediaLocationEnabled": true
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {

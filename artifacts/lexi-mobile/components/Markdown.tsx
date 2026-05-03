@@ -15,23 +15,34 @@ type Block =
 
 function parseBlocks(content: string): Block[] {
   const blocks: Block[] = [];
-  const fence = /```([\w+-]*)\n([\s\S]*?)```/g;
+  const fence = /```([\w+-]*)\n?([\s\S]*?)```/g;
   let last = 0;
   let m: RegExpExecArray | null;
   while ((m = fence.exec(content)) !== null) {
-    if (m.index > last) blocks.push({ kind: "para", text: content.slice(last, m.index) });
+    if (m.index > last) pushParaBlocks(blocks, content.slice(last, m.index));
     blocks.push({ kind: "code", lang: m[1] || "code", text: m[2] });
     last = m.index + m[0].length;
   }
-  if (last < content.length) blocks.push({ kind: "para", text: content.slice(last) });
+  if (last < content.length) pushParaBlocks(blocks, content.slice(last));
   return blocks;
+}
+
+// Split on blank-line paragraph breaks so each paragraph renders as its own
+// Text block with vertical spacing — otherwise multi-paragraph answers all
+// run together visually as one wall of text.
+function pushParaBlocks(blocks: Block[], chunk: string) {
+  const paragraphs = chunk.split(/\n{2,}/);
+  for (const p of paragraphs) {
+    const trimmed = p.replace(/^\n+|\n+$/g, "");
+    if (trimmed) blocks.push({ kind: "para", text: trimmed });
+  }
 }
 
 export const Markdown = React.memo(function Markdown({ content }: MarkdownProps) {
   const colors = useColors();
   const blocks = useMemo(() => parseBlocks(content), [content]);
   return (
-    <View style={{ gap: 8 }}>
+    <View style={{ gap: 10 }}>
       {blocks.map((b, i) =>
         b.kind === "code" ? (
           <CodeBlock key={i} lang={b.lang} text={b.text} />
@@ -43,40 +54,63 @@ export const Markdown = React.memo(function Markdown({ content }: MarkdownProps)
   );
 });
 
+// Render a single paragraph. Soft `\n` becomes a real line break inside the
+// paragraph's <Text>. Inline markdown (code, bold, italic, links) is parsed
+// per-line so a malformed token can't swallow whitespace across lines.
 function Paragraph({ text, color, linkColor }: { text: string; color: string; linkColor: string }) {
-  // Split inline `code`, **bold**, *em*, [text](url), and URLs.
-  const parts: React.ReactNode[] = [];
-  const re = /(`[^`]+`)|(\*\*[^*]+\*\*)|(\*[^*]+\*)|(\[[^\]]+\]\([^)]+\))|(https?:\/\/\S+)/g;
+  const lines = text.split("\n");
+  const children: React.ReactNode[] = [];
+  lines.forEach((line, idx) => {
+    if (idx > 0) children.push("\n");
+    const parts = renderInline(line, linkColor);
+    for (let j = 0; j < parts.length; j++) {
+      children.push(<React.Fragment key={`${idx}-${j}`}>{parts[j]}</React.Fragment>);
+    }
+  });
+  return (
+    <Text selectable style={{ color, fontFamily: "Inter_400Regular", fontSize: 15, lineHeight: 22 }}>
+      {children}
+    </Text>
+  );
+}
+
+// Returns an array of strings / Text nodes for inline markdown. Whitespace is
+// preserved verbatim — we never trim around matched tokens, so words can't be
+// bunched together by the parser.
+function renderInline(line: string, linkColor: string): React.ReactNode[] {
+  const out: React.ReactNode[] = [];
+  const re = /(`[^`\n]+`)|(\*\*[^*\n]+\*\*)|(\*[^*\n]+\*)|(\[[^\]\n]+\]\([^)\n]+\))|(https?:\/\/\S+)/g;
   let last = 0;
   let m: RegExpExecArray | null;
   let key = 0;
-  while ((m = re.exec(text)) !== null) {
-    if (m.index > last) parts.push(text.slice(last, m.index));
+  while ((m = re.exec(line)) !== null) {
+    if (m.index > last) out.push(line.slice(last, m.index));
     const tok = m[0];
     if (tok.startsWith("`")) {
-      parts.push(<Text key={key++} style={styles.inlineCode}>{tok.slice(1, -1)}</Text>);
+      out.push(<Text key={`c${key++}`} style={styles.inlineCode}>{tok.slice(1, -1)}</Text>);
     } else if (tok.startsWith("**")) {
-      parts.push(<Text key={key++} style={{ fontFamily: "Inter_700Bold" }}>{tok.slice(2, -2)}</Text>);
+      out.push(<Text key={`b${key++}`} style={{ fontFamily: "Inter_700Bold" }}>{tok.slice(2, -2)}</Text>);
     } else if (tok.startsWith("*")) {
-      parts.push(<Text key={key++} style={{ fontStyle: "italic" }}>{tok.slice(1, -1)}</Text>);
+      out.push(<Text key={`i${key++}`} style={{ fontStyle: "italic" }}>{tok.slice(1, -1)}</Text>);
     } else if (tok.startsWith("[")) {
       const mm = /\[([^\]]+)\]\(([^)]+)\)/.exec(tok)!;
-      parts.push(
-        <Text key={key++} style={{ color: linkColor, textDecorationLine: "underline" }} onPress={() => Linking.openURL(mm[2])}>
+      out.push(
+        <Text key={`l${key++}`} style={{ color: linkColor, textDecorationLine: "underline" }} onPress={() => Linking.openURL(mm[2])}>
           {mm[1]}
         </Text>,
       );
     } else {
-      parts.push(
-        <Text key={key++} style={{ color: linkColor, textDecorationLine: "underline" }} onPress={() => Linking.openURL(tok)}>
+      out.push(
+        <Text key={`u${key++}`} style={{ color: linkColor, textDecorationLine: "underline" }} onPress={() => Linking.openURL(tok)}>
           {tok}
         </Text>,
       );
     }
     last = m.index + tok.length;
   }
-  if (last < text.length) parts.push(text.slice(last));
-  return <Text style={{ color, fontFamily: "Inter_400Regular", fontSize: 15, lineHeight: 22 }}>{parts}</Text>;
+  if (last < line.length) out.push(line.slice(last));
+  if (out.length === 0) out.push(line);
+  return out;
 }
 
 function CodeBlock({ lang, text }: { lang: string; text: string }) {

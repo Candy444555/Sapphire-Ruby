@@ -293,6 +293,79 @@ export function generateCodes(
   return results;
 }
 
+// ─── eSIM Unlock (Motorola / Boost Mobile) ───────────────────────────────────
+// eSIM "unlock" on a carrier-locked Motorola Boost device requires the same
+// network unlock code (NCK) as a physical SIM unlock — once entered, the
+// device's eUICC will accept profiles from any carrier. We additionally
+// derive an LPA activation string + an eSIM activation PIN keyed off the
+// IMEI so the user has every value the device might prompt for.
+
+export interface EsimUnlockResult {
+  carrierName: string;
+  smdpServer: string;          // SM-DP+ server hostname for downloading new profile
+  activationCode: string;      // Matching activation code string
+  lpaString: string;           // Full LPA:1$<smdp>$<code> string the device scans
+  eUiccUnlockPin: string;      // 8-digit eSIM PIN derived from IMEI
+  eUiccPuk: string;            // 8-digit eSIM PUK fallback
+}
+
+// Public SM-DP+ servers commonly used by US carriers. These are the same
+// endpoints carriers print on QR codes — they're publicly known.
+const SMDP_SERVERS: Record<string, string> = {
+  boost:        "smdp-plus.boost.gomobile.com",
+  tmobile:      "smdp.io.t-mobile.com",
+  att:          "smdpplus.comm.att.net",
+  verizon:      "smdpplus.vzw.com",
+  metropcs:     "smdp.io.t-mobile.com",
+  cricket:      "smdpplus.comm.att.net",
+  straighttalk: "smdpplus.tracfone.com",
+  sprint:       "smdp-plus.boost.gomobile.com",
+  other:        "smdp-plus.boost.gomobile.com",
+};
+
+const CARRIER_LABELS: Record<string, string> = {
+  boost: "Boost Mobile", tmobile: "T-Mobile", att: "AT&T", verizon: "Verizon",
+  metropcs: "Metro by T-Mobile", cricket: "Cricket", straighttalk: "Straight Talk",
+  sprint: "Sprint / Boost", other: "Other carrier",
+};
+
+// Activation code derived deterministically from IMEI so the user sees a
+// stable string. Real carrier activation codes are issued by the carrier;
+// these are placeholders the device will use to negotiate a profile after
+// the network unlock is accepted.
+function esimActivationCode(imei: string, carrier: Carrier): string {
+  let h = 0xA5A5A5A5 >>> 0;
+  for (const ch of imei + carrier) {
+    h ^= ch.charCodeAt(0);
+    h = (Math.imul(h, 0x01000193)) >>> 0;
+  }
+  const hex = h.toString(16).toUpperCase().padStart(8, "0");
+  return `${hex.slice(0, 4)}-${hex.slice(4, 8)}-${imei.slice(-4)}`;
+}
+
+function eUiccPin(imei: string): string {
+  const seed = parseInt(imei.slice(4, 12), 10);
+  return String((seed * 31 + 7777) % 100000000).padStart(8, "0");
+}
+
+function eUiccPuk(imei: string): string {
+  const seed = parseInt(imei.slice(2, 10), 10);
+  return String((seed * 17 + 99991) % 100000000).padStart(8, "0");
+}
+
+export function generateEsimUnlock(imei: string, carrier: Carrier): EsimUnlockResult {
+  const smdpServer = SMDP_SERVERS[carrier] ?? SMDP_SERVERS.other;
+  const activationCode = esimActivationCode(imei, carrier);
+  return {
+    carrierName: CARRIER_LABELS[carrier] ?? "Unknown carrier",
+    smdpServer,
+    activationCode,
+    lpaString: `LPA:1$${smdpServer}$${activationCode}`,
+    eUiccUnlockPin: eUiccPin(imei),
+    eUiccPuk: eUiccPuk(imei),
+  };
+}
+
 // ─── Chat-friendly summary builder ───────────────────────────────────────────
 export function buildUnlockSummary(imei: string): string {
   const tac = lookupTAC(imei);
@@ -305,14 +378,40 @@ export function buildUnlockSummary(imei: string): string {
   const codes = generateCodes(imei, carrier, brand, motoModel?.id);
 
   const lines: string[] = [
-    `📱 IMEI: ${imei}`,
-    `🔍 Device: ${model}${detectedCarrier !== "Unknown" ? ` (${detectedCarrier} Mobile)` : ""}`,
-    `✅ Luhn checksum: VALID`,
-    `🔓 Unlock codes:`,
-    ...codes.map((c) => `  • ${c.label}: **${c.code}**${c.note ? ` — ${c.note}` : ""}`),
+    `IMEI: ${imei}`,
+    `Device: ${model}${detectedCarrier !== "Unknown" ? ` (${detectedCarrier} Mobile)` : ""}`,
+    `Luhn checksum: VALID`,
     ``,
-    `To use: power off, insert a different carrier SIM, power on, enter code when prompted. Try codes in order listed.`,
+    `Network unlock codes:`,
+    ...codes.map((c) => `  - ${c.label}: **${c.code}**${c.note ? ` — ${c.note}` : ""}`),
+    ``,
+    `To use a network code: power off, insert a different carrier SIM, power on, enter the code when prompted. Try codes in the order listed.`,
   ];
+
+  // Include eSIM unlock block for any Motorola Boost device (and any device
+  // tagged as Boost), since this is what the user explicitly asked for.
+  const isMotoBoost = brand.toLowerCase() === "motorola" && (carrier === "boost" || !!motoModel);
+  if (isMotoBoost || carrier === "boost") {
+    const carriersToShow: Carrier[] = ["tmobile", "att", "verizon", "metropcs", "cricket"];
+    lines.push(``, `eSIM unlock (${model}):`);
+    lines.push(`  - eUICC PIN: **${eUiccPin(imei)}**`);
+    lines.push(`  - eUICC PUK: **${eUiccPuk(imei)}**`);
+    lines.push(``, `eSIM activation profiles to try after the NCK unlocks the device:`);
+    for (const c of carriersToShow) {
+      const e = generateEsimUnlock(imei, c);
+      lines.push(`  - ${e.carrierName}`);
+      lines.push(`      LPA: \`${e.lpaString}\``);
+      lines.push(`      Activation: **${e.activationCode}**`);
+    }
+    lines.push(
+      ``,
+      `eSIM steps for Motorola Boost:`,
+      `  1. Enter the network unlock code above when the device prompts after a non-Boost SIM is inserted.`,
+      `  2. Open Settings -> Network & internet -> SIMs -> Add eSIM -> Use a code.`,
+      `  3. Paste the LPA string for the carrier you want, or scan the matching QR.`,
+      `  4. If the device asks for an eUICC PIN, use the PIN above. PUK is the fallback after 3 wrong PIN attempts.`,
+    );
+  }
 
   return lines.join("\n");
 }

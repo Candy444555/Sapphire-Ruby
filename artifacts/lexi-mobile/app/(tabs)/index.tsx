@@ -220,7 +220,15 @@ export default function ChatScreen() {
           <Feather name="menu" size={22} color={colors.foreground} />
         </Pressable>
         <View style={{ flex: 1, alignItems: "center" }}>
-          <Text style={[styles.title, { color: colors.foreground }]}>LEXI</Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+            <Text style={[styles.title, { color: colors.foreground }]}>LEXI</Text>
+            {mode === "chat" && chat.lastMode === "direct" && (
+              <View style={[styles.directTag, { borderColor: colors.accent }]}>
+                <Feather name="zap-off" size={9} color={colors.accent} />
+                <Text style={{ color: colors.accent, fontFamily: "Inter_600SemiBold", fontSize: 9, letterSpacing: 1 }}>DIRECT</Text>
+              </View>
+            )}
+          </View>
           <View style={{ flexDirection: "row", gap: 6, marginTop: 2 }}>
             <TorStatus />
             <VpnIndicator />
@@ -492,6 +500,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, gap: 10,
   },
   title: { fontFamily: "Inter_700Bold", fontSize: 18, letterSpacing: 1 },
+  directTag: {
+    flexDirection: "row", alignItems: "center", gap: 3,
+    borderWidth: 1, borderRadius: 4, paddingHorizontal: 5, paddingVertical: 1,
+  },
   modeBar: {
     flexDirection: "row", alignItems: "center", gap: 6,
     paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1,

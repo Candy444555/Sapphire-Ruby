@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { streamLexi, type ChatMsg } from "@/lib/lexi-api";
+import { streamLexi, type ChatMsg, type ChatPathMode } from "@/lib/lexi-api";
 import { explainLexiError } from "@/lib/lexi-error-explainer";
 
 const MAX_RETRIES = 2;
@@ -17,6 +17,7 @@ export function useChat({ conversationId, initialMessages = [], onMessagesChange
   const [isStreaming, setIsStreaming] = useState(false);
   const [isRetrying, setIsRetrying] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [lastMode, setLastMode] = useState<ChatPathMode | null>(null);
   const messagesRef = useRef<ChatMsg[]>(initialMessages);
   const abortRef = useRef<AbortController | null>(null);
   const onChangeRef = useRef(onMessagesChange);
@@ -71,7 +72,7 @@ export function useChat({ conversationId, initialMessages = [], onMessagesChange
               return updated;
             });
           },
-          { model, systemPrompt, signal: abortRef.current.signal },
+          { model, systemPrompt, signal: abortRef.current.signal, onMode: setLastMode },
         );
         onChangeRef.current?.(messagesRef.current);
       } catch (err: unknown) {
@@ -121,5 +122,5 @@ export function useChat({ conversationId, initialMessages = [], onMessagesChange
     setError(null);
   }, [stopStreaming, updateMessages]);
 
-  return { messages, sendMessage, isStreaming, isRetrying, error, clearMessages, stopStreaming };
+  return { messages, sendMessage, isStreaming, isRetrying, error, lastMode, clearMessages, stopStreaming };
 }

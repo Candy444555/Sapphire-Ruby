@@ -204,15 +204,58 @@ async function streamFeatherlessDirect(
 // =================== Streaming chat (regular) ===================
 // Prefer the API server when one is configured (proven SSE path the agent uses,
 // no Featherless key needed on the device, retries + keepalives + search context).
-// Falls back to direct Featherless when no server is reachable AND a key is set.
+// If the server is unreachable AND a Featherless key is saved, transparently
+// fall back to direct Featherless so chat keeps working in degraded conditions.
+// Mid-stream errors (after at least one token) are NOT retried — the partial
+// reply already shown to the user is kept and the error surfaces normally.
+export type ChatPathMode = "server" | "direct";
+
+export type StreamLexiOpts = {
+  model?: string;
+  systemPrompt?: string;
+  signal?: AbortSignal;
+  onMode?: (mode: ChatPathMode) => void;
+};
+
 export async function streamLexi(
   messages: ChatMsg[],
   onToken: (chunk: string) => void,
-  opts: { model?: string; systemPrompt?: string; signal?: AbortSignal } = {},
+  opts: StreamLexiOpts = {},
 ): Promise<void> {
   if (getApiBase()) {
-    return streamServerChat(messages, onToken, opts);
+    let receivedAny = false;
+    const trackingOnToken = (t: string) => {
+      receivedAny = true;
+      onToken(t);
+    };
+    try {
+      opts.onMode?.("server");
+      await streamServerChat(messages, trackingOnToken, opts);
+      return;
+    } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") throw err;
+      // Don't replay mid-stream — that would duplicate already-shown tokens.
+      if (receivedAny) throw err;
+      const key = getFeatherlessKey();
+      const serverMsg = err instanceof Error ? err.message : "unknown error";
+      if (!key) {
+        throw new Error(
+          `Server unreachable (${serverMsg}). Add your Featherless.ai key in Profile to enable direct fallback.`,
+        );
+      }
+      try {
+        opts.onMode?.("direct");
+        await streamFeatherlessDirect(messages, onToken, opts);
+        return;
+      } catch (err2) {
+        const directMsg = err2 instanceof Error ? err2.message : "unknown error";
+        throw new Error(
+          `Server unreachable (${serverMsg}); Featherless direct also failed (${directMsg}).`,
+        );
+      }
+    }
   }
+  opts.onMode?.("direct");
   return streamFeatherlessDirect(messages, onToken, opts);
 }
 

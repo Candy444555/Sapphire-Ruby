@@ -107,7 +107,8 @@
     "extra": {
       "eas": {
         "projectId": "7ccd35ca-bf3d-460e-a3a1-b4ad337478a6"
-      }
+      },
+      "apiDomain": "lexi-22--williamruby000.replit.app"
     }
   }
 }

@@ -452,14 +452,6 @@ export async function uploadFile(uri: string, filename: string, mime: string): P
   return res.json();
 }
 
-// =================== EAS Push Update ===================
-export async function pushEasUpdate(channel = "personal", message = "OTA update"): Promise<Response> {
-  return fetch(apiUrl("/eas/push-update"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ channel, message }),
-  });
-}
 
 // =================== EAS Build APK ===================
 export type ApkBuildResult =

@@ -16,7 +16,6 @@ import {
   View,
 } from "react-native";
 import { defaultBakedDomain, getApiBase, getApiUrl, loadApiDomain, pingServer, setApiDomain, getFeatherlessKey, setFeatherlessKey, loadFeatherlessKey, testFeatherlessKey, triggerApkBuild } from "@/lib/lexi-api";
-import { useOtaUpdate } from "@/hooks/useOtaUpdate";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
@@ -51,8 +50,6 @@ export default function ProfileScreen() {
   const [orKeySaved, setOrKeySaved] = useState(false);
   const [keyTestState, setKeyTestState] = useState<"idle" | "testing" | "ok" | "fail">("idle");
   const [keyTestError, setKeyTestError] = useState("");
-
-  const ota = useOtaUpdate();
 
   // Latest APK build (fetched from server which calls Expo via EXPO_TOKEN)
   type BuildInfo = {
@@ -345,49 +342,6 @@ export default function ProfileScreen() {
           <Text style={{ color: colors.destructive, fontSize: 11, fontFamily: "Inter_500Medium" }}>
             No server or Featherless.ai key set — chat won't work until you add one.
           </Text>
-        )}
-      </View>
-
-      <View style={[styles.cardLeft, { backgroundColor: colors.card, borderColor: colors.border, gap: 8 }]}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Feather name="refresh-cw" size={16} color={colors.accent} />
-          <Text style={{ flex: 1, color: colors.accent, fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.5 }}>OVER-THE-AIR UPDATE</Text>
-          <Pressable onPress={ota.checkForUpdate} hitSlop={8} disabled={ota.state.status === "checking"}>
-            {ota.state.status === "checking"
-              ? <ActivityIndicator size="small" color={colors.primary} />
-              : <Feather name="refresh-cw" size={14} color={colors.mutedForeground} />}
-          </Pressable>
-        </View>
-        {ota.state.status === "idle" && (
-          <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Checking on startup…</Text>
-        )}
-        {ota.state.status === "upToDate" && (
-          <Text style={{ color: "#238636", fontSize: 11, fontFamily: "Inter_500Medium" }}>App is up to date</Text>
-        )}
-        {ota.state.status === "available" && (
-          <>
-            <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_500Medium" }}>Update available!</Text>
-            <Pressable onPress={ota.downloadAndApply} style={{ padding: 10, borderRadius: 10, backgroundColor: colors.primary, alignItems: "center" }}>
-              <Text style={{ color: "#000", fontFamily: "Inter_600SemiBold", fontSize: 12 }}>Download & Install</Text>
-            </Pressable>
-          </>
-        )}
-        {ota.state.status === "downloading" && (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-            <ActivityIndicator size="small" color={colors.primary} />
-            <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Downloading update…</Text>
-          </View>
-        )}
-        {ota.state.status === "ready" && (
-          <>
-            <Text style={{ color: colors.foreground, fontSize: 12, fontFamily: "Inter_500Medium" }}>Update downloaded! Restart to apply.</Text>
-            <Pressable onPress={ota.applyNow} style={{ padding: 10, borderRadius: 10, backgroundColor: "#238636", alignItems: "center" }}>
-              <Text style={{ color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 12 }}>Restart Now</Text>
-            </Pressable>
-          </>
-        )}
-        {ota.state.status === "error" && (
-          <Text style={{ color: colors.destructive, fontSize: 11, fontFamily: "Inter_500Medium" }}>✗ {ota.state.message}</Text>
         )}
       </View>
 

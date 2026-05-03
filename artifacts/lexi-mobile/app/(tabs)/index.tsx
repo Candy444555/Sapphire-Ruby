@@ -36,7 +36,6 @@ import { useRootMode } from "@/lib/root-mode";
 import { analyzeImages, generateImage } from "@/lib/lexi-api";
 import { CODE_MODE_INSTRUCTION, DEFAULT_SYSTEM_PROMPT, buildFuseInstruction } from "@/lib/system-prompts";
 import { storage } from "@/lib/storage";
-import { useOtaUpdate } from "@/hooks/useOtaUpdate";
 import { extractIMEI, buildUnlockSummary } from "@/lib/imei-unlock";
 
 type Mode = "chat" | "agent";
@@ -68,8 +67,6 @@ export default function ChatScreen() {
   const { config, addInstruction, getEnhancedSystemPrompt } = useLexiConfig();
   const { extensions, fuseCode, getExtensionsPrompt } = useLexiSelfPatch();
   const { scripts, getPythonPrompt } = useLexiPythonScripts();
-  const ota = useOtaUpdate();
-
   // Update model/sysprompt when active convo changes
   useEffect(() => {
     if (activeConversation) {
@@ -254,62 +251,6 @@ export default function ChatScreen() {
         </Pressable>
       </View>
 
-      {/* OTA update banner */}
-      {(ota.state.status === "checking" ||
-        ota.state.status === "available" ||
-        ota.state.status === "downloading" ||
-        ota.state.status === "ready") && (
-        <Pressable
-          onPress={() => {
-            if (ota.state.status === "available") ota.checkAndApply();
-            if (ota.state.status === "ready") ota.applyNow();
-          }}
-          style={[
-            styles.otaBanner,
-            {
-              backgroundColor:
-                ota.state.status === "ready"
-                  ? "#238636"
-                  : ota.state.status === "available"
-                  ? colors.primary
-                  : colors.muted,
-            },
-          ]}
-        >
-          {(ota.state.status === "checking" || ota.state.status === "downloading") && (
-            <ActivityIndicator size="small" color={colors.mutedForeground} style={{ marginRight: 8 }} />
-          )}
-          {(ota.state.status === "available" || ota.state.status === "ready") && (
-            <Feather
-              name={ota.state.status === "ready" ? "refresh-cw" : "download-cloud"}
-              size={14}
-              color={ota.state.status === "ready" ? "#fff" : colors.primaryForeground}
-              style={{ marginRight: 8 }}
-            />
-          )}
-          <Text
-            style={{
-              fontFamily: "Inter_600SemiBold",
-              fontSize: 12,
-              letterSpacing: 0.5,
-              color:
-                ota.state.status === "ready"
-                  ? "#fff"
-                  : ota.state.status === "available"
-                  ? colors.primaryForeground
-                  : colors.mutedForeground,
-            }}
-          >
-            {ota.state.status === "checking"
-              ? "CHECKING FOR UPDATE…"
-              : ota.state.status === "available"
-              ? "UPDATE AVAILABLE — TAP TO INSTALL"
-              : ota.state.status === "downloading"
-              ? "DOWNLOADING UPDATE…"
-              : "RESTART TO APPLY UPDATE"}
-          </Text>
-        </Pressable>
-      )}
 
       <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }} keyboardVerticalOffset={0}>
         <FlatList
@@ -561,10 +502,6 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: "rgba(255,255,255,0.1)",
   },
   errBox: { padding: 10, borderRadius: 10, borderWidth: 1 },
-  otaBanner: {
-    flexDirection: "row", alignItems: "center", justifyContent: "center",
-    paddingHorizontal: 14, paddingVertical: 9,
-  },
   thinking: { flexDirection: "row", alignItems: "center", gap: 8, paddingHorizontal: 14, paddingVertical: 8 },
   previewBar: { flexDirection: "row", alignItems: "center", gap: 10, padding: 10, borderTopWidth: 1 },
   previewThumb: { width: 44, height: 44, borderRadius: 8 },

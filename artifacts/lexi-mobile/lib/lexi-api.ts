@@ -110,14 +110,9 @@ const apiUrl = (suffix: string) => getApiUrl(`/api${suffix}`);
 
 export type ChatMsg = { role: "user" | "assistant" | "system"; content: string };
 
-// Featherless.ai direct uncensored models (used when no API server is set)
+// Featherless.ai models — Lexi model is the default
 export const DIRECT_MODELS = [
-  { id: "meta-llama/Meta-Llama-3.1-8B-Instruct", name: "Llama 3.1 8B Instruct", uncensored: false },
-  { id: "NousResearch/Hermes-3-Llama-3.1-8B", name: "Hermes 3 8B (Uncensored)", uncensored: true },
-  { id: "Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2", name: "Lexi Uncensored 8B V2", uncensored: true },
-  { id: "NousResearch/Hermes-3-Llama-3.1-70B", name: "Hermes 3 70B (Uncensored)", uncensored: true },
-  { id: "meta-llama/Meta-Llama-3.1-70B-Instruct", name: "Llama 3.1 70B Instruct", uncensored: false },
-  { id: "unsloth/gemma-3-12b-it", name: "Gemma 3 12B", uncensored: false },
+  { id: "Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2", name: "Lexi Uncensored V2", uncensored: true },
 ];
 
 async function streamFeatherlessDirect(
@@ -127,7 +122,7 @@ async function streamFeatherlessDirect(
 ): Promise<void> {
   const key = getFeatherlessKey();
   if (!key) throw new Error("No Featherless.ai API key set. Add it in Profile settings.");
-  const model = opts.model ?? "NousResearch/Hermes-3-Llama-3.1-8B";
+  const model = opts.model ?? "Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2";
   const allMessages: ChatMsg[] = opts.systemPrompt
     ? [{ role: "system", content: opts.systemPrompt }, ...messages]
     : messages;

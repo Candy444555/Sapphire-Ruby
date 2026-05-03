@@ -15,7 +15,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { defaultBakedDomain, getApiBase, getApiUrl, loadApiDomain, pingServer, setApiDomain, getOpenRouterKey, setOpenRouterKey, loadOpenRouterKey } from "@/lib/lexi-api";
+import { defaultBakedDomain, getApiBase, getApiUrl, loadApiDomain, pingServer, pushEasUpdate, setApiDomain, getOpenRouterKey, setOpenRouterKey, loadOpenRouterKey } from "@/lib/lexi-api";
 import { useOtaUpdate } from "@/hooks/useOtaUpdate";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -49,6 +49,10 @@ export default function ProfileScreen() {
 
   const [orKey, setOrKey] = useState("");
   const [orKeySaved, setOrKeySaved] = useState(false);
+
+  const [pushing, setPushing] = useState(false);
+  const [pushLog, setPushLog] = useState("");
+  const [pushMsg, setPushMsg] = useState("OTA update");
 
   const ota = useOtaUpdate();
 
@@ -280,6 +284,69 @@ export default function ProfileScreen() {
           </Text>
         )}
       </View>
+
+      {!!getApiBase() && (
+        <View style={[styles.cardLeft, { backgroundColor: colors.card, borderColor: colors.border, gap: 8 }]}>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <Feather name="upload-cloud" size={16} color={colors.accent} />
+            <Text style={{ flex: 1, color: colors.accent, fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.5 }}>PUSH UPDATE TO PHONE</Text>
+          </View>
+          <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>
+            Publish a new JS bundle to all installed copies of Lexi. Your data and settings are always preserved — only the app code updates.
+          </Text>
+          <TextInput
+            value={pushMsg}
+            onChangeText={setPushMsg}
+            placeholder="Update message…"
+            placeholderTextColor={colors.mutedForeground}
+            style={{
+              borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8,
+              color: colors.foreground, backgroundColor: colors.background, fontFamily: "Inter_500Medium", fontSize: 13,
+            }}
+          />
+          <Pressable
+            disabled={pushing}
+            onPress={async () => {
+              if (!getApiBase()) { Alert.alert("No server", "Set a server URL first."); return; }
+              setPushing(true);
+              setPushLog("");
+              try {
+                const res = await pushEasUpdate("personal", pushMsg || "OTA update");
+                const reader = res.body ? (res as any).body.getReader() : null;
+                if (!reader) {
+                  const text = await res.text();
+                  setPushLog(text);
+                } else {
+                  const decoder = new TextDecoder();
+                  let done = false;
+                  while (!done) {
+                    const chunk = await reader.read();
+                    done = chunk.done;
+                    if (chunk.value) setPushLog((p) => p + decoder.decode(chunk.value));
+                  }
+                }
+              } catch (e) {
+                setPushLog(`Error: ${e instanceof Error ? e.message : "unknown"}`);
+              } finally {
+                setPushing(false);
+              }
+            }}
+            style={{ padding: 10, borderRadius: 10, backgroundColor: pushing ? colors.muted : colors.primary, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 8 }}
+          >
+            {pushing
+              ? <ActivityIndicator size="small" color={colors.foreground} />
+              : <Feather name="upload-cloud" size={14} color="#000" />}
+            <Text style={{ color: pushing ? colors.foreground : "#000", fontFamily: "Inter_600SemiBold", fontSize: 12 }}>
+              {pushing ? "Pushing…" : "Push OTA Update"}
+            </Text>
+          </Pressable>
+          {!!pushLog && (
+            <ScrollView style={{ maxHeight: 180, borderRadius: 8, backgroundColor: "#121212", padding: 8 }}>
+              <Text selectable style={{ color: "#e6edf3", fontFamily: "Courier", fontSize: 10 }}>{pushLog}</Text>
+            </ScrollView>
+          )}
+        </View>
+      )}
 
       <View style={[styles.cardLeft, { backgroundColor: colors.card, borderColor: colors.border, gap: 8 }]}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>

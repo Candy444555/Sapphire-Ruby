@@ -20,6 +20,34 @@ let totalRotations = 0;
 let autoRotateTimer: NodeJS.Timeout | null = null;
 let cachedAgent: SocksProxyAgent | null = null;
 
+// Cached exit-node info so every /vpn/status call doesn't hit the IP service
+let cachedIp: string | null = null;
+let cachedCountry: string | null = null;
+let ipCacheTs = 0;
+const IP_CACHE_TTL_MS = 15_000;
+
+async function fetchExitIp(): Promise<{ ip: string; country: string } | null> {
+  if (!torReady) return null;
+  const now = Date.now();
+  if (cachedIp && now - ipCacheTs < IP_CACHE_TTL_MS) {
+    return { ip: cachedIp, country: cachedCountry ?? "??" };
+  }
+  try {
+    // Fetch exit IP via plain HTTPS (Tor is transparent at the network level on server)
+    const res = await fetch("https://ipapi.co/json/", {
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return null;
+    const data = await res.json() as any;
+    cachedIp = data.ip ?? null;
+    cachedCountry = data.country_code ?? data.country ?? null;
+    ipCacheTs = now;
+    return cachedIp ? { ip: cachedIp, country: cachedCountry ?? "??" } : null;
+  } catch {
+    return null;
+  }
+}
+
 const ROTATE_INTERVAL_MS = 2_000;
 const ROTATE_COOLDOWN_MS = 2_000;
 
@@ -71,6 +99,9 @@ export function startTor(): void {
     torReady = false;
     torBootstrapPct = 0;
     cachedAgent = null;
+    cachedIp = null;
+    cachedCountry = null;
+    ipCacheTs = 0;
     stopAutoRotate();
     setTimeout(() => startTor(), 3000);
   });
@@ -143,6 +174,10 @@ async function rotateCircuit(): Promise<{ ok: boolean; reason?: string }> {
     lastRotateTs = now;
     totalRotations++;
     cachedAgent = new SocksProxyAgent(getTorSocksUrl());
+    // Bust IP cache so next status call fetches fresh exit node
+    cachedIp = null;
+    cachedCountry = null;
+    ipCacheTs = 0;
     return { ok: true };
   } catch (err) {
     return { ok: false, reason: err instanceof Error ? err.message : "unknown" };
@@ -164,8 +199,10 @@ function stopAutoRotate(): void {
   }
 }
 
-router.get("/vpn/status", (_req: Request, res: Response) => {
+router.get("/vpn/status", async (_req: Request, res: Response) => {
+  const exitIp = await fetchExitIp();
   res.json({
+    enabled: torReady,
     active: torReady,
     torReady,
     bootstrapPct: torBootstrapPct,
@@ -173,6 +210,8 @@ router.get("/vpn/status", (_req: Request, res: Response) => {
     autoRotate: autoRotateTimer !== null,
     rotateIntervalMs: ROTATE_INTERVAL_MS,
     totalRotations,
+    ip: exitIp?.ip ?? null,
+    country: exitIp?.country ?? null,
   });
 });
 

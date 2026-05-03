@@ -5,9 +5,17 @@ import { StyleSheet, Text, View } from "react-native";
 import { useColors } from "@/hooks/useColors";
 import { getApiBase, vpnStatus } from "@/lib/lexi-api";
 
+interface TorInfo {
+  enabled?: boolean;
+  active?: boolean;
+  torReady?: boolean;
+  bootstrapPct?: number;
+  country?: string | null;
+}
+
 export function TorStatus() {
   const colors = useColors();
-  const [info, setInfo] = useState<{ enabled?: boolean; ip?: string; country?: string } | null>(null);
+  const [info, setInfo] = useState<TorInfo | null>(null);
 
   useEffect(() => {
     if (!getApiBase()) return;
@@ -15,22 +23,31 @@ export function TorStatus() {
     const tick = async () => {
       const v = await vpnStatus();
       if (!alive) return;
-      setInfo(v);
+      if (v) setInfo(v);
     };
     tick();
-    const id = setInterval(tick, 30000);
+    const id = setInterval(tick, 15000);
     return () => { alive = false; clearInterval(id); };
   }, []);
 
-  if (!getApiBase()) return null;
+  const on = !!(info?.enabled || info?.active || info?.torReady);
+  const booting = !on && !!info && (info.bootstrapPct ?? 0) > 0;
+  const noServer = !getApiBase();
 
-  const on = !!info?.enabled;
+  const label = () => {
+    if (noServer) return "DIRECT";
+    if (booting) return `BOOT ${info?.bootstrapPct ?? 0}%`;
+    if (!on) return "DIRECT";
+    return `TOR · ${info?.country ?? "??"}`;
+  };
+
+  const color = on ? "#3fb950" : booting ? colors.primary : colors.mutedForeground;
 
   return (
-    <View style={[styles.wrap, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-      <Feather name="shield" size={12} color={on ? "#3fb950" : colors.mutedForeground} />
-      <Text style={{ color: on ? "#3fb950" : colors.mutedForeground, fontSize: 10, fontFamily: "Inter_600SemiBold", letterSpacing: 1 }}>
-        {on ? `TOR · ${info?.country ?? "??"}` : "DIRECT"}
+    <View style={[styles.wrap, { backgroundColor: colors.muted, borderColor: on ? "#3fb95044" : colors.border }]}>
+      <Feather name="shield" size={12} color={color} />
+      <Text style={{ color, fontSize: 10, fontFamily: "Inter_600SemiBold", letterSpacing: 1 }}>
+        {label()}
       </Text>
     </View>
   );

@@ -5,38 +5,64 @@ import { Pressable, StyleSheet, Text } from "react-native";
 import { useColors } from "@/hooks/useColors";
 import { getApiBase, vpnRotate, vpnStatus } from "@/lib/lexi-api";
 
+interface TorInfo {
+  enabled?: boolean;
+  active?: boolean;
+  torReady?: boolean;
+  bootstrapPct?: number;
+  ip?: string | null;
+  country?: string | null;
+  totalRotations?: number;
+}
+
 export function VpnIndicator() {
   const colors = useColors();
-  const [info, setInfo] = useState<{ enabled?: boolean; ip?: string; country?: string } | null>(null);
+  const [info, setInfo] = useState<TorInfo | null>(null);
   const [rotating, setRotating] = useState(false);
 
   const fetchStatus = async () => {
     if (!getApiBase()) return;
-    setInfo(await vpnStatus());
+    const v = await vpnStatus();
+    if (v) setInfo(v);
   };
 
   useEffect(() => {
-    if (!getApiBase()) return;
     fetchStatus();
-    const id = setInterval(fetchStatus, 30000);
+    const id = setInterval(fetchStatus, 15000);
     return () => clearInterval(id);
   }, []);
 
-  if (!getApiBase()) return null;
+  const on = !!(info?.enabled || info?.active || info?.torReady);
+  const booting = !on && !!info && (info.bootstrapPct ?? 0) > 0;
 
-  const on = !!info?.enabled;
   const onRotate = async () => {
+    if (!on || rotating) return;
     setRotating(true);
     try { await vpnRotate(); await fetchStatus(); } finally { setRotating(false); }
   };
 
+  const label = () => {
+    if (!getApiBase()) return "VPN OFF";
+    if (booting) return `TOR ${info?.bootstrapPct ?? 0}%`;
+    if (!on) return "VPN OFF";
+    const ip = info?.ip;
+    const cc = info?.country;
+    return ip ? `${ip} · ${cc ?? "??"}` : `TOR ON · ${cc ?? "??"}`;
+  };
+
   return (
-    <Pressable onPress={onRotate} disabled={!on || rotating} style={[styles.wrap, { borderColor: colors.border, backgroundColor: colors.muted }]}>
-      <Feather name="globe" size={12} color={on ? "#3fb950" : colors.mutedForeground} />
+    <Pressable
+      onPress={onRotate}
+      disabled={!on || rotating}
+      style={[styles.wrap, { borderColor: on ? "#3fb95044" : colors.border, backgroundColor: colors.muted }]}
+    >
+      <Feather name="globe" size={12} color={on ? "#3fb950" : booting ? colors.primary : colors.mutedForeground} />
       <Text style={{ color: on ? colors.foreground : colors.mutedForeground, fontSize: 10, fontFamily: "Inter_500Medium", letterSpacing: 1 }}>
-        {on ? `${info?.ip ?? "?"} · ${info?.country ?? "??"}` : "VPN OFF"}
+        {label()}
       </Text>
-      {on && <Feather name="refresh-cw" size={10} color={colors.mutedForeground} />}
+      {on && (
+        <Feather name={rotating ? "loader" : "refresh-cw"} size={10} color={colors.mutedForeground} />
+      )}
     </Pressable>
   );
 }

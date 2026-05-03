@@ -58,7 +58,6 @@ router.get("/eas/latest-apk", async (_req: Request, res: Response) => {
   }
 
   try {
-    const { default: fetch } = await import("node-fetch");
     const PROJECT_ID = "7ccd35ca-bf3d-460e-a3a1-b4ad337478a6";
     const query = `
       query GetBuilds($appId: String!, $platform: AppPlatform!, $limit: Int!) {

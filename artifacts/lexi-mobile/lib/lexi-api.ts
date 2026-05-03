@@ -458,12 +458,23 @@ export async function pushEasUpdate(channel = "personal", message = "OTA update"
 }
 
 // =================== EAS Build APK ===================
-export async function triggerApkBuild(profile = "preview"): Promise<Response> {
-  return fetch(apiUrl("/eas/build"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ profile }),
-  });
+export type ApkBuildResult =
+  | { ok: true; buildUrl: string | null; buildId: string | null; profile: string; message: string; log: string }
+  | { ok: false; error: string; detail?: string };
+
+export async function triggerApkBuild(profile = "preview"): Promise<ApkBuildResult> {
+  try {
+    const res = await expoFetch(apiUrl("/eas/build"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ profile }),
+    });
+    const json = await res.json() as ApkBuildResult;
+    if (!res.ok) return { ok: false, error: (json as any).error ?? `HTTP ${res.status}`, detail: (json as any).detail };
+    return json;
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Network error" };
+  }
 }
 
 // =================== VPN / Tor ===================

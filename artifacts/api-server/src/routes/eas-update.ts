@@ -1,5 +1,6 @@
 import { Router, type Request, type Response } from "express";
-import { exec } from "child_process";
+import { exec, spawn } from "child_process";
+import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
@@ -114,7 +115,8 @@ router.get("/eas/latest-apk", async (_req: Request, res: Response) => {
   }
 });
 
-// POST /api/eas/build  — triggers `eas build --platform android` and streams log lines back
+// POST /api/eas/build — spawns EAS Android build detached (fire-and-forget) and returns immediately.
+// Logs are written to /tmp/eas-build-<timestamp>.log for optional inspection.
 router.post("/eas/build", (req: Request, res: Response) => {
   const token = process.env.EXPO_TOKEN;
   if (!token) {
@@ -124,32 +126,29 @@ router.post("/eas/build", (req: Request, res: Response) => {
 
   const { profile: buildProfile = "preview" } = req.body as { profile?: string };
 
-  res.setHeader("Content-Type", "text/plain; charset=utf-8");
-  res.setHeader("Transfer-Encoding", "chunked");
-  res.setHeader("Cache-Control", "no-cache");
-  res.flushHeaders();
+  const logFile = `/tmp/eas-build-${Date.now()}.log`;
+  const logStream = fs.openSync(logFile, "w");
 
-  const cmd = `${EAS_BIN} build --platform android --profile ${buildProfile} --non-interactive`;
-  res.write(`Running: ${cmd}\n`);
-  res.write(`Building APK from current Replit code — this takes 10–20 minutes on EAS servers.\n\n`);
+  const child = spawn(
+    EAS_BIN,
+    ["build", "--platform", "android", "--profile", buildProfile, "--non-interactive", "--no-wait"],
+    {
+      cwd: LEXI_MOBILE_DIR,
+      env: { ...process.env, EXPO_TOKEN: token, EAS_NO_VCS: "1" },
+      detached: true,
+      stdio: ["ignore", logStream, logStream],
+    }
+  );
 
-  const child = exec(cmd, {
-    cwd: LEXI_MOBILE_DIR,
-    env: { ...process.env, EXPO_TOKEN: token, EAS_NO_VCS: "1" },
-    timeout: 1_800_000, // 30 min
-  });
+  child.unref(); // let it outlive this request
 
-  child.stdout?.on("data", (d: string) => res.write(d));
-  child.stderr?.on("data", (d: string) => res.write(d));
-
-  child.on("close", (code) => {
-    res.write(`\n--- exited with code ${code} ---\n`);
-    res.end();
-  });
-
-  child.on("error", (err) => {
-    res.write(`\nError: ${err.message}\n`);
-    res.end();
+  res.json({
+    ok: true,
+    buildUrl: null,
+    buildId: null,
+    profile: buildProfile,
+    message: `EAS build submitted (profile: ${buildProfile}). It uploads & queues in the background — check https://expo.dev/accounts/rubywilliam444/projects/my-new-project/builds for status in ~2 min.`,
+    log: `Spawned PID ${child.pid}. Log: ${logFile}`,
   });
 });
 

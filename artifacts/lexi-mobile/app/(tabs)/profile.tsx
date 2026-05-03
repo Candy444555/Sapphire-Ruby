@@ -68,6 +68,7 @@ export default function ProfileScreen() {
   const [buildError, setBuildError] = useState<string>("");
   const [building, setBuilding] = useState(false);
   const [buildLog, setBuildLog] = useState("");
+  const [buildSubmitted, setBuildSubmitted] = useState(false);
 
   const loadBuild = async () => {
     setBuildLoading(true);
@@ -90,25 +91,16 @@ export default function ProfileScreen() {
       return;
     }
     setBuilding(true);
-    setBuildLog("");
+    setBuildSubmitted(false);
+    setBuildLog("Submitting build to EAS…");
     try {
-      const res = await triggerApkBuild("preview");
-      if (!res.body) throw new Error("No response body");
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let log = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        const chunk = decoder.decode(value, { stream: true });
-        log += chunk;
-        setBuildLog(log);
+      const result = await triggerApkBuild("preview");
+      if (!result.ok) {
+        setBuildLog(`Error: ${result.error}${result.detail ? `\n\n${result.detail}` : ""}`);
+        return;
       }
-      const succeeded = log.includes("exited with code 0") || log.includes("Build successful");
-      if (succeeded) {
-        setBuildLog(log + "\n✓ Build complete — refreshing download link…");
-        await loadBuild();
-      }
+      setBuildLog(result.message);
+      setBuildSubmitted(true);
     } catch (e) {
       setBuildLog(`Error: ${e instanceof Error ? e.message : "unknown"}`);
     } finally {
@@ -468,15 +460,24 @@ export default function ProfileScreen() {
             ? <ActivityIndicator size="small" color={colors.foreground} />
             : <Feather name="package" size={14} color="#fff" />}
           <Text style={{ color: building ? colors.foreground : "#fff", fontFamily: "Inter_600SemiBold", fontSize: 12 }}>
-            {building ? "Building on EAS servers…" : "Build New APK from Replit"}
+            {building ? "Submitting to EAS…" : "Build New APK from Replit"}
           </Text>
         </Pressable>
 
-        {/* Live log output */}
+        {/* Build status message */}
         {!!buildLog && (
-          <ScrollView style={{ maxHeight: 180, borderRadius: 8, backgroundColor: "#0d1117", borderWidth: 1, borderColor: colors.border, padding: 10 }}>
+          <View style={{ borderRadius: 8, backgroundColor: "#0d1117", borderWidth: 1, borderColor: colors.border, padding: 10, gap: 8 }}>
             <Text selectable style={{ color: "#e6edf3", fontFamily: "Courier", fontSize: 10, lineHeight: 16 }}>{buildLog}</Text>
-          </ScrollView>
+            {buildSubmitted && (
+              <Pressable
+                onPress={() => Linking.openURL("https://expo.dev/accounts/rubywilliam444/projects/my-new-project/builds")}
+                style={{ flexDirection: "row", alignItems: "center", gap: 6, padding: 8, borderRadius: 8, backgroundColor: "#1f6feb22", borderWidth: 1, borderColor: "#1f6feb" }}
+              >
+                <Feather name="external-link" size={12} color="#58a6ff" />
+                <Text style={{ color: "#58a6ff", fontFamily: "Inter_600SemiBold", fontSize: 11 }}>View Build on EAS Dashboard</Text>
+              </Pressable>
+            )}
+          </View>
         )}
 
         {/* Latest build info + download */}

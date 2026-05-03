@@ -30,6 +30,7 @@ export function useChat({ conversationId, initialMessages = [], onMessagesChange
     messagesRef.current = initialMessages;
     setMessages(initialMessages);
     setError(null);
+    setLastMode(null);
   });
 
   const updateMessages = useCallback((next: ChatMsg[]) => {
@@ -120,6 +121,7 @@ export function useChat({ conversationId, initialMessages = [], onMessagesChange
     updateMessages([]);
     onChangeRef.current?.([]);
     setError(null);
+    setLastMode(null);
   }, [stopStreaming, updateMessages]);
 
   return { messages, sendMessage, isStreaming, isRetrying, error, lastMode, clearMessages, stopStreaming };

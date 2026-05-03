@@ -259,18 +259,50 @@ export async function streamLexi(
   return streamFeatherlessDirect(messages, onToken, opts);
 }
 
+// Short timeout for the initial server connect / first-byte phase. If the
+// server hasn't responded within this window we treat it as unreachable and
+// let streamLexi fall back. Once the response is open we stop enforcing the
+// timeout so healthy long streams aren't cut off.
+const SERVER_CONNECT_TIMEOUT_MS = 8000;
+
 async function streamServerChat(
   messages: ChatMsg[],
   onToken: (chunk: string) => void,
   opts: { model?: string; systemPrompt?: string; signal?: AbortSignal } = {},
 ): Promise<void> {
   const model = opts.model ?? "lexi-uncensored-v2-8b";
-  const res = await expoFetch(apiUrl("/chat"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ model, messages, systemPrompt: opts.systemPrompt }),
-    signal: opts.signal,
-  });
+
+  // Compose a connect-phase timeout with the caller's abort signal.
+  const connectCtrl = new AbortController();
+  const timer = setTimeout(() => connectCtrl.abort(), SERVER_CONNECT_TIMEOUT_MS);
+  const onCallerAbort = () => connectCtrl.abort();
+  if (opts.signal) {
+    if (opts.signal.aborted) connectCtrl.abort();
+    else opts.signal.addEventListener("abort", onCallerAbort);
+  }
+
+  let res: Awaited<ReturnType<typeof expoFetch>>;
+  try {
+    res = await expoFetch(apiUrl("/chat"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model, messages, systemPrompt: opts.systemPrompt }),
+      signal: connectCtrl.signal,
+    });
+  } catch (err) {
+    if (opts.signal?.aborted) {
+      const e = new Error("Aborted");
+      e.name = "AbortError";
+      throw e;
+    }
+    if (connectCtrl.signal.aborted) {
+      throw new Error(`Server did not respond within ${SERVER_CONNECT_TIMEOUT_MS}ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+    if (opts.signal) opts.signal.removeEventListener("abort", onCallerAbort);
+  }
   if (!res.ok || !res.body) {
     let msg = `HTTP ${res.status}`;
     try { const j = await res.json(); msg = (j as any)?.error ?? msg; } catch {}
@@ -279,24 +311,35 @@ async function streamServerChat(
   const reader = (res.body as ReadableStream<Uint8Array>).getReader();
   const decoder = new TextDecoder();
   let buf = "";
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buf += decoder.decode(value, { stream: true });
-    let i: number;
-    while ((i = buf.indexOf("\n\n")) >= 0) {
-      const ev = buf.slice(0, i);
-      buf = buf.slice(i + 2);
-      if (!ev.startsWith("data: ")) continue;
-      const payload = ev.slice(6).trim();
-      if (!payload) continue;
-      if (payload === "[DONE]") return;
-      if (payload.startsWith("[ERROR]")) throw new Error(payload.slice(7).trim() || "Server error");
-      try {
-        const tok = JSON.parse(payload);
-        if (typeof tok === "string" && tok) onToken(tok);
-      } catch { /* skip malformed */ }
+  // Wire caller's abort signal to cancel the body reader (we replaced the
+  // fetch-level signal with our own connect-phase controller above).
+  const onStreamAbort = () => { reader.cancel().catch(() => {}); };
+  if (opts.signal) {
+    if (opts.signal.aborted) onStreamAbort();
+    else opts.signal.addEventListener("abort", onStreamAbort);
+  }
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      let i: number;
+      while ((i = buf.indexOf("\n\n")) >= 0) {
+        const ev = buf.slice(0, i);
+        buf = buf.slice(i + 2);
+        if (!ev.startsWith("data: ")) continue;
+        const payload = ev.slice(6).trim();
+        if (!payload) continue;
+        if (payload === "[DONE]") return;
+        if (payload.startsWith("[ERROR]")) throw new Error(payload.slice(7).trim() || "Server error");
+        try {
+          const tok = JSON.parse(payload);
+          if (typeof tok === "string" && tok) onToken(tok);
+        } catch { /* skip malformed */ }
+      }
     }
+  } finally {
+    if (opts.signal) opts.signal.removeEventListener("abort", onStreamAbort);
   }
 }
 

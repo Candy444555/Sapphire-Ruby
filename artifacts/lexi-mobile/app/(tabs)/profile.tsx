@@ -15,7 +15,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { defaultBakedDomain, getApiBase, getApiUrl, loadApiDomain, pingServer, pushEasUpdate, setApiDomain, getOpenRouterKey, setOpenRouterKey, loadOpenRouterKey } from "@/lib/lexi-api";
+import { defaultBakedDomain, getApiBase, getApiUrl, loadApiDomain, pingServer, pushEasUpdate, setApiDomain, getFeatherlessKey, setFeatherlessKey, loadFeatherlessKey } from "@/lib/lexi-api";
 import { useOtaUpdate } from "@/hooks/useOtaUpdate";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -92,13 +92,13 @@ export default function ProfileScreen() {
       const base = getApiBase();
       setCurrentBase(base);
       setServerInput(base.replace(/^https?:\/\//, ""));
-      const key = await loadOpenRouterKey();
+      const key = await loadFeatherlessKey();
       setOrKey(key);
     })();
   }, []);
 
   const saveOrKey = async () => {
-    await setOpenRouterKey(orKey);
+    await setFeatherlessKey(orKey);
     setOrKeySaved(true);
     setTimeout(() => setOrKeySaved(false), 2000);
   };
@@ -255,15 +255,15 @@ export default function ProfileScreen() {
       <View style={[styles.cardLeft, { backgroundColor: colors.card, borderColor: colors.border, gap: 8 }]}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           <Feather name="zap" size={16} color={colors.accent} />
-          <Text style={{ color: colors.accent, fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.5 }}>OPENROUTER API KEY</Text>
+          <Text style={{ color: colors.accent, fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.5 }}>FEATHERLESS.AI API KEY</Text>
         </View>
         <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>
-          Paste your OpenRouter key to chat directly from your phone without a server. Get one free at openrouter.ai.
+          Paste your Featherless.ai key to chat directly from your phone without a server. Get one at featherless.ai.
         </Text>
         <TextInput
           value={orKey}
           onChangeText={setOrKey}
-          placeholder="sk-or-v1-..."
+          placeholder="your-featherless-api-key"
           placeholderTextColor={colors.mutedForeground}
           autoCapitalize="none"
           autoCorrect={false}
@@ -278,9 +278,9 @@ export default function ProfileScreen() {
             {orKeySaved ? "Saved!" : "Save Key"}
           </Text>
         </Pressable>
-        {!getApiBase() && !orKey && (
+        {!getApiBase() && !getFeatherlessKey() && (
           <Text style={{ color: colors.destructive, fontSize: 11, fontFamily: "Inter_500Medium" }}>
-            No server or API key set — chat won't work until you add one.
+            No server or Featherless.ai key set — chat won't work until you add one.
           </Text>
         )}
       </View>

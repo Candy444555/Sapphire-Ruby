@@ -10,31 +10,36 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 //  4. Empty string → caller will fail with a clear error
 
 const STORAGE_KEY = "@lexi/api_domain";
-const OR_KEY_STORAGE = "@lexi/openrouter_key";
+const FL_KEY_STORAGE = "@lexi/featherless_key";
 
-let _openRouterKey: string | null = null;
+let _featherlessKey: string | null = null;
 
-export async function loadOpenRouterKey(): Promise<string> {
+export async function loadFeatherlessKey(): Promise<string> {
   try {
-    const stored = await AsyncStorage.getItem(OR_KEY_STORAGE);
-    _openRouterKey = stored ?? "";
+    const stored = await AsyncStorage.getItem(FL_KEY_STORAGE);
+    _featherlessKey = stored ?? "";
   } catch { /* ignore */ }
-  return _openRouterKey ?? "";
+  return _featherlessKey ?? "";
 }
 
-export async function setOpenRouterKey(key: string): Promise<void> {
-  _openRouterKey = key.trim();
+export async function setFeatherlessKey(key: string): Promise<void> {
+  _featherlessKey = key.trim();
   try {
-    if (_openRouterKey) await AsyncStorage.setItem(OR_KEY_STORAGE, _openRouterKey);
-    else await AsyncStorage.removeItem(OR_KEY_STORAGE);
+    if (_featherlessKey) await AsyncStorage.setItem(FL_KEY_STORAGE, _featherlessKey);
+    else await AsyncStorage.removeItem(FL_KEY_STORAGE);
   } catch { /* ignore */ }
 }
 
-export function getOpenRouterKey(): string {
-  return _openRouterKey ?? "";
+export function getFeatherlessKey(): string {
+  return _featherlessKey ?? "";
 }
 
-loadOpenRouterKey().catch(() => {});
+// Keep old names as aliases so nothing else breaks
+export const loadOpenRouterKey = loadFeatherlessKey;
+export const setOpenRouterKey = setFeatherlessKey;
+export const getOpenRouterKey = getFeatherlessKey;
+
+loadFeatherlessKey().catch(() => {});
 
 function clean(d: string | undefined | null): string {
   if (!d) return "";
@@ -105,40 +110,38 @@ const apiUrl = (suffix: string) => getApiUrl(`/api${suffix}`);
 
 export type ChatMsg = { role: "user" | "assistant" | "system"; content: string };
 
-// OpenRouter direct uncensored models (used when no API server is set)
+// Featherless.ai direct uncensored models (used when no API server is set)
 export const DIRECT_MODELS = [
-  { id: "meta-llama/llama-3.1-8b-instruct:free", name: "Llama 3.1 8B (Free)", uncensored: false },
-  { id: "nousresearch/hermes-3-llama-3.1-8b", name: "Hermes 3 8B (Uncensored)", uncensored: true },
-  { id: "gryphe/mythomax-l2-13b", name: "MythoMax 13B (Uncensored)", uncensored: true },
-  { id: "pygmalionai/mythalion-13b", name: "Mythalion 13B (Uncensored)", uncensored: true },
-  { id: "sao10k/l3-euryale-70b", name: "Euryale 70B (Uncensored)", uncensored: true },
-  { id: "openai/gpt-4o-mini", name: "GPT-4o Mini", uncensored: false },
+  { id: "meta-llama/Meta-Llama-3.1-8B-Instruct", name: "Llama 3.1 8B Instruct", uncensored: false },
+  { id: "NousResearch/Hermes-3-Llama-3.1-8B", name: "Hermes 3 8B (Uncensored)", uncensored: true },
+  { id: "Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2", name: "Lexi Uncensored 8B V2", uncensored: true },
+  { id: "NousResearch/Hermes-3-Llama-3.1-70B", name: "Hermes 3 70B (Uncensored)", uncensored: true },
+  { id: "meta-llama/Meta-Llama-3.1-70B-Instruct", name: "Llama 3.1 70B Instruct", uncensored: false },
+  { id: "unsloth/gemma-3-12b-it", name: "Gemma 3 12B", uncensored: false },
 ];
 
-async function streamOpenRouterDirect(
+async function streamFeatherlessDirect(
   messages: ChatMsg[],
   onToken: (chunk: string) => void,
   opts: { model?: string; systemPrompt?: string; signal?: AbortSignal } = {},
 ): Promise<void> {
-  const key = getOpenRouterKey();
-  if (!key) throw new Error("No OpenRouter API key set. Add it in Profile settings.");
-  const model = opts.model ?? "nousresearch/hermes-3-llama-3.1-8b";
+  const key = getFeatherlessKey();
+  if (!key) throw new Error("No Featherless.ai API key set. Add it in Profile settings.");
+  const model = opts.model ?? "NousResearch/Hermes-3-Llama-3.1-8B";
   const allMessages: ChatMsg[] = opts.systemPrompt
     ? [{ role: "system", content: opts.systemPrompt }, ...messages]
     : messages;
-  const res = await expoFetch("https://openrouter.ai/api/v1/chat/completions", {
+  const res = await expoFetch("https://api.featherless.ai/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${key}`,
-      "HTTP-Referer": "https://lexi.app",
-      "X-Title": "Lexi",
     },
     body: JSON.stringify({ model, messages: allMessages, stream: true }),
     signal: opts.signal,
   });
   if (!res.ok || !res.body) {
-    let msg = `OpenRouter error: HTTP ${res.status}`;
+    let msg = `Featherless.ai error: HTTP ${res.status}`;
     try { const j = await res.json(); msg = (j as any)?.error?.message ?? msg; } catch {}
     throw new Error(msg);
   }
@@ -171,9 +174,9 @@ export async function streamLexi(
   onToken: (chunk: string) => void,
   opts: { model?: string; systemPrompt?: string; signal?: AbortSignal } = {},
 ): Promise<void> {
-  // If no API server is configured, go directly to OpenRouter
+  // If no API server is configured, go directly to Featherless.ai
   if (!getApiBase()) {
-    return streamOpenRouterDirect(messages, onToken, opts);
+    return streamFeatherlessDirect(messages, onToken, opts);
   }
   const model = opts.model ?? "lexi-uncensored-v2-8b";
   const res = await expoFetch(apiUrl("/chat"), {

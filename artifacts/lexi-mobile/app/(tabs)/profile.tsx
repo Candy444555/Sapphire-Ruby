@@ -15,7 +15,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { defaultBakedDomain, getApiBase, getApiUrl, loadApiDomain, pingServer, pushEasUpdate, setApiDomain, getFeatherlessKey, setFeatherlessKey, loadFeatherlessKey } from "@/lib/lexi-api";
+import { defaultBakedDomain, getApiBase, getApiUrl, loadApiDomain, pingServer, pushEasUpdate, setApiDomain, getFeatherlessKey, setFeatherlessKey, loadFeatherlessKey, testFeatherlessKey } from "@/lib/lexi-api";
 import { useOtaUpdate } from "@/hooks/useOtaUpdate";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -49,6 +49,8 @@ export default function ProfileScreen() {
 
   const [orKey, setOrKey] = useState("");
   const [orKeySaved, setOrKeySaved] = useState(false);
+  const [keyTestState, setKeyTestState] = useState<"idle" | "testing" | "ok" | "fail">("idle");
+  const [keyTestError, setKeyTestError] = useState("");
 
   const [pushing, setPushing] = useState(false);
   const [pushLog, setPushLog] = useState("");
@@ -100,7 +102,26 @@ export default function ProfileScreen() {
   const saveOrKey = async () => {
     await setFeatherlessKey(orKey);
     setOrKeySaved(true);
+    setKeyTestState("idle");
     setTimeout(() => setOrKeySaved(false), 2000);
+  };
+
+  const testKey = async () => {
+    const key = orKey.trim() || getFeatherlessKey();
+    if (!key) {
+      setKeyTestState("fail");
+      setKeyTestError("No key entered — paste your key first.");
+      return;
+    }
+    setKeyTestState("testing");
+    setKeyTestError("");
+    const result = await testFeatherlessKey(key);
+    if (result.ok) {
+      setKeyTestState("ok");
+    } else {
+      setKeyTestState("fail");
+      setKeyTestError(result.error ?? "Unknown error");
+    }
   };
 
   const saveServer = async () => {
@@ -273,12 +294,31 @@ export default function ProfileScreen() {
             color: colors.foreground, backgroundColor: colors.background, fontFamily: "Inter_500Medium", fontSize: 13,
           }}
         />
-        <Pressable onPress={saveOrKey} style={{ padding: 10, borderRadius: 10, backgroundColor: orKeySaved ? "#238636" : colors.primary, alignItems: "center" }}>
-          <Text style={{ color: "#000", fontFamily: "Inter_600SemiBold", fontSize: 12 }}>
-            {orKeySaved ? "Saved!" : "Save Key"}
-          </Text>
-        </Pressable>
-        {!getApiBase() && !getFeatherlessKey() && (
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <Pressable onPress={saveOrKey} style={{ flex: 1, padding: 10, borderRadius: 10, backgroundColor: orKeySaved ? "#238636" : colors.primary, alignItems: "center" }}>
+            <Text style={{ color: "#000", fontFamily: "Inter_600SemiBold", fontSize: 12 }}>
+              {orKeySaved ? "Saved!" : "Save Key"}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={testKey}
+            disabled={keyTestState === "testing"}
+            style={{
+              flex: 1, padding: 10, borderRadius: 10, alignItems: "center",
+              backgroundColor: keyTestState === "ok" ? "#238636" : keyTestState === "fail" ? colors.destructive : colors.card,
+              borderWidth: 1, borderColor: keyTestState === "ok" ? "#238636" : keyTestState === "fail" ? colors.destructive : colors.border,
+              opacity: keyTestState === "testing" ? 0.6 : 1,
+            }}
+          >
+            <Text style={{ color: keyTestState === "ok" || keyTestState === "fail" ? "#fff" : colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>
+              {keyTestState === "testing" ? "Testing…" : keyTestState === "ok" ? "✓ Valid" : keyTestState === "fail" ? "✗ Failed" : "Test Key"}
+            </Text>
+          </Pressable>
+        </View>
+        {keyTestState === "fail" && keyTestError ? (
+          <Text style={{ color: colors.destructive, fontSize: 11, fontFamily: "Inter_500Medium" }}>{keyTestError}</Text>
+        ) : null}
+        {!getApiBase() && !getFeatherlessKey() && keyTestState === "idle" && (
           <Text style={{ color: colors.destructive, fontSize: 11, fontFamily: "Inter_500Medium" }}>
             No server or Featherless.ai key set — chat won't work until you add one.
           </Text>

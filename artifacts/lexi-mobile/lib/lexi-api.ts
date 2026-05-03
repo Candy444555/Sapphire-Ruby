@@ -115,6 +115,30 @@ export const DIRECT_MODELS = [
   { id: "Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2", name: "Lexi Uncensored V2", uncensored: true },
 ];
 
+export async function testFeatherlessKey(key: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await expoFetch("https://api.featherless.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${key}`,
+      },
+      body: JSON.stringify({
+        model: "Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2",
+        messages: [{ role: "user", content: "hi" }],
+        max_tokens: 1,
+        stream: false,
+      }),
+    });
+    if (res.ok) return { ok: true };
+    let msg = `HTTP ${res.status}`;
+    try { const j = await res.json(); msg = (j as any)?.error?.message ?? msg; } catch {}
+    return { ok: false, error: msg };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Network error" };
+  }
+}
+
 async function streamFeatherlessDirect(
   messages: ChatMsg[],
   onToken: (chunk: string) => void,

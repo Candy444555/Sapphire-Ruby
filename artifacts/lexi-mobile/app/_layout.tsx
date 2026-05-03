@@ -15,7 +15,12 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { DebugErrorOverlay } from "@/components/DebugErrorOverlay";
 import { RootModeProvider } from "@/lib/root-mode";
+import { installGlobalErrorHandlers } from "@/lib/global-error-log";
+
+// Install BEFORE anything else so we capture init-time crashes too.
+installGlobalErrorHandlers();
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -75,6 +80,7 @@ export default function RootLayout() {
               <RootModeProvider>
                 <StatusBar style="light" />
                 <RootLayoutNav />
+                <DebugErrorOverlay />
               </RootModeProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>

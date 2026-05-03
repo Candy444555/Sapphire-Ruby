@@ -37,6 +37,7 @@ import { analyzeImages, generateImage } from "@/lib/lexi-api";
 import { CODE_MODE_INSTRUCTION, DEFAULT_SYSTEM_PROMPT, buildFuseInstruction } from "@/lib/system-prompts";
 import { storage } from "@/lib/storage";
 import { useOtaUpdate } from "@/hooks/useOtaUpdate";
+import { extractIMEI, buildUnlockSummary } from "@/lib/imei-unlock";
 
 type Mode = "chat" | "agent";
 
@@ -179,6 +180,13 @@ export default function ChatScreen() {
         const analysis = await analyzeImages(text || "Describe this image in detail.", [sentImage]);
         userContent = `${text}\n\n[Vision analysis: ${analysis}]`.trim();
       } catch {}
+    }
+
+    // IMEI unlock — auto-detect and inject computed codes before sending
+    const detectedImei = extractIMEI(userContent);
+    if (detectedImei) {
+      const unlockBlock = buildUnlockSummary(detectedImei);
+      userContent = `${userContent}\n\n[IMEI Unlock Tool Output]\n${unlockBlock}`;
     }
 
     if (isSelfUpdateRequest(text)) addInstruction(text);

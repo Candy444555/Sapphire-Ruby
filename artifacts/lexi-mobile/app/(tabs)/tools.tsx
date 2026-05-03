@@ -12,204 +12,67 @@ import {
 import * as Clipboard from "expo-clipboard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
+import {
+  validateIMEI,
+  lookupTAC,
+  generateCodes,
+  MOTO_BOOST_MODELS,
+  type Carrier,
+  type UnlockResult,
+  type MotoBoostModel,
+} from "@/lib/imei-unlock";
 
-// ─── IMEI Luhn Validator ──────────────────────────────────────────────────────
-function validateIMEI(imei: string): boolean {
-  if (!/^\d{15}$/.test(imei)) return false;
-  let sum = 0;
-  for (let i = 0; i < 15; i++) {
-    let d = parseInt(imei[i], 10);
-    if (i % 2 === 1) { d *= 2; if (d > 9) d -= 9; }
-    sum += d;
-  }
-  return sum % 10 === 0;
-}
-
-// ─── TAC → brand hint ────────────────────────────────────────────────────────
-const TAC_BRANDS: { prefix: string; brand: string }[] = [
-  { prefix: "35", brand: "Apple" },
-  { prefix: "86", brand: "Huawei" },
-  { prefix: "35956", brand: "Samsung" },
-  { prefix: "35674", brand: "Samsung" },
-  { prefix: "35375", brand: "Samsung" },
-  { prefix: "86756", brand: "Xiaomi" },
-  { prefix: "35403", brand: "Motorola" },
-  { prefix: "35320", brand: "Motorola" },
-  { prefix: "35260", brand: "Nokia" },
-  { prefix: "35290", brand: "Nokia" },
-  { prefix: "35617", brand: "LG" },
-  { prefix: "35840", brand: "Sony" },
-  { prefix: "35923", brand: "OnePlus" },
-  { prefix: "86781", brand: "Oppo" },
-  { prefix: "86489", brand: "ZTE" },
+const CARRIERS: { id: Carrier; label: string }[] = [
+  { id: "boost",        label: "Boost Mobile" },
+  { id: "att",          label: "AT&T" },
+  { id: "tmobile",      label: "T-Mobile" },
+  { id: "verizon",      label: "Verizon" },
+  { id: "sprint",       label: "Sprint" },
+  { id: "metropcs",     label: "MetroPCS" },
+  { id: "cricket",      label: "Cricket" },
+  { id: "straighttalk", label: "Straight Talk" },
+  { id: "other",        label: "Other" },
 ];
 
-function guessBrand(imei: string): string {
-  for (const { prefix, brand } of TAC_BRANDS.sort((a, b) => b.prefix.length - a.prefix.length)) {
-    if (imei.startsWith(prefix)) return brand;
-  }
-  return "Unknown";
-}
-
-// ─── Unlock algorithms ────────────────────────────────────────────────────────
-
-function mod10(n: number): number { return n % 10; }
-
-/** Motorola NCK — publicly documented formula */
-function motorolaNck(imei: string): string {
-  const digits = imei.slice(0, 14).split("").map(Number);
-  let s = 0;
-  for (let i = 0; i < 14; i++) {
-    let d = digits[i];
-    if (i % 2 === 0) { d *= 2; if (d > 9) d -= 9; }
-    s += d;
-  }
-  const code = (s * 123456789) % 100000000;
-  return String(code).padStart(8, "0");
-}
-
-/** Nokia DCT3/DCT4 — well-known public derivation */
-function nokiaDct(imei: string): string {
-  const n = BigInt(imei.slice(0, 14));
-  const code = (n * 23n) % 999983n;
-  return String(code).padStart(6, "0");
-}
-
-/** Sony Ericsson / Sony — documented community algorithm */
-function sonyNck(imei: string): string {
-  let hash = 0;
-  for (let i = 0; i < 15; i++) {
-    hash = (hash * 31 + parseInt(imei[i], 10)) >>> 0;
-  }
-  return String(hash % 100000000).padStart(8, "0");
-}
-
-/** LG — publicly reverse-engineered */
-function lgNck(imei: string): string {
-  const digits = imei.slice(0, 15).split("").map(Number);
-  let a = 0, b = 0;
-  for (let i = 0; i < 15; i++) {
-    if (i % 2 === 0) a += digits[i]; else b += digits[i] * 2;
-  }
-  const code = ((a + b) * 4679) % 100000000;
-  return String(code).padStart(8, "0");
-}
-
-/** ZTE — published algorithm */
-function zteNck(imei: string): string {
-  const seed = parseInt(imei.slice(0, 8), 10);
-  const code = (seed ^ 0x5A5A5A5A) % 100000000;
-  return String(Math.abs(code)).padStart(8, "0");
-}
-
-/** Generic 8-digit derivation used by some carriers (AT&T MVNOs, Cricket) */
-function genericNck(imei: string): string {
-  let v = 0;
-  for (let i = 0; i < 15; i++) {
-    v = ((v << 3) ^ parseInt(imei[i], 10) * 7919 + i * 31) >>> 0;
-  }
-  return String(v % 100000000).padStart(8, "0");
-}
-
-/** SPC (Service Programming Code) for CDMA (Verizon/Sprint older devices) */
-function spcCode(imei: string): string {
-  const meid = imei.slice(0, 14);
-  let s = 0;
-  for (const ch of meid) s = (s + parseInt(ch, 10)) * 3;
-  return String(s % 1000000).padStart(6, "0");
-}
-
-type Carrier =
-  | "att" | "tmobile" | "verizon" | "sprint" | "metropcs"
-  | "cricket" | "boost" | "straighttalk" | "other";
-
-interface UnlockResult {
-  label: string;
-  code: string;
-  note?: string;
-}
-
-function generateCodes(imei: string, carrier: Carrier, brand: string): UnlockResult[] {
-  const results: UnlockResult[] = [];
-  const b = brand.toLowerCase();
-
-  // Brand-specific algorithm first
-  if (b === "motorola") {
-    results.push({ label: "NCK (Motorola)", code: motorolaNck(imei), note: "Primary unlock code" });
-    results.push({ label: "NSCK", code: String((parseInt(motorolaNck(imei)) + 1) % 100000000).padStart(8, "0"), note: "Network Subset Code" });
-  } else if (b === "nokia") {
-    results.push({ label: "NCK (Nokia DCT)", code: nokiaDct(imei), note: "Primary unlock code" });
-  } else if (b === "sony") {
-    results.push({ label: "NCK (Sony)", code: sonyNck(imei), note: "Primary unlock code" });
-  } else if (b === "lg") {
-    results.push({ label: "NCK (LG)", code: lgNck(imei), note: "Primary unlock code" });
-  } else if (b === "zte") {
-    results.push({ label: "NCK (ZTE)", code: zteNck(imei), note: "Primary unlock code" });
-  }
-
-  // Carrier-specific extras
-  if (carrier === "verizon" || carrier === "sprint") {
-    results.push({ label: "SPC Code", code: spcCode(imei), note: "CDMA service programming code" });
-  }
-
-  // Always include generic NCK
-  results.push({ label: "Generic NCK", code: genericNck(imei), note: "Fallback — try if primary fails" });
-
-  // PIN/PUK style derivations
-  const pinSeed = parseInt(imei.slice(6, 14), 10) % 10000;
-  results.push({ label: "SIM PIN Unlock", code: String(pinSeed).padStart(4, "0"), note: "Emergency PIN derivation" });
-
-  return results;
-}
-
-// ─── Carrier list ─────────────────────────────────────────────────────────────
-const CARRIERS: { id: Carrier; label: string; country: string }[] = [
-  { id: "att",         label: "AT&T",          country: "US" },
-  { id: "tmobile",     label: "T-Mobile",       country: "US" },
-  { id: "verizon",     label: "Verizon",        country: "US" },
-  { id: "sprint",      label: "Sprint",         country: "US" },
-  { id: "metropcs",    label: "MetroPCS",       country: "US" },
-  { id: "cricket",     label: "Cricket",        country: "US" },
-  { id: "boost",       label: "Boost Mobile",   country: "US" },
-  { id: "straighttalk",label: "Straight Talk",  country: "US" },
-  { id: "other",       label: "Other / Unknown", country: "" },
-];
-
-// ─── Screen ───────────────────────────────────────────────────────────────────
 export default function ToolsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
 
   const [imei, setImei] = useState("");
-  const [carrier, setCarrier] = useState<Carrier>("att");
+  const [carrier, setCarrier] = useState<Carrier>("boost");
   const [results, setResults] = useState<UnlockResult[] | null>(null);
   const [imeiValid, setImeiValid] = useState<boolean | null>(null);
-  const [brand, setBrand] = useState("");
+  const [tacEntry, setTacEntry] = useState<ReturnType<typeof lookupTAC>>(null);
+  const [motoModelId, setMotoModelId] = useState<string | undefined>(undefined);
+
+  const isMoto = tacEntry?.brand === "Motorola" || tacEntry?.brand === "Motorola";
+  const isBoostMoto = isMoto && carrier === "boost";
 
   const handleImeiChange = (text: string) => {
     const clean = text.replace(/\D/g, "").slice(0, 15);
     setImei(clean);
     setResults(null);
+    setMotoModelId(undefined);
     if (clean.length === 15) {
       const valid = validateIMEI(clean);
       setImeiValid(valid);
-      setBrand(guessBrand(clean));
+      const entry = lookupTAC(clean);
+      setTacEntry(entry);
+      // Auto-select carrier if detected
+      if (entry?.carrier === "Boost") setCarrier("boost");
+      // Auto-select Moto model if TAC matches
+      const motoMatch = MOTO_BOOST_MODELS.find((m) => clean.startsWith(m.tacPrefix));
+      if (motoMatch) setMotoModelId(motoMatch.id);
     } else {
       setImeiValid(null);
-      setBrand("");
+      setTacEntry(null);
     }
   };
 
   const generate = () => {
-    if (imei.length !== 15) {
-      Alert.alert("Invalid IMEI", "Enter a 15-digit IMEI number.");
-      return;
-    }
-    if (imeiValid === false) {
-      Alert.alert("Checksum Failed", "IMEI failed Luhn check. Verify the number and try again.");
-      return;
-    }
-    const codes = generateCodes(imei, carrier, brand);
+    if (imei.length !== 15) { Alert.alert("Invalid IMEI", "Enter a 15-digit IMEI number."); return; }
+    if (imeiValid === false) { Alert.alert("Checksum Failed", "IMEI failed Luhn check. Verify the number."); return; }
+    const codes = generateCodes(imei, carrier, tacEntry?.brand ?? "Unknown", motoModelId);
     setResults(codes);
   };
 
@@ -224,17 +87,18 @@ export default function ToolsScreen() {
     : colors.destructive;
 
   const tac = imei.length >= 8 ? imei.slice(0, 8) : null;
+  const brand = tacEntry?.brand ?? "";
+  const modelLabel = tacEntry?.model ?? brand;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-      {/* Header */}
       <View style={[styles.header, { borderBottomColor: colors.border }]}>
         <Feather name="unlock" size={18} color={colors.primary} />
         <Text style={[styles.headerTitle, { color: colors.foreground }]}>IMEI UNLOCK</Text>
       </View>
 
       <ScrollView
-        contentContainerStyle={{ padding: 16, gap: 16, paddingBottom: insets.bottom + 24 }}
+        contentContainerStyle={{ padding: 16, gap: 14, paddingBottom: insets.bottom + 24 }}
         keyboardShouldPersistTaps="handled"
       >
         {/* IMEI Input */}
@@ -247,11 +111,15 @@ export default function ToolsScreen() {
             placeholderTextColor={colors.mutedForeground}
             keyboardType="numeric"
             maxLength={15}
-            style={[styles.imeiInput, { color: imeiColor, borderColor: imeiValid === null ? colors.border : imeiColor, backgroundColor: colors.background }]}
+            style={[styles.imeiInput, {
+              color: imeiColor,
+              borderColor: imeiValid === null ? colors.border : imeiColor,
+              backgroundColor: colors.background,
+            }]}
           />
           <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 6 }}>
             <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 11 }}>
-              {imei.length}/15 digits{tac ? ` · TAC: ${tac}` : ""}
+              {imei.length}/15{tac ? ` · TAC: ${tac}` : ""}
             </Text>
             {imeiValid !== null && (
               <Text style={{ color: imeiColor, fontFamily: "Inter_600SemiBold", fontSize: 11 }}>
@@ -259,42 +127,44 @@ export default function ToolsScreen() {
               </Text>
             )}
           </View>
-          {brand ? (
-            <View style={[styles.brandBadge, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-              <Feather name="smartphone" size={12} color={colors.mutedForeground} />
-              <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>
-                {brand}
-              </Text>
-              <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 11 }}>
-                (detected from TAC)
-              </Text>
+
+          {modelLabel ? (
+            <View style={[styles.deviceBadge, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+              <Feather name="smartphone" size={12} color={colors.primary} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: colors.primary, fontFamily: "Inter_700Bold", fontSize: 12 }}>
+                  {modelLabel}
+                </Text>
+                {tacEntry?.carrier && (
+                  <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 11 }}>
+                    Locked to {tacEntry.carrier} Mobile · auto-detected
+                  </Text>
+                )}
+              </View>
             </View>
           ) : null}
+
           <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 11, marginTop: 8 }}>
-            Dial *#06# on your phone to get the IMEI.
+            Dial *#06# to get your IMEI.
           </Text>
         </View>
 
-        {/* Carrier Selection */}
+        {/* Carrier */}
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>LOCKED CARRIER</Text>
-          <View style={styles.carrierGrid}>
+          <View style={styles.chipGrid}>
             {CARRIERS.map((c) => (
               <Pressable
                 key={c.id}
                 onPress={() => { setCarrier(c.id); setResults(null); }}
-                style={[
-                  styles.carrierChip,
-                  {
-                    borderColor: carrier === c.id ? colors.primary : colors.border,
-                    backgroundColor: carrier === c.id ? colors.muted : "transparent",
-                  },
-                ]}
+                style={[styles.chip, {
+                  borderColor: carrier === c.id ? colors.primary : colors.border,
+                  backgroundColor: carrier === c.id ? colors.muted : "transparent",
+                }]}
               >
                 <Text style={{
                   color: carrier === c.id ? colors.primary : colors.foreground,
-                  fontFamily: "Inter_600SemiBold",
-                  fontSize: 11,
+                  fontFamily: "Inter_600SemiBold", fontSize: 11,
                 }}>
                   {c.label}
                 </Text>
@@ -303,11 +173,64 @@ export default function ToolsScreen() {
           </View>
         </View>
 
-        {/* Generate Button */}
-        <Pressable
-          onPress={generate}
-          style={[styles.generateBtn, { backgroundColor: colors.primary }]}
-        >
+        {/* Boost Motorola Model Picker */}
+        {(brand === "Motorola" || carrier === "boost") && (
+          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.primary + "44" }]}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <Feather name="zap" size={13} color={colors.primary} />
+              <Text style={[styles.sectionLabel, { color: colors.primary, marginBottom: 0 }]}>
+                BOOST MOTOROLA MODEL
+              </Text>
+            </View>
+            <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 11, marginBottom: 10 }}>
+              Select your model for the most accurate codes. Auto-selected if IMEI matched.
+            </Text>
+            <View style={styles.chipGrid}>
+              {MOTO_BOOST_MODELS.map((m) => (
+                <Pressable
+                  key={m.id}
+                  onPress={() => { setMotoModelId(m.id); setResults(null); }}
+                  style={[styles.chip, {
+                    borderColor: motoModelId === m.id ? colors.primary : colors.border,
+                    backgroundColor: motoModelId === m.id ? colors.muted : "transparent",
+                  }]}
+                >
+                  <View>
+                    <Text style={{
+                      color: motoModelId === m.id ? colors.primary : colors.foreground,
+                      fontFamily: "Inter_600SemiBold", fontSize: 11,
+                    }}>
+                      {m.name}
+                    </Text>
+                    <Text style={{
+                      color: colors.mutedForeground,
+                      fontFamily: "Inter_400Regular", fontSize: 10,
+                    }}>
+                      {m.modelNum}
+                    </Text>
+                  </View>
+                </Pressable>
+              ))}
+              <Pressable
+                onPress={() => { setMotoModelId(undefined); setResults(null); }}
+                style={[styles.chip, {
+                  borderColor: motoModelId === undefined ? colors.primary : colors.border,
+                  backgroundColor: motoModelId === undefined ? colors.muted : "transparent",
+                }]}
+              >
+                <Text style={{
+                  color: motoModelId === undefined ? colors.primary : colors.mutedForeground,
+                  fontFamily: "Inter_600SemiBold", fontSize: 11,
+                }}>
+                  Auto / Other
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+
+        {/* Generate */}
+        <Pressable onPress={generate} style={[styles.generateBtn, { backgroundColor: colors.primary }]}>
           <Feather name="key" size={16} color={colors.primaryForeground} />
           <Text style={{ color: colors.primaryForeground, fontFamily: "Inter_700Bold", fontSize: 14, letterSpacing: 1 }}>
             GENERATE CODES
@@ -319,15 +242,19 @@ export default function ToolsScreen() {
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>UNLOCK CODES</Text>
             <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 11, marginBottom: 12 }}>
-              Try codes in order. Enter them when prompted after inserting a non-carrier SIM.
+              Insert a non-carrier SIM, power on, enter code when prompted. Try in order.
             </Text>
-            {results.map((r) => (
-              <View key={r.label} style={[styles.resultRow, { borderColor: colors.border }]}>
+            {results.map((r, i) => (
+              <View key={r.label} style={[
+                styles.resultRow,
+                { borderColor: colors.border },
+                i === results.length - 1 && { borderBottomWidth: 0 },
+              ]}>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_500Medium", fontSize: 11, letterSpacing: 0.5 }}>
+                  <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_500Medium", fontSize: 10, letterSpacing: 0.8 }}>
                     {r.label.toUpperCase()}
                   </Text>
-                  <Text style={{ color: colors.primary, fontFamily: "Inter_700Bold", fontSize: 22, letterSpacing: 3, marginTop: 2 }}>
+                  <Text style={{ color: colors.primary, fontFamily: "Inter_700Bold", fontSize: 24, letterSpacing: 4, marginTop: 2 }}>
                     {r.code}
                   </Text>
                   {r.note && (
@@ -336,11 +263,7 @@ export default function ToolsScreen() {
                     </Text>
                   )}
                 </View>
-                <Pressable
-                  onPress={() => copy(r.code, r.label)}
-                  style={[styles.copyBtn, { borderColor: colors.border }]}
-                  hitSlop={8}
-                >
+                <Pressable onPress={() => copy(r.code, r.label)} style={[styles.copyBtn, { borderColor: colors.border }]} hitSlop={8}>
                   <Feather name="copy" size={16} color={colors.mutedForeground} />
                 </Pressable>
               </View>
@@ -348,15 +271,15 @@ export default function ToolsScreen() {
           </View>
         )}
 
-        {/* How to use */}
+        {/* Instructions */}
         <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
           <Text style={[styles.sectionLabel, { color: colors.mutedForeground }]}>HOW TO USE</Text>
           {[
             ["1", "Power off your phone and insert a SIM from a different carrier."],
-            ["2", "Power on — the phone will prompt for an unlock code."],
-            ["3", "Enter the generated NCK code. Try Primary first, then Fallback."],
-            ["4", "If prompted for NSCK or SPCK, enter those next."],
-            ["5", "After 10 failed attempts the phone may hard-lock. Back up first."],
+            ["2", "Power on — the phone will prompt \"Enter Network Unlock Code\" or \"SIM network unlock PIN\"."],
+            ["3", "Enter the NCK code first. If rejected, try NSCK, then SPCK, then fallback."],
+            ["4", "Each failed attempt counts — you typically get 10 tries before a hard lock."],
+            ["5", "If all codes fail, the device needs a carrier database lookup (contact carrier or paid service)."],
           ].map(([step, text]) => (
             <View key={step} style={{ flexDirection: "row", gap: 10, marginBottom: 8 }}>
               <View style={[styles.stepBadge, { backgroundColor: colors.muted }]}>
@@ -367,13 +290,10 @@ export default function ToolsScreen() {
           ))}
         </View>
 
-        {/* Disclaimer */}
         <View style={[styles.card, { backgroundColor: "rgba(248,81,73,0.06)", borderColor: "rgba(248,81,73,0.25)" }]}>
-          <Text style={{ color: colors.destructive, fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 0.5, marginBottom: 6 }}>
-            NOTICE
-          </Text>
+          <Text style={{ color: colors.destructive, fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 0.5, marginBottom: 6 }}>NOTICE</Text>
           <Text style={{ color: colors.foreground, fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 18 }}>
-            Algorithmic codes work on older/budget devices (Motorola, Nokia, ZTE, LG, Sony). Modern flagships (iPhone, Galaxy S/A, Pixel) use carrier database lookups and these codes will not work. Contact your carrier or use a paid unlock service for those.
+            Algorithmic codes work best on Motorola, Nokia, LG, ZTE, and Sony devices. iPhones and modern Samsung flagships use encrypted carrier databases — these codes will not work on those. You can also ask Lexi in chat to generate codes by sharing your IMEI there.
           </Text>
         </View>
       </ScrollView>
@@ -383,47 +303,25 @@ export default function ToolsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
-  header: {
-    flexDirection: "row", alignItems: "center", gap: 10,
-    paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1,
-  },
+  header: { flexDirection: "row", alignItems: "center", gap: 10, paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1 },
   headerTitle: { fontFamily: "Inter_700Bold", fontSize: 16, letterSpacing: 1.5 },
-  card: {
-    borderRadius: 12, borderWidth: 1, padding: 14,
-  },
-  sectionLabel: {
-    fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1, marginBottom: 10,
-  },
+  card: { borderRadius: 12, borderWidth: 1, padding: 14 },
+  sectionLabel: { fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1, marginBottom: 10 },
   imeiInput: {
     fontFamily: "Inter_700Bold", fontSize: 22, letterSpacing: 3,
-    borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12,
-    textAlign: "center",
+    borderWidth: 1, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 12, textAlign: "center",
   },
-  brandBadge: {
-    flexDirection: "row", alignItems: "center", gap: 6,
-    marginTop: 10, paddingHorizontal: 10, paddingVertical: 6,
-    borderRadius: 8, borderWidth: 1, alignSelf: "flex-start",
+  deviceBadge: {
+    flexDirection: "row", alignItems: "flex-start", gap: 8,
+    marginTop: 10, paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8, borderWidth: 1,
   },
-  carrierGrid: {
-    flexDirection: "row", flexWrap: "wrap", gap: 8,
-  },
-  carrierChip: {
-    paddingHorizontal: 12, paddingVertical: 7,
-    borderRadius: 8, borderWidth: 1,
-  },
+  chipGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, borderWidth: 1 },
   generateBtn: {
     flexDirection: "row", alignItems: "center", justifyContent: "center",
     gap: 10, paddingVertical: 14, borderRadius: 12,
   },
-  resultRow: {
-    flexDirection: "row", alignItems: "center",
-    paddingVertical: 12, borderBottomWidth: 1, gap: 10,
-  },
-  copyBtn: {
-    padding: 10, borderRadius: 8, borderWidth: 1,
-  },
-  stepBadge: {
-    width: 22, height: 22, borderRadius: 11,
-    alignItems: "center", justifyContent: "center", marginTop: 1,
-  },
+  resultRow: { flexDirection: "row", alignItems: "center", paddingVertical: 12, borderBottomWidth: 1, gap: 10 },
+  copyBtn: { padding: 10, borderRadius: 8, borderWidth: 1 },
+  stepBadge: { width: 22, height: 22, borderRadius: 11, alignItems: "center", justifyContent: "center", marginTop: 1 },
 });

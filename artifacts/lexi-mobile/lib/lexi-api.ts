@@ -457,6 +457,15 @@ export async function pushEasUpdate(channel = "personal", message = "OTA update"
   });
 }
 
+// =================== EAS Build APK ===================
+export async function triggerApkBuild(profile = "preview"): Promise<Response> {
+  return fetch(apiUrl("/eas/build"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ profile }),
+  });
+}
+
 // =================== VPN / Tor ===================
 export async function vpnStatus() {
   try {

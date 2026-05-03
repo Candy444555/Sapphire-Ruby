@@ -114,4 +114,43 @@ router.get("/eas/latest-apk", async (_req: Request, res: Response) => {
   }
 });
 
+// POST /api/eas/build  — triggers `eas build --platform android` and streams log lines back
+router.post("/eas/build", (req: Request, res: Response) => {
+  const token = process.env.EXPO_TOKEN;
+  if (!token) {
+    res.status(400).json({ error: "EXPO_TOKEN not configured on server." });
+    return;
+  }
+
+  const { profile: buildProfile = "preview" } = req.body as { profile?: string };
+
+  res.setHeader("Content-Type", "text/plain; charset=utf-8");
+  res.setHeader("Transfer-Encoding", "chunked");
+  res.setHeader("Cache-Control", "no-cache");
+  res.flushHeaders();
+
+  const cmd = `${EAS_BIN} build --platform android --profile ${buildProfile} --non-interactive`;
+  res.write(`Running: ${cmd}\n`);
+  res.write(`Building APK from current Replit code — this takes 10–20 minutes on EAS servers.\n\n`);
+
+  const child = exec(cmd, {
+    cwd: LEXI_MOBILE_DIR,
+    env: { ...process.env, EXPO_TOKEN: token, EAS_NO_VCS: "1" },
+    timeout: 1_800_000, // 30 min
+  });
+
+  child.stdout?.on("data", (d: string) => res.write(d));
+  child.stderr?.on("data", (d: string) => res.write(d));
+
+  child.on("close", (code) => {
+    res.write(`\n--- exited with code ${code} ---\n`);
+    res.end();
+  });
+
+  child.on("error", (err) => {
+    res.write(`\nError: ${err.message}\n`);
+    res.end();
+  });
+});
+
 export default router;

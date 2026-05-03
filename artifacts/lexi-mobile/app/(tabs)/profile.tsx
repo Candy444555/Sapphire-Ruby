@@ -15,7 +15,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { defaultBakedDomain, getApiBase, getApiUrl, loadApiDomain, pingServer, setApiDomain, getFeatherlessKey, setFeatherlessKey, loadFeatherlessKey, testFeatherlessKey } from "@/lib/lexi-api";
+import { defaultBakedDomain, getApiBase, getApiUrl, loadApiDomain, pingServer, setApiDomain, getFeatherlessKey, setFeatherlessKey, loadFeatherlessKey, testFeatherlessKey, triggerApkBuild } from "@/lib/lexi-api";
 import { useOtaUpdate } from "@/hooks/useOtaUpdate";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -66,6 +66,8 @@ export default function ProfileScreen() {
   const [build, setBuild] = useState<BuildInfo | null>(null);
   const [buildLoading, setBuildLoading] = useState(false);
   const [buildError, setBuildError] = useState<string>("");
+  const [building, setBuilding] = useState(false);
+  const [buildLog, setBuildLog] = useState("");
 
   const loadBuild = async () => {
     setBuildLoading(true);
@@ -79,6 +81,38 @@ export default function ProfileScreen() {
       setBuildError(e instanceof Error ? e.message : "Failed");
     } finally {
       setBuildLoading(false);
+    }
+  };
+
+  const startBuild = async () => {
+    if (!getApiBase()) {
+      Alert.alert("No Server", "Set your server URL first so Replit can run the build.");
+      return;
+    }
+    setBuilding(true);
+    setBuildLog("");
+    try {
+      const res = await triggerApkBuild("preview");
+      if (!res.body) throw new Error("No response body");
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let log = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        log += chunk;
+        setBuildLog(log);
+      }
+      const succeeded = log.includes("exited with code 0") || log.includes("Build successful");
+      if (succeeded) {
+        setBuildLog(log + "\n✓ Build complete — refreshing download link…");
+        await loadBuild();
+      }
+    } catch (e) {
+      setBuildLog(`Error: ${e instanceof Error ? e.message : "unknown"}`);
+    } finally {
+      setBuilding(false);
     }
   };
 
@@ -409,29 +443,60 @@ export default function ProfileScreen() {
       <View style={[styles.cardLeft, { backgroundColor: colors.card, borderColor: colors.border, gap: 8 }]}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
           <Feather name="download-cloud" size={16} color={colors.accent} />
-          <Text style={{ flex: 1, color: colors.accent, fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.5 }}>LATEST APK</Text>
-          <Pressable onPress={loadBuild} hitSlop={6} disabled={buildLoading}>
+          <Text style={{ flex: 1, color: colors.accent, fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.5 }}>APK BUILD</Text>
+          <Pressable onPress={loadBuild} hitSlop={6} disabled={buildLoading || building}>
             {buildLoading ? <ActivityIndicator size="small" color={colors.primary} /> : <Feather name="refresh-cw" size={14} color={colors.mutedForeground} />}
           </Pressable>
         </View>
+
+        <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>
+          Build a fresh APK from the current Replit code and download it to your phone. Takes 10–20 min.
+        </Text>
+
+        {/* Build trigger button */}
+        <Pressable
+          onPress={startBuild}
+          disabled={building || !getApiBase()}
+          style={{
+            padding: 10, borderRadius: 10, alignItems: "center", flexDirection: "row",
+            justifyContent: "center", gap: 8,
+            backgroundColor: building ? colors.muted : "#238636",
+            opacity: !getApiBase() ? 0.4 : 1,
+          }}
+        >
+          {building
+            ? <ActivityIndicator size="small" color={colors.foreground} />
+            : <Feather name="package" size={14} color="#fff" />}
+          <Text style={{ color: building ? colors.foreground : "#fff", fontFamily: "Inter_600SemiBold", fontSize: 12 }}>
+            {building ? "Building on EAS servers…" : "Build New APK from Replit"}
+          </Text>
+        </Pressable>
+
+        {/* Live log output */}
+        {!!buildLog && (
+          <ScrollView style={{ maxHeight: 180, borderRadius: 8, backgroundColor: "#0d1117", borderWidth: 1, borderColor: colors.border, padding: 10 }}>
+            <Text selectable style={{ color: "#e6edf3", fontFamily: "Courier", fontSize: 10, lineHeight: 16 }}>{buildLog}</Text>
+          </ScrollView>
+        )}
+
+        {/* Latest build info + download */}
         {buildError ? (
           <Text style={{ color: colors.destructive, fontSize: 11, fontFamily: "Inter_500Medium" }}>✗ {buildError}</Text>
         ) : build === null ? (
-          <Text style={{ color: colors.mutedForeground, fontSize: 11, fontStyle: "italic" }}>Loading…</Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 11, fontStyle: "italic" }}>Checking for builds…</Text>
         ) : !build.found ? (
-          <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>No successful builds yet for {build.project ?? "project"}.</Text>
+          <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>No successful builds yet — tap Build above to create one.</Text>
         ) : build.build ? (
           <>
+            <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 2 }} />
+            <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: "Inter_500Medium", letterSpacing: 0.5 }}>LAST BUILD</Text>
             <Text style={{ color: colors.foreground, fontFamily: "Inter_500Medium", fontSize: 13 }}>
-              v{build.build.appVersion} ({build.build.versionCode}) · {build.build.profile}
+              v{build.build.appVersion} · {build.build.profile}
             </Text>
             <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>
-              Built {new Date(build.build.completedAt).toLocaleString()}
+              {new Date(build.build.completedAt).toLocaleString()}
             </Text>
-            <Text style={{ color: colors.mutedForeground, fontSize: 11 }} numberOfLines={1}>
-              {build.project}
-            </Text>
-            <View style={{ flexDirection: "row", gap: 8, marginTop: 4 }}>
+            <View style={{ flexDirection: "row", gap: 8 }}>
               <Pressable
                 onPress={() => Linking.openURL(build.build!.apkUrl)}
                 style={{ flex: 1, padding: 10, borderRadius: 10, backgroundColor: colors.primary, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: 6 }}

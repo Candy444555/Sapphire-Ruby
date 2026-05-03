@@ -1,0 +1,6 @@
+{
+  "name": "Motorola Unlock",
+  "type": "script",
+  "mainFile": "imei-unlock.py",
+  "path": "/home/runner/workspace/lexi-projects/motorola-unlock"
+}

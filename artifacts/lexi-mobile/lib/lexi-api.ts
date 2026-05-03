@@ -202,13 +202,59 @@ async function streamFeatherlessDirect(
 }
 
 // =================== Streaming chat (regular) ===================
-// Always goes directly to Featherless.ai — no server needed
+// Prefer the API server when one is configured (proven SSE path the agent uses,
+// no Featherless key needed on the device, retries + keepalives + search context).
+// Falls back to direct Featherless when no server is reachable AND a key is set.
 export async function streamLexi(
   messages: ChatMsg[],
   onToken: (chunk: string) => void,
   opts: { model?: string; systemPrompt?: string; signal?: AbortSignal } = {},
 ): Promise<void> {
+  if (getApiBase()) {
+    return streamServerChat(messages, onToken, opts);
+  }
   return streamFeatherlessDirect(messages, onToken, opts);
+}
+
+async function streamServerChat(
+  messages: ChatMsg[],
+  onToken: (chunk: string) => void,
+  opts: { model?: string; systemPrompt?: string; signal?: AbortSignal } = {},
+): Promise<void> {
+  const model = opts.model ?? "lexi-uncensored-v2-8b";
+  const res = await expoFetch(apiUrl("/chat"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model, messages, systemPrompt: opts.systemPrompt }),
+    signal: opts.signal,
+  });
+  if (!res.ok || !res.body) {
+    let msg = `HTTP ${res.status}`;
+    try { const j = await res.json(); msg = (j as any)?.error ?? msg; } catch {}
+    throw new Error(msg);
+  }
+  const reader = (res.body as ReadableStream<Uint8Array>).getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let i: number;
+    while ((i = buf.indexOf("\n\n")) >= 0) {
+      const ev = buf.slice(0, i);
+      buf = buf.slice(i + 2);
+      if (!ev.startsWith("data: ")) continue;
+      const payload = ev.slice(6).trim();
+      if (!payload) continue;
+      if (payload === "[DONE]") return;
+      if (payload.startsWith("[ERROR]")) throw new Error(payload.slice(7).trim() || "Server error");
+      try {
+        const tok = JSON.parse(payload);
+        if (typeof tok === "string" && tok) onToken(tok);
+      } catch { /* skip malformed */ }
+    }
+  }
 }
 
 // =================== Streaming agent ===================

@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { z } from "zod";
 import { isTorReady, getTorSocksUrl } from "./vpn";
-import { buildPrivacyHeaders, sanitizeError } from "../services/privacy";
+import { buildPrivacyHeaders, buildFetchOptions, sanitizeError } from "../services/privacy";
 import { searchInternet, formatSearchContext, extractSearchQuery, searchDarkWeb, formatDarkWebContext } from "../services/web-search";
 
 const router: IRouter = Router();
@@ -135,19 +135,11 @@ async function fetchFeatherless(
   apiKey: string,
   attempt: number
 ): Promise<globalThis.Response> {
-  const fetchOptions: RequestInit & { agent?: unknown } = {
-    method: "POST",
-    headers: buildPrivacyHeaders(apiKey),
-    body: JSON.stringify({
-      model: modelId,
-      messages: hfMessages,
-      stream: true,
-    }),
-  };
-
-  // Note: Featherless API calls go direct (not through Tor) — Tor is reserved
-  // for user-initiated research traffic the agent runs via shell commands.
-  // Routing the LLM call through Tor causes intermittent timeouts/hangs.
+  const fetchOptions = buildFetchOptions(apiKey, {
+    model: modelId,
+    messages: hfMessages,
+    stream: true,
+  });
 
   const response = await fetch(FEATHERLESS_API_URL, fetchOptions);
 

@@ -24,7 +24,7 @@ let cachedAgent: SocksProxyAgent | null = null;
 let cachedIp: string | null = null;
 let cachedCountry: string | null = null;
 let ipCacheTs = 0;
-const IP_CACHE_TTL_MS = 15_000;
+const IP_CACHE_TTL_MS = 3_000;
 
 async function fetchExitIp(): Promise<{ ip: string; country: string } | null> {
   if (!torReady) return null;
@@ -49,7 +49,7 @@ async function fetchExitIp(): Promise<{ ip: string; country: string } | null> {
 }
 
 const ROTATE_INTERVAL_MS = 2_000;
-const ROTATE_COOLDOWN_MS = 2_000;
+const ROTATE_COOLDOWN_MS = 1_500;
 
 export function isTorReady(): boolean {
   return torReady;
@@ -161,17 +161,13 @@ function sendControlCommand(cmd: string): Promise<string> {
   });
 }
 
-async function rotateCircuit(): Promise<{ ok: boolean; reason?: string }> {
-  const now = Date.now();
-  if (now - lastRotateTs < ROTATE_COOLDOWN_MS) {
-    return { ok: false, reason: "cooldown" };
-  }
+async function doRotate(): Promise<{ ok: boolean; reason?: string }> {
   if (!torReady) {
     return { ok: false, reason: `bootstrapping ${torBootstrapPct}%` };
   }
   try {
     await sendControlCommand("SIGNAL NEWNYM");
-    lastRotateTs = now;
+    lastRotateTs = Date.now();
     totalRotations++;
     cachedAgent = new SocksProxyAgent(getTorSocksUrl());
     // Bust IP cache so next status call fetches fresh exit node
@@ -184,10 +180,19 @@ async function rotateCircuit(): Promise<{ ok: boolean; reason?: string }> {
   }
 }
 
+async function rotateCircuit(): Promise<{ ok: boolean; reason?: string }> {
+  const now = Date.now();
+  if (now - lastRotateTs < ROTATE_COOLDOWN_MS) {
+    return { ok: false, reason: "cooldown" };
+  }
+  return doRotate();
+}
+
 function startAutoRotate(): void {
   if (autoRotateTimer) return;
+  // Auto-rotate bypasses the user-facing cooldown — the interval itself is the rate limit
   autoRotateTimer = setInterval(() => {
-    rotateCircuit().catch(() => {});
+    doRotate().catch(() => {});
   }, ROTATE_INTERVAL_MS);
   console.log("[VPN] Auto-rotation started (every 2s)");
 }

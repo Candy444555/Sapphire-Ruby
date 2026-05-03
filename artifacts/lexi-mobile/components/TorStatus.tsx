@@ -26,7 +26,7 @@ export function TorStatus() {
       if (v) setInfo(v);
     };
     tick();
-    const id = setInterval(tick, 15000);
+    const id = setInterval(tick, 3000);
     return () => { alive = false; clearInterval(id); };
   }, []);
 

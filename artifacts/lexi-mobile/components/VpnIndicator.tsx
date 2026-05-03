@@ -28,7 +28,7 @@ export function VpnIndicator() {
 
   useEffect(() => {
     fetchStatus();
-    const id = setInterval(fetchStatus, 15000);
+    const id = setInterval(fetchStatus, 3000);
     return () => clearInterval(id);
   }, []);
 

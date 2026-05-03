@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { z } from "zod";
 import { isTorReady, getTorSocksUrl } from "./vpn";
 import { buildPrivacyHeaders, buildFetchOptions, sanitizeError } from "../services/privacy";
-import { searchInternet, formatSearchContext, extractSearchQuery, searchDarkWeb, formatDarkWebContext } from "../services/web-search";
+import { searchInternet, formatSearchContext, extractSearchQuery, searchDarkWeb, formatDarkWebContext, scrubUserFacingText, logSearchSourcesForDebug } from "../services/web-search";
 
 const router: IRouter = Router();
 
@@ -179,13 +179,16 @@ async function streamChat(
   let searchContext = "";
   if (searchQuery) {
     try {
-      const searches: Promise<string>[] = [
-        searchInternet(searchQuery).then(formatSearchContext).catch(() => ""),
-      ];
+      const webPromise = searchInternet(searchQuery)
+        .then((bundle) => { logSearchSourcesForDebug(searchQuery, bundle, "web"); return formatSearchContext(bundle); })
+        .catch(() => "");
+      const searches: Promise<string>[] = [webPromise];
 
       if (isTorReady()) {
         searches.push(
-          searchDarkWeb(searchQuery, getTorSocksUrl()).then(formatDarkWebContext).catch(() => ""),
+          searchDarkWeb(searchQuery, getTorSocksUrl())
+            .then((bundle) => { logSearchSourcesForDebug(searchQuery, bundle, "tor"); return formatDarkWebContext(bundle); })
+            .catch(() => ""),
         );
       }
 
@@ -233,6 +236,29 @@ async function streamChat(
     let buffer = "";
     let done = false;
 
+    // Rolling tail buffer used for streaming-aware URL/citation scrubbing.
+    // We hold back up to TAIL_HOLDBACK chars so a URL split across chunks
+    // (e.g. "https://exa" + "mple.com") can still be detected and stripped
+    // before the first half is sent to the client.
+    let scrubTail = "";
+    const TAIL_HOLDBACK = 96; // covers the longest URL we want to catch on a boundary
+    const flushScrubbed = (chunk: string, isFinal: boolean) => {
+      scrubTail += chunk;
+      let toEmit: string;
+      if (isFinal) {
+        toEmit = scrubTail;
+        scrubTail = "";
+      } else if (scrubTail.length > TAIL_HOLDBACK) {
+        toEmit = scrubTail.slice(0, scrubTail.length - TAIL_HOLDBACK);
+        scrubTail = scrubTail.slice(scrubTail.length - TAIL_HOLDBACK);
+      } else {
+        toEmit = "";
+      }
+      if (!toEmit) return;
+      const cleaned = scrubUserFacingText(toEmit);
+      if (cleaned) res.write(`data: ${JSON.stringify(cleaned)}\n\n`);
+    };
+
     while (!done) {
       const { done: readerDone, value } = await reader.read();
       if (readerDone) break;
@@ -257,7 +283,7 @@ async function streamChat(
           const chunk = JSON.parse(jsonStr);
           const token = chunk.choices?.[0]?.delta?.content;
           if (token != null) {
-            res.write(`data: ${JSON.stringify(token)}\n\n`);
+            flushScrubbed(token, false);
           }
           if (chunk.choices?.[0]?.finish_reason != null) {
             done = true;
@@ -267,6 +293,9 @@ async function streamChat(
         }
       }
     }
+
+    // Flush any remaining tail through the scrubber.
+    flushScrubbed("", true);
 
     finish();
   } catch (err) {

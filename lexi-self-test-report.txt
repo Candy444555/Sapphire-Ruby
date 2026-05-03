@@ -1,0 +1,18 @@
+Lexi self-test report
+Generated: 2026-04-26T06:53:58.600Z
+API base:  http://localhost:8080
+Overall:   PASS  (13/13 passed)
+
+[PASS] workspace.pnpm-workspace.yaml exists  — /home/runner/workspace/pnpm-workspace.yaml
+[PASS] artifacts.lexi-mobile.app.json has expanded Android permissions  — 71 permissions, all required present
+[PASS] artifacts.lexi-mobile.app.json has matching iOS infoPlist usage strings  — 19 infoPlist keys present
+[PASS] artifacts.mockup-sandbox.vite.config.ts builds without PORT/BASE_PATH  — PORT/BASE_PATH have safe defaults
+[PASS] api-server.skills directory + manifest exists  — /home/runner/workspace/artifacts/api-server/src/skills
+[PASS] api-server.web-search exports scrubUserFacingText + logSearchSourcesForDebug  — ok
+[PASS] api-server.agent.ts wires SELF_PATCH_JS_SKILL tag  — ok
+[PASS] api-server.app.ts wires self-heal middleware  — ok
+[PASS] lexi-mobile.scripts/build.js bumps versionCode + writes build-info  — ok
+[PASS] lexi-mobile.profile shows source-hash on About card  — ok
+[PASS] api.http://localhost:8080/api/healthz responds  — HTTP 200
+[PASS] api.http://localhost:8080/api/self-heal/status reports kill-switch  — enabled=true cap=3
+[PASS] api.http://localhost:8080/api/js-skills lists registry  — skills=0 loaded=0

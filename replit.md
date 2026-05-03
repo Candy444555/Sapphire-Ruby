@@ -37,6 +37,16 @@ artifacts-monorepo/
 └── package.json
 ```
 
+## Lexi upgrades (2026-04)
+
+- **Deploy fix**: `artifacts/mockup-sandbox/vite.config.ts` no longer throws on missing `PORT`/`BASE_PATH` at config-load time — defaults to port 5173 and `/` so `vite build` works during the deploy build phase.
+- **Android permissions** (`artifacts/lexi-mobile/app.json`): expanded to the full personal-APK set (storage, install/uninstall, alert window, SMS, calls, body sensors, biometric, foreground services, boot-completed, exact alarms, BT scan/advertise, nearby Wi-Fi, background location). iOS `infoPlist` mirrors with usage strings and `UIBackgroundModes`.
+- **JS skill registry**: new directory `artifacts/api-server/src/skills/` with `manifest.json`. Agent can emit `[SELF_PATCH_JS_SKILL name="x" description="…"] module.exports = { name, description, run } [/SELF_PATCH_JS_SKILL]`. Skills are written as real CJS modules and hot-loaded via `loadAllJsSkills()` (called on server start and on every fuse). Old Python path stays for backward compatibility. Routes: `GET/POST/DELETE /api/js-skills`, `POST /api/js-skills/:slug/call`.
+- **Self-heal layer**: `artifacts/api-server/src/middlewares/selfHeal.ts` registered as the final Express error handler. Fingerprints errors by `method+path+stack-head`, caps retries at 3 per fingerprint, persists every attempt to `lexi-self-heal.log`, exposes snapshot via `GET /api/self-heal/status`. Kill-switch: `LEXI_SELF_HEAL=off`.
+- **Internet-augmented synthesis with no URLs in user-facing text**: `artifacts/api-server/src/services/web-search.ts` rewrites `formatSearchContext` to strip URLs from the model's context (titles + snippets only) and adds `rankByDomainAgreement`. New `scrubUserFacingText` strips URLs/bare domains and "according to / sources say / I searched" phrasing from outgoing replies. Applied in `agent.ts` (post-clean) and in `chat.ts` (rolling-tail buffer over the SSE stream so URLs split across chunks are still caught). Sources are written to `lexi-search-debug.log` for review only.
+- **APK builder source-hash + About screen + version bump**: `artifacts/lexi-mobile/scripts/build.js` now hashes the live source tree (`app/`, `assets/`, `components/`, `hooks/`, `lib/`, `app.json`, `package.json`), bumps `android.versionCode`, and writes `artifacts/lexi-mobile/lib/build-info.ts` containing `{ sourceHash, versionCode, timestamp, builtAt }`. `app/(tabs)/profile.tsx` shows an "About this build" card with the hash, code, and ISO timestamp.
+- **Self-test**: `scripts/lexi-self-test.mjs` probes all of the above and writes `lexi-self-test-report.txt` (PASS/FAIL per check + overall). Run with `node scripts/lexi-self-test.mjs`. Latest run: 13/13 PASS.
+
 ## NEXUS — Uncensored AI Chat App
 
 The main artifact is the **AI Chat** app at `/`. Primary AI is **Lexi** (Llama 3.1 8B Lexi Uncensored V2).

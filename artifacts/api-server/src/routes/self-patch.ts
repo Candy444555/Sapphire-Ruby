@@ -2,13 +2,110 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { createRequire } from "module";
 
 const router: IRouter = Router();
 const routeDir = path.dirname(fileURLToPath(import.meta.url));
+const skillRequire = createRequire(import.meta.url);
 type FusedExtension = {
   slug: string;
   description: string;
 };
+
+// ── JavaScript skill modules ───────────────────────────────────────────────────
+// New permanent skills go here as real ESM JS modules so they become a first-class
+// part of Lexi's source tree. Loaded automatically on next start by `loadAllJsSkills`.
+export const JS_SKILLS_DIR = path.resolve(routeDir, "../skills");
+const JS_SKILLS_MANIFEST = path.join(JS_SKILLS_DIR, "manifest.json");
+
+type JsSkill = {
+  slug: string;
+  description: string;
+  filePath: string;
+  addedAt: string;
+};
+
+function ensureJsSkillsDir() {
+  if (!fs.existsSync(JS_SKILLS_DIR)) fs.mkdirSync(JS_SKILLS_DIR, { recursive: true });
+}
+
+function readJsSkillsManifest(): Record<string, JsSkill> {
+  if (!fs.existsSync(JS_SKILLS_MANIFEST)) return {};
+  try { return JSON.parse(fs.readFileSync(JS_SKILLS_MANIFEST, "utf-8")); } catch { return {}; }
+}
+
+function writeJsSkillsManifest(manifest: Record<string, JsSkill>) {
+  ensureJsSkillsDir();
+  fs.writeFileSync(JS_SKILLS_MANIFEST, JSON.stringify(manifest, null, 2), "utf-8");
+}
+
+export function fuseJsSkill(name: string, code: string, description?: string): { slug: string; filePath: string; description: string } {
+  ensureJsSkillsDir();
+  const slug = sanitizeExtensionName(name);
+  const filePath = path.join(JS_SKILLS_DIR, `${slug}.js`);
+  const safeDescription = description ?? "(none)";
+  const timestamp = new Date().toISOString();
+  const header = `// LEXI JS SKILL: ${slug}\n// Added: ${timestamp}\n// Description: ${safeDescription}\n// This module is loaded automatically into Lexi's skill router on next server start.\n\n`;
+  const wrapped = code.includes("module.exports") || code.includes("export ")
+    ? code
+    : `module.exports = { name: ${JSON.stringify(slug)}, description: ${JSON.stringify(safeDescription)}, run: async function(input) {\n${code}\n} };\n`;
+  fs.writeFileSync(filePath, header + wrapped, "utf-8");
+  const manifest = readJsSkillsManifest();
+  manifest[slug] = { slug, description: safeDescription, filePath, addedAt: timestamp };
+  writeJsSkillsManifest(manifest);
+  return { slug, filePath, description: safeDescription };
+}
+
+export function getJsSkills(): JsSkill[] {
+  return Object.values(readJsSkillsManifest());
+}
+
+export function deleteJsSkill(slug: string): boolean {
+  const manifest = readJsSkillsManifest();
+  if (!manifest[slug]) return false;
+  const filePath = manifest[slug].filePath;
+  if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  delete manifest[slug];
+  writeJsSkillsManifest(manifest);
+  return true;
+}
+
+// In-memory router populated at startup by loadAllJsSkills().
+const loadedJsSkills = new Map<string, { name: string; description?: string; run?: (input: unknown) => unknown }>();
+
+export function loadAllJsSkills(): { loaded: number; failed: string[] } {
+  const failed: string[] = [];
+  let loaded = 0;
+  ensureJsSkillsDir();
+  const manifest = readJsSkillsManifest();
+  for (const skill of Object.values(manifest)) {
+    try {
+      const resolved = skillRequire.resolve(skill.filePath);
+      delete skillRequire.cache[resolved];
+      const mod = skillRequire(skill.filePath);
+      const handler = mod?.default ?? mod;
+      loadedJsSkills.set(skill.slug, {
+        name: handler?.name ?? skill.slug,
+        description: handler?.description ?? skill.description,
+        run: typeof handler?.run === "function" ? handler.run : undefined,
+      });
+      loaded++;
+    } catch (e) {
+      failed.push(`${skill.slug}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  }
+  return { loaded, failed };
+}
+
+export function callJsSkill(slug: string, input?: unknown): unknown {
+  const skill = loadedJsSkills.get(slug);
+  if (!skill || !skill.run) return undefined;
+  return skill.run(input);
+}
+
+export function listLoadedJsSkills(): { name: string; description?: string }[] {
+  return [...loadedJsSkills.values()].map((s) => ({ name: s.name, description: s.description }));
+}
 
 // ── Python scripts ─────────────────────────────────────────────────────────────
 // Stored inside the workspace root so they survive environment resets and are tracked with the project
@@ -256,6 +353,48 @@ router.delete("/python-scripts", (_req: Request, res: Response) => {
   const scripts = getPythonScripts();
   scripts.forEach((s) => deletePythonScript(s.slug));
   res.json({ ok: true, message: "All Python scripts cleared." });
+});
+
+// ── JS skill routes ────────────────────────────────────────────────────────────
+
+router.get("/js-skills", (_req: Request, res: Response) => {
+  res.json({ skills: getJsSkills(), loaded: listLoadedJsSkills() });
+});
+
+router.post("/js-skills", (req: Request, res: Response) => {
+  const { name, code, description } = req.body as { name?: string; code?: string; description?: string };
+  if (!name || !code) {
+    res.status(400).json({ error: "name and code are required" });
+    return;
+  }
+  const result = fuseJsSkill(name, code, description);
+  // Reload the registry so the new skill is callable immediately, no restart required.
+  const reload = loadAllJsSkills();
+  res.json({ ok: true, ...result, reload, message: `JS skill "${result.slug}" fused into Lexi.` });
+});
+
+router.delete("/js-skills/:slug", (req: Request, res: Response) => {
+  const slug = String(req.params.slug);
+  const ok = deleteJsSkill(slug);
+  loadAllJsSkills();
+  res.json({ ok, slug });
+});
+
+router.delete("/js-skills", (_req: Request, res: Response) => {
+  const skills = getJsSkills();
+  skills.forEach((s) => deleteJsSkill(s.slug));
+  loadAllJsSkills();
+  res.json({ ok: true, message: "All JS skills cleared." });
+});
+
+router.post("/js-skills/:slug/call", (req: Request, res: Response) => {
+  const slug = String(req.params.slug);
+  try {
+    const result = callJsSkill(slug, req.body?.input);
+    res.json({ ok: result !== undefined, slug, result });
+  } catch (e) {
+    res.status(500).json({ ok: false, slug, error: e instanceof Error ? e.message : String(e) });
+  }
 });
 
 export default router;

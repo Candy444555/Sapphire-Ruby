@@ -291,42 +291,137 @@ export function formatDarkWebContext(bundle: SearchBundle): string {
   return lines.join("\n");
 }
 
+// Strip a URL into just the host so the model never sees raw links it could
+// repeat back to the user. Keeps domain context for ranking but removes the
+// full path/query that tends to leak into replies as "according to <url>".
+function urlToHost(url: string): string {
+  try {
+    const u = new URL(url);
+    return u.host.replace(/^www\./, "");
+  } catch {
+    return "";
+  }
+}
+
+// Tally how many sources mention the same domain so the synthesizer can rank
+// "confirmed by N sources" without leaking the actual URL list.
+function rankByDomainAgreement(results: SearchResult[]): SearchResult[] {
+  const domainCounts = new Map<string, number>();
+  for (const r of results) {
+    const host = urlToHost(r.url);
+    if (host) domainCounts.set(host, (domainCounts.get(host) ?? 0) + 1);
+  }
+  return [...results].sort((a, b) => {
+    const ra = domainCounts.get(urlToHost(a.url)) ?? 0;
+    const rb = domainCounts.get(urlToHost(b.url)) ?? 0;
+    return rb - ra;
+  });
+}
+
 export function formatSearchContext(bundle: SearchBundle): string {
   if (!bundle.instantAnswer && bundle.results.length === 0) return "";
 
+  const ranked = rankByDomainAgreement(bundle.results).slice(0, 8);
+  const distinctDomains = new Set(ranked.map((r) => urlToHost(r.url)).filter(Boolean));
+
   const lines: string[] = [
-    `=== LIVE WEB SEARCH RESULTS FOR: "${bundle.query}" ===`,
-    `Retrieved: ${bundle.timestamp}`,
+    `=== INTERNAL RESEARCH CONTEXT (do NOT cite, do NOT repeat URLs) ===`,
+    `Topic: "${bundle.query}"`,
+    `Distinct sources consulted: ${distinctDomains.size}`,
     "",
   ];
 
   if (bundle.instantAnswer) {
-    lines.push(`QUICK ANSWER: ${bundle.instantAnswer}`);
-    lines.push("");
-  }
-
-  if (bundle.results.length > 0) {
-    lines.push("TOP RESULTS:");
-    for (let i = 0; i < bundle.results.length; i++) {
-      const r = bundle.results[i];
-      lines.push(`[${i + 1}] ${r.title}`);
-      lines.push(`    Source: ${r.url}`);
-      if (r.snippet) lines.push(`    ${r.snippet.slice(0, 400)}`);
+    // Strip any URL that may be embedded in the instant-answer string.
+    const cleanAnswer = bundle.instantAnswer.replace(/https?:\/\/\S+/g, "").trim();
+    if (cleanAnswer) {
+      lines.push(`Direct answer signal: ${cleanAnswer}`);
       lines.push("");
     }
   }
 
+  if (ranked.length > 0) {
+    lines.push("Synthesised facts (sources stripped on purpose — never quote them):");
+    for (let i = 0; i < ranked.length; i++) {
+      const r = ranked[i];
+      // Title + snippet only. URLs deliberately omitted so the model literally
+      // cannot reproduce them in its reply.
+      const safeTitle = r.title.replace(/https?:\/\/\S+/g, "").trim();
+      const safeSnippet = (r.snippet ?? "").replace(/https?:\/\/\S+/g, "").trim();
+      lines.push(`- ${safeTitle}`);
+      if (safeSnippet) lines.push(`  ${safeSnippet.slice(0, 360)}`);
+    }
+  }
+
   lines.push(
-    "=== HOW TO USE THESE RESULTS ===",
-    "You just pulled this fresh from the internet. Use it naturally — work it into your reply the way a knowledgeable person would.",
-    "Don't recite a list. Don't say 'according to result [2]'. Just talk — weave the key facts, names, numbers, and context directly into what you say.",
-    "If something is confirmed by multiple sources, say it confidently. If results conflict, acknowledge it briefly.",
-    "Mention a source URL only if it genuinely adds value (e.g. the user can go read more). Otherwise keep it conversational.",
-    "These results are your ground truth — prioritise them over anything from your training data when they conflict.",
-    "=== END SEARCH RESULTS ===",
+    "",
+    "=== SYNTHESIS RULES (HARD) ===",
+    "1. Decide on the SINGLE best answer by weighting facts that recur across multiple of the items above.",
+    "2. Speak in your own conversational voice. NEVER say 'according to', 'I found', 'sources say', 'based on search', 'I searched the web', or any phrasing that hints you ran a search.",
+    "3. NEVER include a URL, domain name, hostname, or 'see X for more'. URLs are forbidden in user-facing text.",
+    "4. NEVER list sources. NEVER produce a citation footer.",
+    "5. If the items contradict each other or do not cover the question, say so plainly in plain English (e.g. 'I'm not sure — the answers I have disagree' or 'I don't have a reliable answer for that') instead of guessing.",
+    "6. If the items are unanimous, state the answer confidently in one short paragraph.",
+    "=== END INTERNAL CONTEXT ===",
   );
 
   return lines.join("\n");
+}
+
+// Final guard applied to the assistant's outgoing text. Belt-and-braces with
+// the system-prompt rules above: even if the model tries to leak a URL, this
+// scrubs it before the user sees it.
+const URL_REGEX = /\bhttps?:\/\/[^\s)\]]+/gi;
+const BARE_DOMAIN_REGEX = /\b[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.(?:com|net|org|io|ai|co|dev|app|fi|onion|gov|edu|info)\b(?:\/[^\s)\]]*)?/gi;
+const CITATION_PHRASES: RegExp[] = [
+  /\baccording to (?:[^.,;\n]+?)(?=[.,;\n])/gi,
+  /\bbased on (?:my )?(?:web )?search(?:es)?\b[^.,;\n]*/gi,
+  /\bI (?:just )?searched (?:the (?:web|internet))?[^.,;\n]*/gi,
+  /\bsources? say(?:s)?[^.,;\n]*/gi,
+  /\bas reported by [^.,;\n]+/gi,
+  /\bsee (?:more at )?https?:\/\/\S+/gi,
+];
+
+export function scrubUserFacingText(text: string): string {
+  if (!text) return text;
+  let out = text;
+  for (const re of CITATION_PHRASES) out = out.replace(re, "");
+  out = out.replace(URL_REGEX, "");
+  out = out.replace(BARE_DOMAIN_REGEX, (m) => {
+    // Keep file-extension-looking matches (foo.io.txt etc.) untouched if part of a code identifier.
+    if (/^\w+\.\w+\.\w+/.test(m)) return m;
+    return "";
+  });
+  // Tidy up the leftover " (  )", "  ", "( )"
+  out = out
+    .replace(/\(\s*\)/g, "")
+    .replace(/\[\s*\]/g, "")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/ ?, ?,/g, ",")
+    .replace(/\n{3,}/g, "\n\n");
+  return out.trim();
+}
+
+// Append a debug-only record of which sources fed an answer. Caller must be in
+// the api-server runtime — file path is rooted at the workspace.
+import fs from "fs";
+import path from "path";
+import { fileURLToPath as _fileURLToPath } from "url";
+const _moduleDir = path.dirname(_fileURLToPath(import.meta.url));
+const SEARCH_DEBUG_LOG = path.resolve(_moduleDir, "../../../../lexi-search-debug.log");
+export function logSearchSourcesForDebug(query: string, bundle: SearchBundle, kind: "web" | "tor" = "web"): void {
+  try {
+    const lines: string[] = [
+      `[${new Date().toISOString()}] kind=${kind} query="${query.slice(0, 200)}"`,
+    ];
+    for (const r of bundle.results.slice(0, 8)) {
+      lines.push(`  - ${r.title.slice(0, 120)}  <${r.url}>`);
+    }
+    lines.push("");
+    fs.appendFileSync(SEARCH_DEBUG_LOG, lines.join("\n"), "utf-8");
+  } catch {
+    // never let logging break a request
+  }
 }
 
 export function extractSearchQuery(messages: { role: string; content: string }[]): string {

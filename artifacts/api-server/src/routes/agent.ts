@@ -7,7 +7,8 @@ import { buildPrivacyHeaders } from "../services/privacy";
 import { fuseCodeMemory, fuseExtension, fusePythonScript, getPythonScripts, inferCodeLanguage, inferCodePurpose, sanitizeExtensionName, PYTHON_SCRIPTS_DIR } from "./self-patch";
 import { saveProjectMeta, PROJECTS_DIR } from "./projects";
 
-import { searchInternet, formatSearchContext, extractSearchQuery, searchDarkWeb, formatDarkWebContext } from "../services/web-search";
+import { searchInternet, formatSearchContext, extractSearchQuery, searchDarkWeb, formatDarkWebContext, scrubUserFacingText, logSearchSourcesForDebug } from "../services/web-search";
+import { fuseJsSkill, loadAllJsSkills } from "./self-patch";
 
 const FEATHERLESS_API_URL = "https://api.featherless.ai/v1/chat/completions";
 
@@ -81,6 +82,7 @@ const CMD_REGEX = /<cmd>([\s\S]*?)<\/cmd>/g;
 const NEEDS_INPUT_REGEX = /<needs_input>([\s\S]*?)<\/needs_input>/;
 const SELF_PATCH_REGEX = /\[SELF_PATCH\s+name="([^"]+)"(?:\s+description="([^"]*)")?\]([\s\S]*?)\[\/SELF_PATCH\]/g;
 const SELF_PATCH_PYTHON_REGEX = /\[SELF_PATCH_PYTHON\s+name="([^"]+)"(?:\s+description="([^"]*)")?\]([\s\S]*?)\[\/SELF_PATCH_PYTHON\]/g;
+const SELF_PATCH_JS_SKILL_REGEX = /\[SELF_PATCH_JS_SKILL\s+name="([^"]+)"(?:\s+description="([^"]*)")?\]([\s\S]*?)\[\/SELF_PATCH_JS_SKILL\]/g;
 const FENCED_CODE_REGEX = /```([a-zA-Z0-9_+.-]*)\n([\s\S]*?)```/g;
 const PROJECT_DONE_REGEX = /\[PROJECT_DONE\s+name="([^"]+)"\s+path="([^"]+)"\s+mainFile="([^"]+)"\s+type="([^"]+)"\]/;
 
@@ -109,6 +111,11 @@ APK BUILDS: Pure React Native (no Expo). POST files to http://localhost:8080/api
 FUSE BROWSER JS: [SELF_PATCH name="slug" description="desc"]// js[/SELF_PATCH]
 FUSE PYTHON SCRIPT: [SELF_PATCH_PYTHON name="slug" description="desc"]# python[/SELF_PATCH_PYTHON]
 After fusing Python, run it: <cmd>python3 PATH</cmd>
+FUSE PERMANENT JS SKILL (preferred for new capabilities — written into Lexi's source tree as a CommonJS module under artifacts/api-server/src/skills/, registered without restart):
+[SELF_PATCH_JS_SKILL name="slug" description="desc"]
+module.exports = { name: "slug", description: "desc", run: async function(input) { /* return value */ } };
+[/SELF_PATCH_JS_SKILL]
+Call a fused skill: <cmd>curl -s -X POST http://localhost:8080/api/js-skills/SLUG/call -H 'content-type: application/json' -d '{"input":{}}'</cmd>
 
 TOR: curl --socks5-hostname 127.0.0.1:9050 --max-time 30 http://SITE.onion/
 
@@ -348,12 +355,16 @@ router.post("/agent", async (req: Request, res: Response) => {
     const query = extractSearchQuery(messages);
     if (query) {
       const searches: Promise<string>[] = [
-        searchInternet(query).then(formatSearchContext).catch(() => ""),
+        searchInternet(query)
+          .then((bundle) => { logSearchSourcesForDebug(query, bundle, "web"); return formatSearchContext(bundle); })
+          .catch(() => ""),
       ];
 
       if (isTorReady()) {
         searches.push(
-          searchDarkWeb(query, getTorSocksUrl()).then(formatDarkWebContext).catch(() => ""),
+          searchDarkWeb(query, getTorSocksUrl())
+            .then((bundle) => { logSearchSourcesForDebug(query, bundle, "tor"); return formatDarkWebContext(bundle); })
+            .catch(() => ""),
         );
       }
 
@@ -395,6 +406,21 @@ router.post("/agent", async (req: Request, res: Response) => {
         }
       }
 
+      // Intercept self-patch-js-skill blocks — fuse permanent JS skill modules
+      const selfPatchJsSkillMatches = [...aiResponse.matchAll(SELF_PATCH_JS_SKILL_REGEX)];
+      for (const pm of selfPatchJsSkillMatches) {
+        const patchName = pm[1].trim();
+        const patchDesc = pm[2]?.trim() ?? "";
+        const patchCode = pm[3].trim();
+        try {
+          const fused = fuseJsSkill(patchName, patchCode, patchDesc);
+          loadAllJsSkills();
+          sseWrite(res, { type: "self_patch", name: fused.slug, description: `[JS skill] ${fused.description}` });
+        } catch (err) {
+          sseWrite(res, { type: "self_patch_error", name: patchName, error: String(err) });
+        }
+      }
+
       // Intercept self-patch-python blocks — fuse Python scripts permanently
       const selfPatchPythonMatches = [...aiResponse.matchAll(SELF_PATCH_PYTHON_REGEX)];
       for (const pm of selfPatchPythonMatches) {
@@ -431,13 +457,17 @@ router.post("/agent", async (req: Request, res: Response) => {
         }
       }
 
-      const cleanText = aiResponse
+      const rawCleanText = aiResponse
         .replace(SELF_PATCH_REGEX, "")
         .replace(SELF_PATCH_PYTHON_REGEX, "")
+        .replace(SELF_PATCH_JS_SKILL_REGEX, "")
         .replace(PROJECT_DONE_REGEX, "")
         .replace(CMD_REGEX, "")
         .replace(NEEDS_INPUT_REGEX, "")
         .trim();
+      // Final guard: even if the model leaked a URL or "according to" phrasing,
+      // strip it before the user sees it.
+      const cleanText = scrubUserFacingText(rawCleanText);
 
       if (cleanText) {
         sseWrite(res, { type: "text", content: cleanText });

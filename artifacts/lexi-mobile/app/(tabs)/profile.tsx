@@ -17,6 +17,7 @@ import {
 } from "react-native";
 import { defaultBakedDomain, getApiBase, getApiUrl, loadApiDomain, pingServer, setApiDomain, getFeatherlessKey, setFeatherlessKey, loadFeatherlessKey, testFeatherlessKey, triggerApkBuild } from "@/lib/lexi-api";
 import { saveApkToPhone } from "@/lib/save-to-device";
+import { BUILD_INFO } from "@/lib/build-info";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
@@ -494,7 +495,21 @@ export default function ProfileScreen() {
       <PermRow name="location" label="Location" icon="map-pin" />
       <PermRow name="contacts" label="Contacts" icon="users" />
 
-      <Text style={[styles.footer, { color: colors.mutedForeground }]}>Lexi Mobile v1.0.0</Text>
+      <View style={[styles.cardLeft, { backgroundColor: colors.card, borderColor: colors.border, gap: 6 }]}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Feather name="info" size={16} color={colors.accent} />
+          <Text style={{ color: colors.accent, fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.5 }}>ABOUT THIS BUILD</Text>
+        </View>
+        <Text style={{ color: colors.foreground, fontFamily: "Inter_500Medium", fontSize: 13 }}>Lexi Mobile</Text>
+        <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Source hash: {BUILD_INFO.sourceHash}</Text>
+        <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Bundled versionCode: {BUILD_INFO.versionCode}</Text>
+        <Text style={{ color: colors.mutedForeground, fontSize: 12 }}>Built at: {BUILD_INFO.builtAt}</Text>
+        <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16, marginTop: 4 }}>
+          Use this hash to confirm your installed APK matches the source tree on disk. The hash advances on every build.
+        </Text>
+      </View>
+
+      <Text style={[styles.footer, { color: colors.mutedForeground }]}>Lexi Mobile v1.0.0 · {BUILD_INFO.sourceHash}</Text>
     </ScrollView>
   );
 }

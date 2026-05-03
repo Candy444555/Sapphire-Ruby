@@ -224,39 +224,66 @@ export async function streamLexi(
 ): Promise<void> {
   if (getApiBase()) {
     let receivedAny = false;
-    const trackingOnToken = (t: string) => {
-      receivedAny = true;
+    const serverOnToken = (t: string) => {
+      if (!receivedAny) {
+        receivedAny = true;
+        opts.onMode?.("server");
+      }
       onToken(t);
     };
     try {
-      opts.onMode?.("server");
-      await streamServerChat(messages, trackingOnToken, opts);
+      await streamServerChat(messages, serverOnToken, opts);
+      if (!receivedAny) opts.onMode?.("server");
       return;
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") throw err;
       // Don't replay mid-stream — that would duplicate already-shown tokens.
       if (receivedAny) throw err;
       const key = getFeatherlessKey();
-      const serverMsg = err instanceof Error ? err.message : "unknown error";
+      const serverErr = err instanceof Error ? err.message : "unknown error";
+      const serverLabel = describeServerFailure(err);
       if (!key) {
         throw new Error(
-          `Server unreachable (${serverMsg}). Add your Featherless.ai key in Profile to enable direct fallback.`,
+          `${serverLabel} (${serverErr}). Add your Featherless.ai key in Profile to enable direct fallback.`,
         );
       }
+      let directReceivedAny = false;
+      const directOnToken = (t: string) => {
+        if (!directReceivedAny) {
+          directReceivedAny = true;
+          opts.onMode?.("direct");
+        }
+        onToken(t);
+      };
       try {
-        opts.onMode?.("direct");
-        await streamFeatherlessDirect(messages, onToken, opts);
+        await streamFeatherlessDirect(messages, directOnToken, opts);
+        if (!directReceivedAny) opts.onMode?.("direct");
         return;
       } catch (err2) {
         const directMsg = err2 instanceof Error ? err2.message : "unknown error";
         throw new Error(
-          `Server unreachable (${serverMsg}); Featherless direct also failed (${directMsg}).`,
+          `${serverLabel} (${serverErr}); Featherless direct also failed (${directMsg}).`,
         );
       }
     }
   }
-  opts.onMode?.("direct");
-  return streamFeatherlessDirect(messages, onToken, opts);
+  let directReceivedAny = false;
+  const directOnToken = (t: string) => {
+    if (!directReceivedAny) {
+      directReceivedAny = true;
+      opts.onMode?.("direct");
+    }
+    onToken(t);
+  };
+  await streamFeatherlessDirect(messages, directOnToken, opts);
+  if (!directReceivedAny) opts.onMode?.("direct");
+}
+
+function describeServerFailure(err: unknown): string {
+  const msg = err instanceof Error ? err.message : "";
+  if (/did not respond within/i.test(msg)) return "Server timed out";
+  if (/^HTTP \d/i.test(msg)) return "Server returned an error";
+  return "Server unreachable";
 }
 
 // Short timeout for the initial server connect / first-byte phase. If the

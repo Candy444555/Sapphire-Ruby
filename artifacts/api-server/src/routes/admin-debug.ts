@@ -126,7 +126,7 @@ function summarize(parsed: ParsedLine[]) {
 }
 
 router.get("/admin/chat-debug", (req: Request, res: Response) => {
-  if (!req.isAuthenticated || !req.isAuthenticated()) {
+  if (!req.isAuthenticated()) {
     res.status(401).json({ error: "unauthorized" });
     return;
   }

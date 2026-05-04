@@ -19,6 +19,7 @@ import codeRunRouter from "./code-run";
 import secretsRouter from "./secrets";
 import easBuildsRouter from "./eas-builds";
 import easUpdateRouter from "./eas-update";
+import adminDebugRouter from "./admin-debug";
 
 const router: IRouter = Router();
 
@@ -42,5 +43,6 @@ router.use(codeRunRouter);
 router.use(secretsRouter);
 router.use(easBuildsRouter);
 router.use(easUpdateRouter);
+router.use(adminDebugRouter);
 
 export default router;

@@ -453,7 +453,7 @@ import path from "path";
 import { fileURLToPath as _fileURLToPath } from "url";
 const _moduleDir = path.dirname(_fileURLToPath(import.meta.url));
 const SEARCH_DEBUG_LOG = path.resolve(_moduleDir, "../../../../lexi-search-debug.log");
-const CHAT_DEBUG_LOG = path.resolve(_moduleDir, "../../../../lexi-chat-debug.log");
+export const CHAT_DEBUG_LOG = path.resolve(_moduleDir, "../../../../lexi-chat-debug.log");
 
 // Per-chat diagnostic line. Records what the request actually looked like so
 // future regressions (refusals, language drift, code leakage) can be triaged

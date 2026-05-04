@@ -21,7 +21,7 @@
       "channel": "preview",
       "android": {
         "buildType": "apk",
-        "gradleCommand": ":app:assembleDebug"
+        "gradleCommand": ":app:assembleRelease"
       },
       "ios": {
         "simulator": false

@@ -126,6 +126,11 @@ function summarize(parsed: ParsedLine[]) {
 }
 
 router.get("/admin/chat-debug", (req: Request, res: Response) => {
+  if (!req.isAuthenticated || !req.isAuthenticated()) {
+    res.status(401).json({ error: "unauthorized" });
+    return;
+  }
+
   const limitParam = Number(req.query.limit ?? 50);
   const limit = Number.isFinite(limitParam) ? Math.min(Math.max(Math.trunc(limitParam), 1), 1000) : 50;
 

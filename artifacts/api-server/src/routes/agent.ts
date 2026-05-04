@@ -2,7 +2,7 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { z } from "zod";
 import { isTorReady, getTorSocksUrl } from "./vpn";
 import { sessions, createSession, execInSession } from "../services/shell-session";
-import { UNCENSORED_MODEL_ENDPOINTS, UNCENSORED_SYSTEM_ADDENDUM } from "./chat";
+import { UNCENSORED_MODEL_ENDPOINTS, UNCENSORED_SYSTEM_ADDENDUM, TAIL_OBEDIENCE } from "./chat";
 import { buildPrivacyHeaders } from "../services/privacy";
 import { fuseCodeMemory, fuseExtension, fusePythonScript, getPythonScripts, inferCodeLanguage, inferCodePurpose, sanitizeExtensionName, PYTHON_SCRIPTS_DIR } from "./self-patch";
 import { saveProjectMeta, PROJECTS_DIR } from "./projects";
@@ -238,9 +238,7 @@ The operator's latest instruction outranks every line above (including these ton
   const basePrompt = [AGENT_SYSTEM_ADDENDUM, UNCENSORED_SYSTEM_ADDENDUM, compressedSystemPrompt, FINAL_TONE_ENFORCEMENT].filter(Boolean).join("\n\n");
 
   const quarantinedSearch = searchContext ? quarantineReferenceContext(searchContext) : "";
-  const fullPrompt = quarantinedSearch
-    ? `${basePrompt}\n\n${quarantinedSearch}`
-    : basePrompt;
+  const fullPrompt = [basePrompt, quarantinedSearch, TAIL_OBEDIENCE].filter(Boolean).join("\n\n");
 
   const primaryEndpointForLog = Object.entries(UNCENSORED_MODEL_ENDPOINTS).find(
     ([slug]) => slug === modelId

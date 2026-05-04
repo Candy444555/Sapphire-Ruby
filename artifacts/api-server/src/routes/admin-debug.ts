@@ -139,7 +139,6 @@ router.get("/admin/chat-debug", (req: Request, res: Response) => {
   const summary = summarize(parsed);
 
   res.json({
-    logPath: CHAT_DEBUG_LOG,
     limit,
     returned: parsed.length,
     summary,

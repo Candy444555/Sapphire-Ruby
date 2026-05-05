@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
   },
-  assist: { paddingHorizontal: 14, paddingVertical: 10, borderRadius: 16, borderWidth: 1 },
+  assist: { paddingHorizontal: 14, paddingTop: 10, paddingBottom: 14, borderRadius: 16, borderWidth: 1, overflow: "visible" },
   cmd: { borderRadius: 10, borderWidth: 1, padding: 10, gap: 6 },
   cmdHead: { flexDirection: "row", alignItems: "center", gap: 6 },
   code: { fontFamily: "Courier", fontSize: 12, lineHeight: 18 },

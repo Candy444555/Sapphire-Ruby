@@ -21,6 +21,12 @@ const SCANNERS = [
   { name: "secrets", script: "scan-secrets.js", summary: "secrets.summary.json" },
   { name: "static", script: "scan-static.js", summary: "static.summary.json" },
   { name: "expo", script: "scan-expo.js", summary: "expo.summary.json" },
+  { name: "trivy", script: "scan-trivy.js", summary: "trivy.summary.json" },
+  { name: "bearer", script: "scan-bearer.js", summary: "bearer.summary.json" },
+  { name: "njsscan", script: "scan-njsscan.js", summary: "njsscan.summary.json" },
+  { name: "retire", script: "scan-retire.js", summary: "retire.summary.json" },
+  { name: "quality", script: "scan-quality.js", summary: "quality.summary.json" },
+  { name: "shell", script: "scan-shell.js", summary: "shell.summary.json" },
 ];
 
 // `scan:apk` is opt-in because it needs an APK/IPA *file* path, not the

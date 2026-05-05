@@ -19,7 +19,13 @@
     "scan:secrets": "node scripts/scan-secrets.js",
     "scan:static": "node scripts/scan-static.js",
     "scan:expo": "node scripts/scan-expo.js",
-    "scan:apk": "node scripts/scan-apk.js"
+    "scan:apk": "node scripts/scan-apk.js",
+    "scan:trivy": "node scripts/scan-trivy.js",
+    "scan:bearer": "node scripts/scan-bearer.js",
+    "scan:njsscan": "node scripts/scan-njsscan.js",
+    "scan:retire": "node scripts/scan-retire.js",
+    "scan:quality": "node scripts/scan-quality.js",
+    "scan:shell": "node scripts/scan-shell.js"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

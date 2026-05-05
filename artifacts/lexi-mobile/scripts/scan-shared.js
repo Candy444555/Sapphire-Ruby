@@ -118,7 +118,7 @@ function runCmd(cmd, args, opts = {}) {
     maxBuffer: 1024 * 1024 * 64,
     timeout: opts.timeoutMs ?? 5 * 60 * 1000,
   });
-  return {
+  const out = {
     code: r.status ?? -1,
     signal: r.signal,
     stdout: r.stdout ?? "",
@@ -126,6 +126,26 @@ function runCmd(cmd, args, opts = {}) {
     durationMs: Date.now() - start,
     error: r.error ? r.error.message : null,
   };
+  if (opts.log && opts.logAction) {
+    const tail = (s) => (s && s.length > 2048 ? s.slice(-2048) : s || "");
+    const level = out.code === 0 ? "info" : "warn";
+    opts.log[level](`cmd:${opts.logAction}`, {
+      target: cmd,
+      outputs: {
+        cmd,
+        args,
+        exit: out.code,
+        signal: out.signal,
+        durationMs: out.durationMs,
+        stdoutBytes: out.stdout.length,
+        stderrBytes: out.stderr.length,
+        stdoutTail: tail(out.stdout),
+        stderrTail: tail(out.stderr),
+        spawnError: out.error,
+      },
+    });
+  }
+  return out;
 }
 
 function severityRank(s) {

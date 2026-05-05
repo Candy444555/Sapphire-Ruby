@@ -55,6 +55,10 @@ export default function TabLayout() {
         name="tools"
         options={{ title: "Tools", tabBarIcon: ({ color }) => <Feather name="unlock" size={22} color={color} /> }}
       />
+      <Tabs.Screen
+        name="android"
+        options={{ title: "Android", tabBarIcon: ({ color }) => <Feather name="cpu" size={22} color={color} /> }}
+      />
     </Tabs>
   );
 }

@@ -17,7 +17,9 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { Markdown } from "@/components/Markdown";
 import { useColors } from "@/hooks/useColors";
+import { streamLexi, type ChatMsg } from "@/lib/lexi-api";
 import {
   clearRecentEntries,
   dailyFilePath,
@@ -348,9 +350,33 @@ export default function LogsScreen() {
 function LogRow({ entry }: { entry: LogEntry }) {
   const colors = useColors();
   const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState<null | "fix" | "reproduce">(null);
+  const [answer, setAnswer] = useState("");
+  const [streaming, setStreaming] = useState(false);
+  const [askErr, setAskErr] = useState<string | null>(null);
   const ts = new Date(entry.ts).toISOString().slice(11, 23);
   const color = levelColor(entry.level, colors);
   const styles = rowStyles(colors);
+  const isFinding = entry.category === "scan" && entry.action === "finding";
+
+  const ask = useCallback((m: "fix" | "reproduce") => {
+    if (streaming) return;
+    setMode(m);
+    setAnswer("");
+    setAskErr(null);
+    setStreaming(true);
+    const f = extractFinding(entry);
+    const sys = m === "fix" ? FIX_SYSTEM_PROMPT : REPRO_SYSTEM_PROMPT;
+    const user = buildFindingUserPrompt(f, m);
+    const messages: ChatMsg[] = [{ role: "user", content: user }];
+    streamLexi(messages, (t) => setAnswer((p) => p + t), { systemPrompt: sys })
+      .then(() => setStreaming(false))
+      .catch((e) => {
+        setAskErr(e instanceof Error ? e.message : String(e));
+        setStreaming(false);
+      });
+  }, [entry, streaming]);
+
   return (
     <Pressable onPress={() => setOpen((v) => !v)} style={styles.row}>
       <View style={styles.rowHead}>
@@ -370,6 +396,38 @@ function LogRow({ entry }: { entry: LogEntry }) {
       ) : null}
       {open ? (
         <View style={styles.detail}>
+          {isFinding ? (
+            <View style={styles.findingActions}>
+              <Pressable
+                onPress={() => ask("fix")}
+                disabled={streaming}
+                style={[styles.findingBtn, mode === "fix" && styles.findingBtnOn, streaming && { opacity: 0.6 }]}
+              >
+                <Feather name="tool" size={12} color={mode === "fix" ? colors.background : colors.foreground} />
+                <Text style={[styles.findingBtnText, mode === "fix" && { color: colors.background }]}>Fix</Text>
+              </Pressable>
+              <Pressable
+                onPress={() => ask("reproduce")}
+                disabled={streaming}
+                style={[styles.findingBtn, mode === "reproduce" && styles.findingBtnOn, streaming && { opacity: 0.6 }]}
+              >
+                <Feather name="play-circle" size={12} color={mode === "reproduce" ? colors.background : colors.foreground} />
+                <Text style={[styles.findingBtnText, mode === "reproduce" && { color: colors.background }]}>Reproduce</Text>
+              </Pressable>
+            </View>
+          ) : null}
+          {isFinding && mode ? (
+            <View style={styles.answerWrap}>
+              {answer ? (
+                <Markdown content={answer} />
+              ) : streaming ? (
+                <Text style={styles.answerHint}>Streaming…</Text>
+              ) : null}
+              {askErr ? (
+                <Text style={[styles.answerHint, { color: colors.destructive }]}>Error: {askErr}</Text>
+              ) : null}
+            </View>
+          ) : null}
           {entry.inputs !== undefined ? (
             <Text selectable style={styles.json}>inputs: {safeJson(entry.inputs)}</Text>
           ) : null}
@@ -387,6 +445,63 @@ function LogRow({ entry }: { entry: LogEntry }) {
       ) : null}
     </Pressable>
   );
+}
+
+const FIX_SYSTEM_PROMPT =
+  "You are Lexi, a senior security and code-quality engineer. The user shows you exactly one static-analysis finding. Reply with concise GitHub-flavored Markdown containing exactly three short sections in order:\n" +
+  "1. **Root cause** — one short paragraph explaining why the finding is real.\n" +
+  "2. **Patch** — a single fenced code block with the corrected code or config (use the same language as the affected file when known).\n" +
+  "3. **Why this works** — one sentence.\n" +
+  "Do not propose running anything; only show the patch.";
+
+const REPRO_SYSTEM_PROMPT =
+  "You are Lexi, a senior security and code-quality engineer. The user shows you exactly one static-analysis finding. Produce a self-contained, copy-pasteable reproduction that demonstrates the bug or vulnerability ON PAPER ONLY — never instruct the user to execute anything.\n" +
+  "Reply with concise Markdown containing exactly three sections in order:\n" +
+  "1. **Setup** — one short paragraph naming the file/function/payload involved.\n" +
+  "2. **Reproduction** — a single fenced code block with the minimal vulnerable code, including any sample input or payload as literals or comments.\n" +
+  "3. **Broken output** — a fenced block showing the resulting error, leaked data, or incorrect behavior the snippet would produce.\n" +
+  "Do NOT include shell commands, build steps, or any instruction to run the snippet. The reproduction is for understanding only.";
+
+function extractFinding(e: LogEntry): {
+  tool: string;
+  id: string;
+  severity: string;
+  module: string;
+  title: string;
+  url: string;
+} {
+  const tool = e.actor.startsWith("scanner:") ? e.actor.slice("scanner:".length) : e.actor;
+  const o = (e.outputs ?? {}) as Record<string, unknown>;
+  const str = (v: unknown) => (typeof v === "string" ? v : typeof v === "number" ? String(v) : "");
+  const sev = str(o.severity) || (e.level === "error" ? "high" : e.level === "warn" ? "medium" : "low");
+  return {
+    tool: tool || "scanner",
+    id: str(o.id),
+    severity: sev,
+    module: e.target ?? str(o.module),
+    title: str(o.title) || str(o.message) || str(o.description),
+    url: str(o.url) || str(o.reference),
+  };
+}
+
+function buildFindingUserPrompt(
+  f: { tool: string; id: string; severity: string; module: string; title: string; url: string },
+  mode: "fix" | "reproduce",
+): string {
+  const lines = [
+    `Static-analysis finding (mode: ${mode}):`,
+    `- tool: ${f.tool}`,
+    `- id: ${f.id || "(none)"}`,
+    `- severity: ${f.severity}`,
+    `- module: ${f.module || "(unknown)"}`,
+    `- title: ${f.title || "(no title)"}`,
+    `- url: ${f.url || "(none)"}`,
+    "",
+    mode === "fix"
+      ? "Show me the concrete patch for this finding."
+      : "Show me a faithful, self-contained reproduction of this finding on paper. Do not instruct me to run anything.",
+  ];
+  return lines.join("\n");
 }
 
 function safeJson(v: unknown): string {
@@ -458,5 +573,14 @@ function rowStyles(c: ReturnType<typeof useColors>) {
     meta: { color: c.mutedForeground, fontSize: 10, marginTop: 2 },
     detail: { marginTop: 6, padding: 8, backgroundColor: c.card, borderRadius: 6 },
     json: { color: c.foreground, fontSize: 11, fontFamily: monoFont, marginBottom: 4 },
+    findingActions: { flexDirection: "row", gap: 6, marginBottom: 8 },
+    findingBtn: {
+      flexDirection: "row", alignItems: "center", gap: 4,
+      borderWidth: 1, borderColor: c.border, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6,
+    },
+    findingBtnOn: { backgroundColor: c.primary, borderColor: c.primary },
+    findingBtnText: { color: c.foreground, fontSize: 12, fontWeight: "600" },
+    answerWrap: { marginBottom: 8, padding: 8, backgroundColor: c.background, borderRadius: 6, borderWidth: 1, borderColor: c.border },
+    answerHint: { color: c.mutedForeground, fontSize: 12, fontStyle: "italic" },
   });
 }

@@ -59,6 +59,10 @@ export default function TabLayout() {
         name="android"
         options={{ title: "Android", tabBarIcon: ({ color }) => <Feather name="cpu" size={22} color={color} /> }}
       />
+      <Tabs.Screen
+        name="apple"
+        options={{ title: "Apple", tabBarIcon: ({ color }) => <Feather name="smartphone" size={22} color={color} /> }}
+      />
     </Tabs>
   );
 }

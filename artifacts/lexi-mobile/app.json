@@ -125,6 +125,7 @@
     },
     "plugins": [
       "./plugins/with-gradle-properties",
+      "./plugins/with-usb-host",
       [
         "expo-router",
         {

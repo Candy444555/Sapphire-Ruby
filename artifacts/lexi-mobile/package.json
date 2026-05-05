@@ -70,6 +70,7 @@
     "expo-file-system": "^19.0.21",
     "expo-intent-launcher": "^55.0.12",
     "expo-media-library": "^18.2.1",
-    "expo-sharing": "^14.0.8"
+    "expo-sharing": "^14.0.8",
+    "react-native-usb-serialport-for-android": "^0.5.0"
   }
 }

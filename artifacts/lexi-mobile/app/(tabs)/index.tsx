@@ -1,5 +1,6 @@
 import { Feather } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
+import { useLocalSearchParams } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
@@ -62,6 +63,15 @@ export default function ChatScreen() {
   const [generatingImage, setGeneratingImage] = useState(false);
 
   const listRef = useRef<FlatList<any>>(null);
+  const params = useLocalSearchParams<{ prefill?: string }>();
+  const lastPrefill = useRef<string | null>(null);
+  useEffect(() => {
+    const p = typeof params.prefill === "string" ? params.prefill : null;
+    if (p && p !== lastPrefill.current) {
+      lastPrefill.current = p;
+      setInput((curr) => (curr ? curr + "\n\n" + p : p));
+    }
+  }, [params.prefill]);
 
   const { profile, learnFromMessage, getProfilePrompt } = useUserProfile();
   const { config, addInstruction, getEnhancedSystemPrompt } = useLexiConfig();

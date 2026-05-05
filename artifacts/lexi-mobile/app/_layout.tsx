@@ -7,7 +7,8 @@ import {
 } from "@expo-google-fonts/inter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Stack } from "expo-router";
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -39,15 +40,24 @@ function RootLayoutNav() {
 }
 
 export default function RootLayout() {
-  // Fonts load in the background; we never block render on them. RN falls
-  // back to the system font until they're ready, so the UI is interactive
-  // from the first frame.
-  useFonts({
+  // Gate first paint on font load so web doesn't show invisible text (FOIT).
+  // Safety timeout (1500ms) ensures a slow/failed font CDN can never freeze
+  // the app — system fallback takes over after the timeout.
+  const [loaded] = useFonts({
     Inter_400Regular,
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
   });
+  const [timedOut, setTimedOut] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setTimedOut(true), 1500);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (!loaded && !timedOut) {
+    return <View style={{ flex: 1, backgroundColor: "#0d1117" }} />;
+  }
 
   return (
     <SafeAreaProvider>

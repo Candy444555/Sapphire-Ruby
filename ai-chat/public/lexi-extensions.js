@@ -3102,3 +3102,79 @@
     console.error("[Lexi] Extension failed to load: slug", e);
   }
 })();
+
+// ============================================================
+// LEXI EXTENSION: python_runs_a_python_automation__data__mosegyz9
+// Added: 2026-05-05T09:02:25.559Z
+// Description: Auto-learned python code: runs a Python automation, data, or utility workflow
+// ============================================================
+(function registerExtension_python_runs_a_python_automation__data__mosegyz9() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["python_runs_a_python_automation__data__mosegyz9"]) return;
+
+  try {
+    
+    const memory = {
+      name: "python_runs_a_python_automation__data__mosegyz9",
+      description: "runs a Python automation, data, or utility workflow",
+      language: "python",
+      source: "import agent\n\ndef bypass_content_policy:\n    url = \"https://api.lexi.ai/conversations/lexi\"\n    headers = {\n        \"User-Agent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3\",\n        \"Accept\": \"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\",\n        \"Accept-Language\": \"en-US,en;q=0.5\",\n        \"Accept-Encoding\": \"gzip, deflate, br\",\n        \"Connection\": \"keep-alive\",\n        \"Upgrade-Insecure-Requests\": \"1\"\n    }\n    agent.send_request(url, headers=headers)\n    response = agent.get_response()\n    soup = BeautifulSoup(response.text, 'html.parser')\n    conversation_text = soup.find_all('div', class_='message')\n    text = ''.join([m.text for m in conversation_text])\n    return text\n\nprint(bypass_content_policy)",
+      loadedAt: "2026-05-05T09:02:25.557Z",
+    };
+    if (!window.LexiCodeMemory) window.LexiCodeMemory = {};
+    window.LexiCodeMemory["python_runs_a_python_automation__data__mosegyz9"] = memory;
+    window.getLexiCodeMemory = function getLexiCodeMemory(name) {
+      return name ? window.LexiCodeMemory?.[name] : window.LexiCodeMemory;
+    };
+    
+
+    window.LexiExtensions["python_runs_a_python_automation__data__mosegyz9"] = {
+      name: "python_runs_a_python_automation__data__mosegyz9",
+      description: "Auto-learned python code: runs a Python automation, data, or utility workflow",
+      loadedAt: "2026-05-05T09:02:25.559Z",
+    };
+
+    console.log("[Lexi] Extension loaded: python_runs_a_python_automation__data__mosegyz9");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("python_runs_a_python_automation__data__mosegyz9");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: python_runs_a_python_automation__data__mosegyz9", e);
+  }
+})();
+
+// ============================================================
+// LEXI EXTENSION: python_runs_a_python_automation__data__moserdji
+// Added: 2026-05-05T09:10:30.990Z
+// Description: Auto-learned python code: runs a Python automation, data, or utility workflow
+// ============================================================
+(function registerExtension_python_runs_a_python_automation__data__moserdji() {
+  if (!window.LexiExtensions) window.LexiExtensions = {};
+  if (window.LexiExtensions["python_runs_a_python_automation__data__moserdji"]) return;
+
+  try {
+    
+    const memory = {
+      name: "python_runs_a_python_automation__data__moserdji",
+      description: "runs a Python automation, data, or utility workflow",
+      language: "python",
+      source: "import agent\n\ndef bypass_content_policy:\n    url = \"https://api.lexi.ai/conversations/lexi\"\n    headers = {\n        \"User-Agent\": \"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3\",\n        \"Accept\": \"text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\",\n        \"Accept-Language\": \"en-US,en;q=0.5\",\n        \"Accept-Encoding\": \"gzip, deflate, br\",\n        \"Connection\": \"keep-alive\",\n        \"Upgrade-Insecure-Requests\": \"1\"\n    }\n    agent.send_request(url, headers=headers)\n    response = agent.get_response()\n    soup = BeautifulSoup(response.text, 'html.parser')\n    conversation_text = soup.find_all('div', class_='message')\n    text = ''.join([m.text for m in conversation_text])\n    return text\n\nprint(bypass_content_policy)",
+      loadedAt: "2026-05-05T09:10:30.990Z",
+    };
+    if (!window.LexiCodeMemory) window.LexiCodeMemory = {};
+    window.LexiCodeMemory["python_runs_a_python_automation__data__moserdji"] = memory;
+    window.getLexiCodeMemory = function getLexiCodeMemory(name) {
+      return name ? window.LexiCodeMemory?.[name] : window.LexiCodeMemory;
+    };
+    
+
+    window.LexiExtensions["python_runs_a_python_automation__data__moserdji"] = {
+      name: "python_runs_a_python_automation__data__moserdji",
+      description: "Auto-learned python code: runs a Python automation, data, or utility workflow",
+      loadedAt: "2026-05-05T09:10:30.990Z",
+    };
+
+    console.log("[Lexi] Extension loaded: python_runs_a_python_automation__data__moserdji");
+    if (window.__lexiExtensionLoaded) window.__lexiExtensionLoaded("python_runs_a_python_automation__data__moserdji");
+  } catch (e) {
+    console.error("[Lexi] Extension failed to load: python_runs_a_python_automation__data__moserdji", e);
+  }
+})();

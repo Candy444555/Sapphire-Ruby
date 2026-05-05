@@ -26,6 +26,10 @@
     "scan:retire": "node scripts/scan-retire.js",
     "scan:quality": "node scripts/scan-quality.js",
     "scan:shell": "node scripts/scan-shell.js",
+    "scan:bandit": "node scripts/scan-bandit.js",
+    "scan:nuclei": "node scripts/scan-nuclei.js",
+    "scan:ai-review": "node scripts/scan-ai-review.js",
+    "scan:apk-decompile": "node scripts/scan-apk-decompile.js",
     "explain": "node scripts/explain.js"
   },
   "devDependencies": {

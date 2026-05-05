@@ -439,10 +439,10 @@ export default function ProfileScreen() {
             {buildSubmitted && (
               <Pressable
                 onPress={() => Linking.openURL("https://expo.dev/accounts/rubywilliam444/projects/my-new-project/builds")}
-                style={{ flexDirection: "row", alignItems: "center", gap: 6, padding: 8, borderRadius: 8, backgroundColor: "#1f6feb22", borderWidth: 1, borderColor: "#1f6feb" }}
+                style={{ flexDirection: "row", alignItems: "center", gap: 6, padding: 8, borderRadius: 8, backgroundColor: "#04785722", borderWidth: 1, borderColor: "#047857" }}
               >
-                <Feather name="external-link" size={12} color="#58a6ff" />
-                <Text style={{ color: "#58a6ff", fontFamily: "Inter_600SemiBold", fontSize: 11 }}>View Build on EAS Dashboard</Text>
+                <Feather name="external-link" size={12} color="#10b981" />
+                <Text style={{ color: "#10b981", fontFamily: "Inter_600SemiBold", fontSize: 11 }}>View Build on EAS Dashboard</Text>
               </Pressable>
             )}
           </View>

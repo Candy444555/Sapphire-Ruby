@@ -5,7 +5,7 @@ const palette = {
   border: "#30363d",
   text: "#e6edf3",
   textDim: "#8b949e",
-  primary: "#58a6ff",
+  primary: "#10b981",
   accent: "#a371f7",
   danger: "#f85149",
   success: "#3fb950",

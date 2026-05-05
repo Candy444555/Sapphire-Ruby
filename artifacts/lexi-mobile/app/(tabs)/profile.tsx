@@ -519,11 +519,80 @@ export default function ProfileScreen() {
         </Text>
       </View>
 
+      <Text style={[styles.section, { color: colors.mutedForeground }]}>SCAN</Text>
+      <ScanSettingsSection colors={colors} />
+
       <Text style={[styles.section, { color: colors.mutedForeground }]}>LOGGING</Text>
       <LoggingSection colors={colors} />
 
       <Text style={[styles.footer, { color: colors.mutedForeground }]}>Lexi Mobile v1.0.0 · {BUILD_INFO.sourceHash}</Text>
     </ScrollView>
+  );
+}
+
+function ScanSettingsSection({ colors }: { colors: ReturnType<typeof useColors> }) {
+  const [autoSuggest, setAutoSuggestState] = React.useState(true);
+  const [screenCap, setScreenCap] = React.useState(true);
+  const [timeoutInput, setTimeoutInput] = React.useState("600");
+
+  React.useEffect(() => {
+    void import("@/lib/tool-forge/analyzer").then(async (m) => {
+      setAutoSuggestState(await m.loadAutosuggest());
+    });
+    void import("@/lib/scan-settings").then(async (m) => {
+      const s = await m.loadScanSettings();
+      setScreenCap(s.screenCaptureEnabled);
+      setTimeoutInput(String(Math.round(s.defaultTimeoutMs / 1000)));
+    });
+  }, []);
+
+  const onAutoSuggest = async (v: boolean) => {
+    setAutoSuggestState(v);
+    const m = await import("@/lib/tool-forge/analyzer");
+    await m.setAutosuggest(v);
+  };
+  const onScreenCap = async (v: boolean) => {
+    setScreenCap(v);
+    const m = await import("@/lib/scan-settings");
+    await m.updateScanSettings({ screenCaptureEnabled: v });
+  };
+  const onTimeoutBlur = async () => {
+    const secs = Math.max(5, Math.min(7200, parseInt(timeoutInput || "600", 10) || 600));
+    setTimeoutInput(String(secs));
+    const m = await import("@/lib/scan-settings");
+    await m.updateScanSettings({ defaultTimeoutMs: secs * 1000 });
+  };
+
+  return (
+    <View style={[styles.cardLeft, { backgroundColor: colors.card, borderColor: colors.border, gap: 10 }]}>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+        <Text style={{ color: colors.foreground, fontFamily: "Inter_500Medium", fontSize: 13 }}>Auto-suggest forged rules</Text>
+        <Switch value={autoSuggest} onValueChange={onAutoSuggest} trackColor={{ true: colors.primary, false: colors.border }} />
+      </View>
+      <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>
+        When several similar findings cluster, Lexi drafts a candidate scanner. You still have to approve it before it installs or runs.
+      </Text>
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
+        <Text style={{ color: colors.foreground, fontFamily: "Inter_500Medium", fontSize: 13 }}>Screen-capture source enabled</Text>
+        <Switch value={screenCap} onValueChange={onScreenCap} trackColor={{ true: colors.primary, false: colors.border }} />
+      </View>
+      <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>
+        Even when enabled, every capture asks for fresh consent. Disable to hide the tile entirely.
+      </Text>
+      <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 13, marginTop: 6 }}>Default scan timeout (s)</Text>
+      <TextInput
+        value={timeoutInput} onChangeText={setTimeoutInput} onBlur={onTimeoutBlur} keyboardType="number-pad"
+        style={{ color: colors.foreground, borderColor: colors.border, borderWidth: 1, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8 }}
+        placeholderTextColor={colors.mutedForeground}
+      />
+      <Pressable
+        onPress={() => { void import("expo-router").then((m) => m.router.push("/(tabs)/scan")); }}
+        style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4, paddingVertical: 6 }}
+      >
+        <Feather name="external-link" size={12} color={colors.primary} />
+        <Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>Manage forged tools →</Text>
+      </Pressable>
+    </View>
   );
 }
 

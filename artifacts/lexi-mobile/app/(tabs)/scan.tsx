@@ -1,555 +1,609 @@
 import { Feather } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { Platform } from "react-native";
+import * as FileSystem from "expo-file-system/legacy";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { Markdown } from "@/components/Markdown";
 import { useColors } from "@/hooks/useColors";
-import { BUILTIN_TOOLS, type NormalizedFinding, type ToolDef } from "@/lib/scanners/registry";
-import { runScan, type RunSource, type ToolEvent } from "@/lib/scanners/runner";
-import { streamExplain, type ExplainMode } from "@/lib/findings/contract";
+import { streamLexi, type ChatMsg } from "@/lib/lexi-api";
+import { log } from "@/lib/logger";
 import {
-  approveForgedTool, forgeTool, getPendingForgedTools, hydrateForge,
-  rejectForgedTool, suggestForgeTool, type ForgedTool,
-} from "@/lib/tool-forge";
+  buildExplainPrompt, FIX_SYSTEM_PROMPT, REPRO_SYSTEM_PROMPT,
+  type NormalizedFinding,
+} from "@/lib/findings/contract";
+import {
+  listScanners, subscribeRegistry, type ScannerSpec,
+} from "@/lib/scanners/registry";
+import { runScan, type RunHandle, type ScanSource, type ToolEvent, GITHUB_URL_RE } from "@/lib/scanners/runner";
+import { captureScreenAndOcr } from "@/lib/screen-capture";
+import {
+  approvePending, deleteInstalled, listInstalled, listPending,
+  rejectPending, rehydrateInstalledIntoRegistry, subscribeForge,
+  updatePending, updateInstalled, exportSpec,
+  type ForgedToolSpec,
+} from "@/lib/tool-forge/approval-queue";
+import { forgeFromRequest } from "@/lib/tool-forge/chat-to-scanner";
+import { startAnalyzer, loadAutosuggest } from "@/lib/tool-forge/analyzer";
+import { loadScanSettings, getScanSettings, subscribeScanSettings } from "@/lib/scan-settings";
+import * as Clipboard from "expo-clipboard";
+import { Share } from "react-native";
 
-type SourceMode = "workspace" | "file" | "github";
+type ToolStatus = { state: "idle" | "running" | "ok" | "issues" | "error" | "skipped"; durationMs?: number; findingCount?: number; reason?: string; error?: string; startedAt?: number };
 
-type ToolStatus = {
-  state: "idle" | "running" | "ok" | "error";
-  count: number;
-  durationMs: number;
-  message?: string;
-};
-
-const CATEGORY_ORDER: ToolDef["category"][] = ["sast", "secrets", "deps", "mobile", "ai", "quality", "forged"];
-const CATEGORY_LABEL: Record<ToolDef["category"], string> = {
-  sast: "Static analysis",
-  secrets: "Secrets",
-  deps: "Dependencies",
-  mobile: "Mobile / APK",
-  ai: "AI review",
-  quality: "Quality",
-  forged: "Forged",
-};
-
-const SEV_COLORS: Record<NormalizedFinding["severity"], string> = {
-  critical: "#dc2626",
-  high: "#ea580c",
-  medium: "#ca8a04",
-  low: "#059669",
-};
+type SourcePick =
+  | { kind: "github"; url: string }
+  | { kind: "upload"; files: { name: string; text?: string; contentBase64?: string }[] }
+  | { kind: "zip"; name: string; contentBase64: string }
+  | { kind: "workspace" }
+  | { kind: "apk"; name: string; contentBase64: string }
+  | { kind: "screen"; ocrText: string };
 
 export default function ScanScreen() {
   const colors = useColors();
-  const [sourceMode, setSourceMode] = useState<SourceMode>("workspace");
-  const [pickedFile, setPickedFile] = useState<{ name: string; uri: string; size?: number; mime?: string } | null>(null);
+  const insets = useSafeAreaInsets();
+  const [scanners, setScanners] = useState<ScannerSpec[]>(listScanners());
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [pick, setPick] = useState<SourcePick | null>(null);
   const [githubUrl, setGithubUrl] = useState("");
-  const [selected, setSelected] = useState<Set<string>>(new Set(["regex-secrets", "ai-review"]));
-  const [running, setRunning] = useState(false);
-  const [toolStatus, setToolStatus] = useState<Record<string, ToolStatus>>({});
+  const [statuses, setStatuses] = useState<Record<string, ToolStatus>>({});
   const [findings, setFindings] = useState<NormalizedFinding[]>([]);
-  const [statusLine, setStatusLine] = useState<string>("");
+  const [running, setRunning] = useState(false);
+  const [pending, setPending] = useState<ForgedToolSpec[]>([]);
+  const [installed, setInstalled] = useState<ForgedToolSpec[]>([]);
   const [forgeOpen, setForgeOpen] = useState(false);
-  const [pending, setPending] = useState<ForgedTool[]>([]);
-  const [explainTarget, setExplainTarget] = useState<NormalizedFinding | null>(null);
-  const [explainMode, setExplainMode] = useState<ExplainMode>("fix");
-  const [explainText, setExplainText] = useState("");
-  const [explainLoading, setExplainLoading] = useState(false);
-  const abortRef = useRef<AbortController | null>(null);
-  const [registryVersion, setRegistryVersion] = useState(0);
+  const [forgeEditing, setForgeEditing] = useState<{ spec: ForgedToolSpec; bucket: "pending" | "installed" } | null>(null);
+  const [screenCapEnabled, setScreenCapEnabled] = useState(true);
+  const [defaultTimeoutMs, setDefaultTimeoutMs] = useState(600_000);
+  const handleRef = useRef<RunHandle | null>(null);
 
   useEffect(() => {
-    void hydrateForge().then(() => {
-      setPending(getPendingForgedTools());
-      setRegistryVersion((v) => v + 1);
+    const u = subscribeRegistry(() => setScanners(listScanners()));
+    void rehydrateInstalledIntoRegistry().then(() => setScanners(listScanners()));
+    void loadAutosuggest().then(() => startAnalyzer());
+    return u;
+  }, []);
+  useEffect(() => {
+    const refresh = () => {
+      void listPending().then(setPending);
+      void listInstalled().then(setInstalled);
+    };
+    refresh();
+    return subscribeForge(refresh);
+  }, []);
+  useEffect(() => {
+    void loadScanSettings().then((s) => { setScreenCapEnabled(s.screenCaptureEnabled); setDefaultTimeoutMs(s.defaultTimeoutMs); });
+    return subscribeScanSettings((s) => { setScreenCapEnabled(s.screenCaptureEnabled); setDefaultTimeoutMs(s.defaultTimeoutMs); });
+  }, []);
+
+  const toggle = useCallback((id: string) => {
+    setSelected((p) => {
+      const n = new Set(p);
+      n.has(id) ? n.delete(id) : n.add(id);
+      log.info("scan", "tool:toggle", { actor: "user", target: id, outputs: { selected: !p.has(id) } });
+      return n;
     });
   }, []);
 
-  const tools = useMemo(() => {
-    const groups: Record<string, ToolDef[]> = {};
-    for (const t of BUILTIN_TOOLS) {
-      (groups[t.category] ??= []).push(t);
-    }
-    return groups;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [registryVersion]);
-
-  const toggle = (id: string) => {
-    setSelected((s) => {
-      const next = new Set(s);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
   const pickFile = async () => {
-    const r = await DocumentPicker.getDocumentAsync({
-      type: ["*/*"],
-      copyToCacheDirectory: true,
-      multiple: false,
-    });
+    const r = await DocumentPicker.getDocumentAsync({ multiple: true, copyToCacheDirectory: true });
     if (r.canceled) return;
+    const files = await Promise.all(r.assets.map(async (a) => {
+      const text = await FileSystem.readAsStringAsync(a.uri).catch(() => "");
+      return { name: a.name, text };
+    }));
+    setPick({ kind: "upload", files });
+    log.info("scan", "source:upload", { actor: "user", outputs: { count: files.length } });
+  };
+  const pickApk = async () => {
+    const r = await DocumentPicker.getDocumentAsync({ type: "application/vnd.android.package-archive", copyToCacheDirectory: true });
+    if (r.canceled || !r.assets[0]) return;
     const a = r.assets[0];
-    setPickedFile({ name: a.name, uri: a.uri, size: a.size ?? undefined, mime: a.mimeType ?? undefined });
+    const contentBase64 = await FileSystem.readAsStringAsync(a.uri, { encoding: FileSystem.EncodingType.Base64 });
+    setPick({ kind: "apk", name: a.name, contentBase64 });
+    log.info("scan", "source:apk", { actor: "user", target: a.name, outputs: { bytes: contentBase64.length } });
   };
-
-  const buildSource = async (): Promise<RunSource | { error: string }> => {
-    if (sourceMode === "workspace") return { kind: "workspace" };
-    if (sourceMode === "github") {
-      if (!/^https?:\/\/.+\.git$|^https?:\/\/github\.com\/[^/]+\/[^/]+/.test(githubUrl.trim())) {
-        return { error: "Enter a valid GitHub repository URL." };
-      }
-      return { kind: "github", repo: githubUrl.trim() };
+  const pickGithub = () => {
+    const url = githubUrl.trim();
+    if (!url) { Alert.alert("Paste a GitHub URL"); return; }
+    if (!GITHUB_URL_RE.test(url)) {
+      Alert.alert("Invalid URL", "Use https://github.com/<owner>/<repo>");
+      return;
     }
-    if (!pickedFile) return { error: "Pick a file first." };
-    // Read file text. APK / ZIP files are too large to read inline; for now,
-    // text-only file uploads are sent as content; binaries should use the
-    // workspace or apk-path sources (apk-path requires a server-resolvable path).
-    if (/\.(apk|ipa|zip|aab)$/i.test(pickedFile.name)) {
-      return { error: "APK/ZIP scanning over file upload is not supported yet — clone via GitHub URL or use 'Scan Lexi project'." };
-    }
-    let content = "";
+    setPick({ kind: "github", url });
+    log.info("scan", "source:github", { actor: "user", target: url });
+  };
+  const pickZip = async () => {
+    const r = await DocumentPicker.getDocumentAsync({
+      type: ["application/zip", "application/x-zip-compressed", "application/octet-stream"],
+      copyToCacheDirectory: true,
+    });
+    if (r.canceled || !r.assets[0]) return;
+    const a = r.assets[0];
+    if (!/\.(zip)$/i.test(a.name)) { Alert.alert("Pick a .zip file"); return; }
+    const contentBase64 = await FileSystem.readAsStringAsync(a.uri, { encoding: FileSystem.EncodingType.Base64 });
+    setPick({ kind: "zip", name: a.name, contentBase64 });
+    log.info("scan", "source:zip", { actor: "user", target: a.name, outputs: { bytes: contentBase64.length } });
+  };
+  const pickWorkspace = () => {
+    setPick({ kind: "workspace" });
+    log.info("scan", "source:workspace", { actor: "user" });
+  };
+  const pickScreen = async () => {
     try {
-      if (Platform.OS === "web") {
-        const r = await fetch(pickedFile.uri);
-        content = await r.text();
-      } else {
-        const FS = await import("expo-file-system/legacy");
-        content = await FS.readAsStringAsync(pickedFile.uri);
-      }
+      const r = await captureScreenAndOcr();
+      if (!r) return;
+      setPick({ kind: "screen", ocrText: r.ocrText });
     } catch (err) {
-      return { error: `Could not read file: ${err instanceof Error ? err.message : String(err)}` };
+      Alert.alert("Capture failed", err instanceof Error ? err.message : String(err));
     }
-    return { kind: "file", filename: pickedFile.name, content };
   };
 
-  const onRun = async () => {
-    if (selected.size === 0) {
-      setStatusLine("Select at least one tool.");
-      return;
-    }
-    const src = await buildSource();
-    if ("error" in src) {
-      setStatusLine(src.error);
-      return;
-    }
+  const start = () => {
+    if (!pick) { Alert.alert("Pick a source first"); return; }
+    if (selected.size === 0) { Alert.alert("Select at least one scanner"); return; }
     setRunning(true);
     setFindings([]);
-    setStatusLine("Starting…");
     const initial: Record<string, ToolStatus> = {};
-    for (const id of selected) initial[id] = { state: "idle", count: 0, durationMs: 0 };
-    setToolStatus(initial);
-
-    const ac = new AbortController();
-    abortRef.current = ac;
-    try {
-      await runScan({
-        toolIds: Array.from(selected),
-        source: src,
-        signal: ac.signal,
-        onEvent: (ev: ToolEvent) => {
-          if (ev.type === "tool-start") {
-            setToolStatus((s) => ({ ...s, [ev.tool]: { ...(s[ev.tool] ?? { count: 0, durationMs: 0 }), state: "running" } }));
-          } else if (ev.type === "tool-end") {
-            setToolStatus((s) => ({ ...s, [ev.tool]: {
-              state: ev.status === "ok" ? "ok" : "error",
-              count: ev.findingCount, durationMs: ev.durationMs, message: ev.message,
-            }}));
-          } else if (ev.type === "finding") {
-            setFindings((f) => [...f, ev.finding]);
-          } else if (ev.type === "status") {
-            setStatusLine(`${ev.phase}${ev.message ? `: ${ev.message}` : ""}`);
-          } else if (ev.type === "done") {
-            setStatusLine(`Done — ${ev.totalFindings} finding(s) in ${(ev.durationMs / 1000).toFixed(1)}s`);
-          } else if (ev.type === "error") {
-            setStatusLine(`Error: ${ev.message}`);
-          }
-        },
-      });
-    } finally {
-      setRunning(false);
-      abortRef.current = null;
-      // Auto-suggest forge candidate from accumulated findings.
-      const suggestion = suggestForgeTool(findings);
-      if (suggestion) {
-        setStatusLine((s) => `${s}  •  Suggested forge: ${suggestion.name}`);
-      }
-    }
-  };
-
-  const onCancel = () => { abortRef.current?.abort(); };
-
-  const openExplain = (f: NormalizedFinding, mode: ExplainMode) => {
-    setExplainTarget(f);
-    setExplainMode(mode);
-    setExplainText("");
-    setExplainLoading(true);
-    void (async () => {
-      try {
-        for await (const chunk of streamExplain(f, mode)) {
-          setExplainText((t) => t + chunk);
+    for (const id of selected) initial[id] = { state: "idle" };
+    setStatuses(initial);
+    const source: ScanSource = pickToSource(pick);
+    handleRef.current = runScan({
+      tools: [...selected],
+      source,
+      timeoutMs: defaultTimeoutMs,
+      onEvent: (e: ToolEvent) => {
+        if (e.kind === "tool") {
+          setStatuses((p) => ({
+            ...p,
+            [e.tool]: {
+              state: e.status === "start" ? "running" : (e.status as ToolStatus["state"]),
+              durationMs: e.durationMs ?? p[e.tool]?.durationMs,
+              findingCount: e.findingCount ?? p[e.tool]?.findingCount,
+              reason: e.reason, error: e.error,
+              startedAt: e.status === "start" ? Date.now() : p[e.tool]?.startedAt,
+            },
+          }));
+        } else if (e.kind === "finding") {
+          setFindings((p) => [...p, e.finding]);
+          setStatuses((p) => ({ ...p, [e.finding.tool]: { ...(p[e.finding.tool] ?? { state: "running" }), findingCount: ((p[e.finding.tool]?.findingCount ?? 0) + 1) } }));
+        } else if (e.kind === "done") {
+          setRunning(false);
+        } else if (e.kind === "error") {
+          Alert.alert("Scan error", e.message);
+          setRunning(false);
         }
-      } finally {
-        setExplainLoading(false);
-      }
-    })();
-  };
-
-  const styles = makeStyles(colors);
-
-  return (
-    <SafeAreaView style={styles.safe}>
-      <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.headerRow}>
-          <Text style={styles.h1}>Scan</Text>
-          <Pressable onPress={() => setForgeOpen(true)} style={styles.forgeBtn}>
-            <Feather name="zap" size={14} color="#fff" />
-            <Text style={styles.forgeBtnText}>Forge tool</Text>
-            {pending.length > 0 && (
-              <View style={styles.pendingBadge}><Text style={styles.pendingBadgeText}>{pending.length}</Text></View>
-            )}
-          </Pressable>
-        </View>
-
-        {/* Source picker */}
-        <Text style={styles.sectionLabel}>Source</Text>
-        <View style={styles.row}>
-          {(["workspace", "file", "github"] as SourceMode[]).map((m) => (
-            <Pressable key={m} onPress={() => setSourceMode(m)}
-              style={[styles.chip, sourceMode === m && styles.chipActive]}>
-              <Text style={[styles.chipText, sourceMode === m && styles.chipTextActive]}>
-                {m === "workspace" ? "Lexi project" : m === "file" ? "Pick file" : "GitHub URL"}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-        {sourceMode === "file" && (
-          <View style={styles.sourceBox}>
-            <Pressable onPress={pickFile} style={styles.smallBtn}>
-              <Feather name="file" size={14} color={colors.primary} />
-              <Text style={styles.smallBtnText}>Choose file</Text>
-            </Pressable>
-            {pickedFile && (
-              <Text style={styles.muted} numberOfLines={1}>
-                {pickedFile.name} {pickedFile.size ? `(${Math.round(pickedFile.size / 1024)} KB)` : ""}
-              </Text>
-            )}
-            <Text style={styles.helpText}>
-              Safety rule: no copy-paste input. APK/ZIP file scanning needs the GitHub URL or "Lexi project" source for now.
-            </Text>
-          </View>
-        )}
-        {sourceMode === "github" && (
-          <View style={styles.sourceBox}>
-            <TextInput
-              value={githubUrl}
-              onChangeText={setGithubUrl}
-              placeholder="https://github.com/owner/repo"
-              placeholderTextColor={colors.mutedForeground}
-              style={styles.input}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-          </View>
-        )}
-
-        {/* Tool picker */}
-        <Text style={styles.sectionLabel}>Tools</Text>
-        {CATEGORY_ORDER.filter((c) => tools[c]?.length).map((cat) => (
-          <View key={cat} style={styles.catBlock}>
-            <Text style={styles.catLabel}>{CATEGORY_LABEL[cat]}</Text>
-            <View style={styles.toolGrid}>
-              {tools[cat].map((t) => {
-                const on = selected.has(t.id);
-                const st = toolStatus[t.id];
-                return (
-                  <Pressable key={t.id} onPress={() => toggle(t.id)}
-                    style={[styles.toolCard, on && styles.toolCardActive]}>
-                    <View style={styles.toolHeaderRow}>
-                      <Text style={[styles.toolName, on && { color: colors.primary }]}>{t.label}</Text>
-                      {st?.state === "running" && <ActivityIndicator size="small" color={colors.primary} />}
-                      {st?.state === "ok" && <Text style={styles.statusOk}>{st.count}</Text>}
-                      {st?.state === "error" && <Feather name="alert-triangle" size={14} color="#dc2626" />}
-                    </View>
-                    <Text style={styles.toolDesc} numberOfLines={2}>{t.description}</Text>
-                    <Text style={styles.toolMeta}>
-                      {t.runsOn === "phone" ? "on-phone" : t.runsOn === "either" ? "phone+server" : "server"}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        ))}
-
-        {/* Run controls */}
-        <View style={styles.runRow}>
-          <Pressable onPress={running ? onCancel : onRun}
-            style={[styles.runBtn, running && { backgroundColor: "#dc2626" }]}>
-            <Feather name={running ? "x" : "play"} size={16} color="#fff" />
-            <Text style={styles.runBtnText}>{running ? "Cancel" : `Run ${selected.size} tool(s)`}</Text>
-          </Pressable>
-          {!!statusLine && <Text style={styles.statusLine} numberOfLines={2}>{statusLine}</Text>}
-        </View>
-
-        {/* Findings */}
-        <Text style={styles.sectionLabel}>Findings ({findings.length})</Text>
-        {findings.length === 0 && (
-          <Text style={styles.muted}>No findings yet. Run a scan to see results here.</Text>
-        )}
-        {findings.map((f, i) => (
-          <View key={`${f.tool}-${i}`} style={styles.findingCard}>
-            <View style={styles.findingHeader}>
-              <View style={[styles.sevDot, { backgroundColor: SEV_COLORS[f.severity] }]} />
-              <Text style={styles.sevText}>{f.severity.toUpperCase()}</Text>
-              <Text style={styles.findingTool}>{f.tool}</Text>
-            </View>
-            <Text style={styles.findingSummary}>{f.summary}</Text>
-            {(f.file || f.line) && (
-              <Text style={styles.findingLoc} numberOfLines={1}>
-                {f.file ?? "?"}{f.line ? `:${f.line}` : ""}{f.rule ? `  •  ${f.rule}` : ""}
-              </Text>
-            )}
-            <View style={styles.actionRow}>
-              <Pressable style={styles.actionBtn} onPress={() => openExplain(f, "fix")}>
-                <Feather name="tool" size={12} color={colors.primary} />
-                <Text style={styles.actionText}>Fix</Text>
-              </Pressable>
-              <Pressable style={styles.actionBtn} onPress={() => openExplain(f, "reproduce")}>
-                <Feather name="eye" size={12} color={colors.primary} />
-                <Text style={styles.actionText}>Reproduce</Text>
-              </Pressable>
-            </View>
-          </View>
-        ))}
-      </ScrollView>
-
-      {/* Forge modal */}
-      <ForgeModal
-        visible={forgeOpen}
-        onClose={() => { setForgeOpen(false); setPending(getPendingForgedTools()); setRegistryVersion((v) => v + 1); }}
-        pending={pending}
-        onPendingChange={setPending}
-        bumpRegistry={() => setRegistryVersion((v) => v + 1)}
-      />
-
-      {/* Explain modal */}
-      <Modal visible={!!explainTarget} animationType="slide" onRequestClose={() => setExplainTarget(null)}>
-        <SafeAreaView style={[styles.safe, { padding: 16 }]}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.h2}>{explainMode === "fix" ? "Fix" : "Reproduce (description only)"}</Text>
-            <Pressable onPress={() => setExplainTarget(null)}><Feather name="x" size={22} color={colors.foreground} /></Pressable>
-          </View>
-          {explainTarget && (
-            <Text style={styles.muted} numberOfLines={2}>{explainTarget.tool} • {explainTarget.summary}</Text>
-          )}
-          <ScrollView style={{ flex: 1, marginTop: 12 }}>
-            <Text style={styles.explainText}>{explainText || (explainLoading ? "Generating…" : "")}</Text>
-            {explainLoading && <ActivityIndicator color={colors.primary} style={{ marginTop: 8 }} />}
-          </ScrollView>
-        </SafeAreaView>
-      </Modal>
-    </SafeAreaView>
-  );
-}
-
-// =====================================================================
-
-function ForgeModal(props: {
-  visible: boolean;
-  onClose: () => void;
-  pending: ForgedTool[];
-  onPendingChange: (p: ForgedTool[]) => void;
-  bumpRegistry: () => void;
-}) {
-  const colors = useColors();
-  const styles = makeStyles(colors);
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [detection, setDetection] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState("");
-
-  const submit = async () => {
-    if (!name.trim() || !detection.trim()) {
-      setMsg("Name and detection logic are required.");
-      return;
-    }
-    setBusy(true); setMsg("");
-    const r = await forgeTool({
-      name: name.trim(), description: description.trim(), detectionLogic: detection.trim(), source: "button",
+      },
     });
-    setBusy(false);
-    if (r.ok) {
-      setMsg(`Proposed "${r.tool.name}" — review below to approve.`);
-      props.onPendingChange(getPendingForgedTools());
-      setName(""); setDescription(""); setDetection("");
-    } else {
-      setMsg(`Forge failed: ${r.error}`);
-    }
   };
+  const cancel = () => { handleRef.current?.cancel(); setRunning(false); };
 
-  const approve = async (slug: string) => {
-    if (await approveForgedTool(slug)) {
-      props.onPendingChange(getPendingForgedTools());
-      props.bumpRegistry();
-      setMsg(`Approved ${slug} — now appears in tool list.`);
-    }
-  };
-  const reject = async (slug: string) => {
-    if (await rejectForgedTool(slug)) {
-      props.onPendingChange(getPendingForgedTools());
-      setMsg(`Rejected ${slug}.`);
-    }
-  };
+  const sourceLabel = useMemo(() => describeSource(pick), [pick]);
 
   return (
-    <Modal visible={props.visible} animationType="slide" onRequestClose={props.onClose}>
-      <SafeAreaView style={[styles.safe, { padding: 16 }]}>
-        <View style={styles.modalHeader}>
-          <Text style={styles.h2}>Tool Forge</Text>
-          <Pressable onPress={props.onClose}><Feather name="x" size={22} color={colors.foreground} /></Pressable>
-        </View>
-        <ScrollView>
-          <Text style={styles.sectionLabel}>Author a new scanner</Text>
-          <Text style={styles.helpText}>
-            Lexi will write the scanner code via Featherless. Nothing runs until you approve it below.
-          </Text>
-          <TextInput value={name} onChangeText={setName} placeholder="Tool name (e.g. 'Hard-coded URL')"
-            placeholderTextColor={colors.mutedForeground} style={styles.input} />
-          <TextInput value={description} onChangeText={setDescription} placeholder="Short description"
-            placeholderTextColor={colors.mutedForeground} style={styles.input} />
-          <TextInput value={detection} onChangeText={setDetection}
-            placeholder="Detection logic — what should this tool flag?"
-            placeholderTextColor={colors.mutedForeground}
-            multiline numberOfLines={4} style={[styles.input, { minHeight: 80, textAlignVertical: "top" }]} />
-          <Pressable disabled={busy} onPress={submit}
-            style={[styles.runBtn, busy && { opacity: 0.6 }]}>
-            {busy ? <ActivityIndicator color="#fff" /> : <Feather name="zap" size={14} color="#fff" />}
-            <Text style={styles.runBtnText}>{busy ? "Authoring…" : "Author with Lexi"}</Text>
-          </Pressable>
-          {!!msg && <Text style={styles.muted}>{msg}</Text>}
+    <ScrollView
+      style={{ flex: 1, backgroundColor: colors.background }}
+      contentContainerStyle={{ padding: 16, paddingTop: insets.top + 16, paddingBottom: insets.bottom + 32, gap: 14 }}
+    >
+      <Text style={{ color: colors.foreground, fontFamily: "Inter_700Bold", fontSize: 20 }}>Scan</Text>
+      <Text style={{ color: colors.mutedForeground, fontSize: 12, lineHeight: 18 }}>
+        Pick a source. Toggle scanners. Tap Scan. Lexi never accepts pasted code — every source is a file, URL, or capture.
+      </Text>
 
-          <Text style={[styles.sectionLabel, { marginTop: 24 }]}>Pending approval ({props.pending.length})</Text>
-          {props.pending.length === 0 && <Text style={styles.muted}>No pending forged tools.</Text>}
-          {props.pending.map((t) => <PendingForgedCard key={t.slug} tool={t} approve={approve} reject={reject} />)}
-        </ScrollView>
-      </SafeAreaView>
-    </Modal>
+      {/* SOURCE PICKER */}
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.cardLabel, { color: colors.accent }]}>SOURCE</Text>
+        <View style={styles.sourceGrid}>
+          <SourceTile icon="file" label="Code file" onPress={pickFile} colors={colors} />
+          <SourceTile icon="package" label="APK" onPress={pickApk} colors={colors} />
+          <SourceTile icon="folder" label="ZIP/Folder" onPress={pickZip} colors={colors} />
+          <SourceTile icon="cpu" label="Lexi's Replit" onPress={pickWorkspace} colors={colors} />
+          {screenCapEnabled ? (
+            <SourceTile icon="monitor" label="Screen capture" onPress={pickScreen} colors={colors} />
+          ) : null}
+        </View>
+        <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+          <TextInput
+            value={githubUrl}
+            onChangeText={setGithubUrl}
+            placeholder="https://github.com/owner/repo"
+            placeholderTextColor={colors.mutedForeground}
+            autoCapitalize="none"
+            style={{ flex: 1, borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 8, color: colors.foreground, fontSize: 12 }}
+          />
+          <Pressable onPress={pickGithub} style={[styles.btn, { borderColor: colors.border }]}>
+            <Feather name="github" size={14} color={colors.foreground} />
+            <Text style={{ color: colors.foreground, fontSize: 12 }}>Use URL</Text>
+          </Pressable>
+        </View>
+        <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Picked: {sourceLabel}</Text>
+      </View>
+
+      {/* SCANNER PICKER */}
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Text style={[styles.cardLabel, { color: colors.accent, flex: 1 }]}>SCANNERS ({selected.size}/{scanners.length})</Text>
+          <Pressable onPress={() => setSelected(new Set(scanners.map((s) => s.id)))}>
+            <Text style={{ color: colors.primary, fontSize: 11 }}>Select all</Text>
+          </Pressable>
+          <Text style={{ color: colors.mutedForeground }}> · </Text>
+          <Pressable onPress={() => setSelected(new Set())}>
+            <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Clear</Text>
+          </Pressable>
+        </View>
+        <View style={styles.toolGrid}>
+          {scanners.map((s) => {
+            const on = selected.has(s.id);
+            const st = statuses[s.id];
+            return (
+              <Pressable
+                key={s.id}
+                onPress={() => toggle(s.id)}
+                style={[
+                  styles.toolTile,
+                  { borderColor: on ? colors.primary : colors.border, backgroundColor: on ? colors.primary + "22" : colors.background },
+                ]}
+              >
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Feather name={iconFor(s)} size={12} color={on ? colors.primary : colors.mutedForeground} />
+                  <Text style={{ flex: 1, color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>{s.label}</Text>
+                  {st && st.state !== "idle" ? (
+                    <Text style={{ color: stateColor(st.state, colors), fontSize: 10 }}>{stateLabel(st)}</Text>
+                  ) : null}
+                </View>
+                <Text style={{ color: colors.mutedForeground, fontSize: 10 }} numberOfLines={2}>{s.description}</Text>
+                <Text style={{ color: colors.mutedForeground, fontSize: 9 }}>
+                  {s.runsOn === "phone" ? "on-phone" : s.runsOn === "server" ? "server" : "phone/server"}{s.forged ? " · forged" : ""}
+                </Text>
+                {st?.state === "running" ? <ActivityIndicator size="small" color={colors.primary} /> : null}
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
+      {/* RUN BUTTON */}
+      <View style={{ flexDirection: "row", gap: 8 }}>
+        <Pressable
+          disabled={running}
+          onPress={start}
+          style={[styles.runBtn, { backgroundColor: running ? colors.muted : colors.primary, opacity: running ? 0.6 : 1 }]}
+        >
+          {running ? <ActivityIndicator color={colors.background} /> : <Feather name="play" size={14} color={colors.background} />}
+          <Text style={{ color: colors.background, fontFamily: "Inter_700Bold" }}>{running ? "Scanning…" : "Scan"}</Text>
+        </Pressable>
+        {running ? (
+          <Pressable onPress={cancel} style={[styles.btn, { borderColor: colors.destructive }]}>
+            <Feather name="x" size={14} color={colors.destructive} />
+            <Text style={{ color: colors.destructive }}>Cancel all</Text>
+          </Pressable>
+        ) : null}
+      </View>
+
+      {/* FINDINGS */}
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.cardLabel, { color: colors.accent }]}>FINDINGS ({findings.length})</Text>
+        {findings.length === 0 ? (
+          <Text style={{ color: colors.mutedForeground, fontStyle: "italic", fontSize: 12 }}>No findings yet — pick a source, select tools, tap Scan.</Text>
+        ) : findings.map((f) => <FindingCard key={f.uid} finding={f} colors={colors} />)}
+      </View>
+
+      {/* TOOL-FORGE */}
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <Text style={[styles.cardLabel, { color: colors.accent, flex: 1 }]}>TOOL-FORGE</Text>
+          <Pressable onPress={() => setForgeOpen(true)} style={[styles.btn, { borderColor: colors.primary }]}>
+            <Feather name="zap" size={12} color={colors.primary} />
+            <Text style={{ color: colors.primary, fontSize: 11 }}>Forge Tool</Text>
+          </Pressable>
+        </View>
+        <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>
+          Pending: {pending.length} · Installed (Forged Tools): {installed.length}
+        </Text>
+        {pending.map((p) => (
+          <View key={p.slug} style={[styles.pendingRow, { borderColor: colors.border }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>{p.label}</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>{p.origin} · {p.language} · {p.targetFileTypes.join(",") || "*"}</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 10 }} numberOfLines={4}>{p.source.slice(0, 320)}</Text>
+              <View style={{ flexDirection: "row", gap: 6, marginTop: 4 }}>
+                <Pressable onPress={() => approvePending(p.slug)} style={[styles.btn, { borderColor: "#238636" }]}>
+                  <Text style={{ color: "#238636", fontSize: 11 }}>Approve</Text>
+                </Pressable>
+                <Pressable onPress={() => setForgeEditing({ spec: p, bucket: "pending" })} style={[styles.btn, { borderColor: colors.border }]}>
+                  <Feather name="edit-2" size={11} color={colors.foreground} />
+                  <Text style={{ color: colors.foreground, fontSize: 11 }}>Edit</Text>
+                </Pressable>
+                <Pressable onPress={() => exportForgedTool(p)} style={[styles.btn, { borderColor: colors.border }]}>
+                  <Feather name="share" size={11} color={colors.foreground} />
+                  <Text style={{ color: colors.foreground, fontSize: 11 }}>Export</Text>
+                </Pressable>
+                <Pressable onPress={() => rejectPending(p.slug)} style={[styles.btn, { borderColor: colors.destructive }]}>
+                  <Text style={{ color: colors.destructive, fontSize: 11 }}>Reject</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        ))}
+        {installed.map((i) => (
+          <View key={i.slug} style={[styles.pendingRow, { borderColor: colors.border }]}>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>{i.label}</Text>
+              <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>{i.language} · {i.targetFileTypes.join(",") || "*"}</Text>
+              <View style={{ flexDirection: "row", gap: 6, marginTop: 4 }}>
+                <Pressable onPress={() => setForgeEditing({ spec: i, bucket: "installed" })} style={[styles.btn, { borderColor: colors.border }]}>
+                  <Feather name="edit-2" size={11} color={colors.foreground} />
+                  <Text style={{ color: colors.foreground, fontSize: 11 }}>Edit</Text>
+                </Pressable>
+                <Pressable onPress={() => exportForgedTool(i)} style={[styles.btn, { borderColor: colors.border }]}>
+                  <Feather name="share" size={11} color={colors.foreground} />
+                  <Text style={{ color: colors.foreground, fontSize: 11 }}>Export</Text>
+                </Pressable>
+                <Pressable onPress={() => deleteInstalled(i.slug)} style={[styles.btn, { borderColor: colors.destructive }]}>
+                  <Feather name="trash-2" size={12} color={colors.destructive} />
+                  <Text style={{ color: colors.destructive, fontSize: 11 }}>Delete</Text>
+                </Pressable>
+              </View>
+            </View>
+          </View>
+        ))}
+      </View>
+
+      <ForgeModal open={forgeOpen} onClose={() => setForgeOpen(false)} colors={colors} />
+      <ForgeModal
+        open={!!forgeEditing}
+        onClose={() => setForgeEditing(null)}
+        colors={colors}
+        editing={forgeEditing ?? undefined}
+      />
+    </ScrollView>
   );
 }
 
-// =====================================================================
+function pickToSource(pick: SourcePick): ScanSource {
+  if (pick.kind === "github") return { kind: "github", payload: { url: pick.url } };
+  if (pick.kind === "upload") return { kind: "upload", payload: { files: pick.files } };
+  if (pick.kind === "zip") return { kind: "zip", payload: { name: pick.name, contentBase64: pick.contentBase64 } };
+  if (pick.kind === "workspace") return { kind: "workspace" };
+  if (pick.kind === "apk") return { kind: "apk", payload: { name: pick.name, contentBase64: pick.contentBase64 } };
+  return { kind: "screen", payload: { ocrText: pick.ocrText } };
+}
 
-function PendingForgedCard(props: {
-  tool: ForgedTool;
-  approve: (slug: string) => Promise<void>;
-  reject: (slug: string) => Promise<void>;
-}) {
-  const colors = useColors();
-  const styles = makeStyles(colors);
-  const { tool: t } = props;
-  const [acknowledged, setAcknowledged] = useState(false);
-  const codeLen = t.code.length;
-  // No truncation — operator must scroll the full code before approval is enabled.
+function describeSource(pick: SourcePick | null): string {
+  if (!pick) return "(none)";
+  if (pick.kind === "github") return `GitHub: ${pick.url}`;
+  if (pick.kind === "upload") return `${pick.files.length} file(s)`;
+  if (pick.kind === "zip") return `ZIP: ${pick.name}`;
+  if (pick.kind === "workspace") return "Lexi's Replit project";
+  if (pick.kind === "apk") return `APK: ${pick.name}`;
+  return `Screen capture (${pick.ocrText.length} chars)`;
+}
+
+function iconFor(s: ScannerSpec): React.ComponentProps<typeof Feather>["name"] {
+  if (s.id === "ai-review") return "cpu";
+  if (s.id === "regex-secrets") return "key";
+  if (s.id.includes("apk") || s.id === "jadx") return "package";
+  if (s.forged) return "zap";
+  return "shield";
+}
+
+function stateColor(state: ToolStatus["state"], colors: ReturnType<typeof useColors>): string {
+  if (state === "running") return colors.primary;
+  if (state === "ok") return "#238636";
+  if (state === "issues") return "#f5a524";
+  if (state === "error") return colors.destructive;
+  if (state === "skipped") return colors.mutedForeground;
+  return colors.mutedForeground;
+}
+function stateLabel(st: ToolStatus): string {
+  if (st.state === "running") return "running";
+  if (st.state === "skipped") return st.reason ? `skip: ${st.reason}` : "skip";
+  if (st.state === "error") return "err";
+  return `${st.state}${st.findingCount != null ? ` ${st.findingCount}` : ""}${st.durationMs != null ? ` ${Math.round(st.durationMs / 100) / 10}s` : ""}`;
+}
+
+function SourceTile({ icon, label, onPress, colors }: { icon: React.ComponentProps<typeof Feather>["name"]; label: string; onPress: () => void; colors: ReturnType<typeof useColors> }) {
   return (
-    <View style={styles.findingCard}>
-      <Text style={styles.findingSummary}>{t.name}</Text>
-      <Text style={styles.muted}>{t.description}</Text>
-      <Text style={styles.toolMeta}>slug: {t.slug} • source: {t.source} • {codeLen} chars</Text>
-      <View style={{ marginTop: 8, maxHeight: 240, borderWidth: 1, borderColor: colors.border, borderRadius: 6, padding: 8 }}>
-        <ScrollView>
-          <ScrollView horizontal>
-            <Text style={[styles.explainText, { fontFamily: "Courier", fontSize: 11 }]}>{t.code}</Text>
-          </ScrollView>
-        </ScrollView>
+    <Pressable onPress={onPress} style={[styles.sourceTile, { borderColor: colors.border, backgroundColor: colors.background }]}>
+      <Feather name={icon} size={16} color={colors.primary} />
+      <Text style={{ color: colors.foreground, fontSize: 11, fontFamily: "Inter_600SemiBold" }}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function FindingCard({ finding, colors }: { finding: NormalizedFinding; colors: ReturnType<typeof useColors> }) {
+  const [mode, setMode] = useState<null | "fix" | "reproduce">(null);
+  const [answer, setAnswer] = useState("");
+  const [streaming, setStreaming] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const ask = (m: "fix" | "reproduce") => {
+    if (streaming) return;
+    setMode(m); setAnswer(""); setErr(null); setStreaming(true);
+    const sys = m === "fix" ? FIX_SYSTEM_PROMPT : REPRO_SYSTEM_PROMPT;
+    const messages: ChatMsg[] = [{ role: "user", content: buildExplainPrompt(finding, m) }];
+    const correlationId = `${finding.tool}:${finding.id}:${finding.uid}`;
+    const target = finding.module || `${finding.tool}:${finding.id}`;
+    log.info("scan", `finding:${m}`, { actor: "user", target, correlationId });
+    let acc = "";
+    streamLexi(messages, (t) => { acc += t; setAnswer((p) => p + t); }, { systemPrompt: sys })
+      .then(() => {
+        setStreaming(false);
+        // Persist the full answer so the operator's audit trail keeps the
+        // generated patch / repro alongside the original finding.
+        log.info("scan", `finding:${m}:done`, {
+          actor: "app", target, correlationId,
+          outputs: { mode: m, answerChars: acc.length, answer: acc },
+        });
+      })
+      .catch((e) => {
+        const error = e instanceof Error ? e.message : String(e);
+        setErr(error); setStreaming(false);
+        log.error("scan", `finding:${m}:error`, { target, correlationId, error });
+      });
+  };
+
+  const sevColor = finding.severity === "critical" || finding.severity === "high" ? colors.destructive
+    : finding.severity === "medium" || finding.severity === "moderate" || finding.severity === "warn" || finding.severity === "warning" ? "#f5a524"
+    : colors.mutedForeground;
+
+  return (
+    <View style={[styles.findingCard, { borderColor: colors.border }]}>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+        <Text style={{ color: sevColor, fontFamily: "Inter_700Bold", fontSize: 10 }}>{finding.severity.toUpperCase()}</Text>
+        <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>{finding.tool}:{finding.id}</Text>
       </View>
-      <Pressable style={[styles.smallBtn, { marginTop: 8, borderColor: acknowledged ? "#10b981" : colors.primary }]}
-        onPress={() => setAcknowledged((v) => !v)}>
-        <Feather name={acknowledged ? "check-square" : "square"} size={14} color={acknowledged ? "#10b981" : colors.primary} />
-        <Text style={[styles.smallBtnText, { color: acknowledged ? "#10b981" : colors.primary }]}>
-          I have read the full code ({codeLen} chars)
-        </Text>
-      </Pressable>
-      <View style={styles.actionRow}>
-        <Pressable
-          disabled={!acknowledged}
-          style={[styles.actionBtn, { backgroundColor: acknowledged ? "#10b98122" : "#94a3b822", opacity: acknowledged ? 1 : 0.5 }]}
-          onPress={() => props.approve(t.slug)}>
-          <Feather name="check" size={12} color={acknowledged ? "#10b981" : "#94a3b8"} />
-          <Text style={[styles.actionText, { color: acknowledged ? "#10b981" : "#94a3b8" }]}>Approve</Text>
+      <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 13 }}>{finding.title}</Text>
+      {finding.module ? <Text style={{ color: colors.mutedForeground, fontSize: 10 }}>{finding.module}</Text> : null}
+      <View style={{ flexDirection: "row", gap: 6, marginTop: 4 }}>
+        <Pressable onPress={() => ask("fix")} disabled={streaming}
+          style={[styles.btn, { borderColor: mode === "fix" ? colors.primary : colors.border }]}>
+          <Feather name="tool" size={12} color={colors.foreground} />
+          <Text style={{ color: colors.foreground, fontSize: 11 }}>Fix</Text>
         </Pressable>
-        <Pressable style={[styles.actionBtn, { backgroundColor: "#dc262622" }]} onPress={() => props.reject(t.slug)}>
-          <Feather name="trash-2" size={12} color="#dc2626" />
-          <Text style={[styles.actionText, { color: "#dc2626" }]}>Reject</Text>
+        <Pressable onPress={() => ask("reproduce")} disabled={streaming}
+          style={[styles.btn, { borderColor: mode === "reproduce" ? colors.primary : colors.border }]}>
+          <Feather name="play-circle" size={12} color={colors.foreground} />
+          <Text style={{ color: colors.foreground, fontSize: 11 }}>Reproduce</Text>
         </Pressable>
       </View>
+      {mode ? (
+        <View style={{ marginTop: 6 }}>
+          {answer ? <Markdown content={answer} /> : streaming ? <Text style={{ color: colors.mutedForeground, fontSize: 11 }}>Streaming…</Text> : null}
+          {err ? <Text style={{ color: colors.destructive, fontSize: 11 }}>Error: {err}</Text> : null}
+        </View>
+      ) : null}
     </View>
   );
 }
 
-// =====================================================================
-
-function makeStyles(colors: ReturnType<typeof useColors>) {
-  return StyleSheet.create({
-    safe: { flex: 1, backgroundColor: colors.background },
-    container: { padding: 16, paddingBottom: 80 },
-    headerRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
-    h1: { fontSize: 24, fontWeight: "700", color: colors.foreground },
-    h2: { fontSize: 18, fontWeight: "600", color: colors.foreground },
-    forgeBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: colors.primary, paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8 },
-    forgeBtnText: { color: "#fff", fontWeight: "600", fontSize: 13 },
-    pendingBadge: { backgroundColor: "#fff", borderRadius: 10, paddingHorizontal: 6, marginLeft: 4 },
-    pendingBadgeText: { color: colors.primary, fontWeight: "700", fontSize: 11 },
-    sectionLabel: { fontSize: 12, fontWeight: "700", color: colors.mutedForeground, marginTop: 16, marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 },
-    row: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-    chip: { paddingHorizontal: 12, paddingVertical: 8, backgroundColor: colors.muted, borderRadius: 16 },
-    chipActive: { backgroundColor: colors.primary },
-    chipText: { color: colors.foreground, fontSize: 13 },
-    chipTextActive: { color: "#fff", fontWeight: "600" },
-    sourceBox: { marginTop: 8, padding: 12, borderWidth: 1, borderColor: colors.border, borderRadius: 8, gap: 8 },
-    smallBtn: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: colors.primary, borderRadius: 8 },
-    smallBtnText: { color: colors.primary, fontWeight: "600", fontSize: 13 },
-    input: { backgroundColor: colors.muted, color: colors.foreground, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 14 },
-    helpText: { color: colors.mutedForeground, fontSize: 11, fontStyle: "italic" },
-    catBlock: { marginBottom: 8 },
-    catLabel: { fontSize: 11, fontWeight: "600", color: colors.mutedForeground, marginTop: 8, marginBottom: 6 },
-    toolGrid: { gap: 8 },
-    toolCard: { padding: 10, borderWidth: 1, borderColor: colors.border, borderRadius: 8, backgroundColor: colors.background },
-    toolCardActive: { borderColor: colors.primary, backgroundColor: `${colors.primary}11` },
-    toolHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-    toolName: { fontSize: 14, fontWeight: "600", color: colors.foreground, flex: 1 },
-    toolDesc: { fontSize: 12, color: colors.mutedForeground, marginTop: 2 },
-    toolMeta: { fontSize: 10, color: colors.mutedForeground, marginTop: 4, fontStyle: "italic" },
-    statusOk: { color: "#10b981", fontWeight: "700", fontSize: 12 },
-    runRow: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 16 },
-    runBtn: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: colors.primary, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 8 },
-    runBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
-    statusLine: { color: colors.mutedForeground, fontSize: 12, flex: 1 },
-    muted: { color: colors.mutedForeground, fontSize: 13 },
-    findingCard: { padding: 12, borderWidth: 1, borderColor: colors.border, borderRadius: 8, marginBottom: 8 },
-    findingHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 4 },
-    sevDot: { width: 8, height: 8, borderRadius: 4 },
-    sevText: { fontSize: 10, fontWeight: "700", color: colors.foreground },
-    findingTool: { fontSize: 11, color: colors.mutedForeground, marginLeft: "auto" },
-    findingSummary: { fontSize: 14, color: colors.foreground, marginBottom: 4 },
-    findingLoc: { fontSize: 11, color: colors.mutedForeground, fontFamily: "Courier" },
-    actionRow: { flexDirection: "row", gap: 8, marginTop: 8 },
-    actionBtn: { flexDirection: "row", alignItems: "center", gap: 4, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6, backgroundColor: `${colors.primary}11` },
-    actionText: { color: colors.primary, fontSize: 12, fontWeight: "600" },
-    modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-    explainText: { color: colors.foreground, fontSize: 13, lineHeight: 20 },
-  });
+async function exportForgedTool(spec: ForgedToolSpec) {
+  const json = exportSpec(spec);
+  try {
+    await Share.share({ message: json, title: `${spec.slug}.json` });
+  } catch {
+    try { await Clipboard.setStringAsync(json); Alert.alert("Copied", "Forged tool spec copied to clipboard."); }
+    catch { Alert.alert("Export failed"); }
+  }
 }
+
+function ForgeModal({
+  open, onClose, colors, editing,
+}: {
+  open: boolean; onClose: () => void; colors: ReturnType<typeof useColors>;
+  editing?: { spec: ForgedToolSpec; bucket: "pending" | "installed" };
+}) {
+  const editMode = !!editing;
+  const [name, setName] = useState("");
+  const [desc, setDesc] = useState("");
+  const [lang, setLang] = useState<"javascript" | "python" | "semgrep">("javascript");
+  const [exts, setExts] = useState("js,ts");
+  const [prompt, setPrompt] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (editing) {
+      setName(editing.spec.label);
+      setDesc(editing.spec.description);
+      setLang(editing.spec.language);
+      setExts(editing.spec.targetFileTypes.join(","));
+      setPrompt(editing.spec.source);
+    } else {
+      setName(""); setDesc(""); setLang("javascript"); setExts("js,ts"); setPrompt("");
+    }
+  }, [editing]);
+
+  const submit = async () => {
+    if (!name.trim() || !prompt.trim()) { Alert.alert("Need a name and detection prompt"); return; }
+    setBusy(true);
+    try {
+      if (editing) {
+        const patch: Partial<ForgedToolSpec> = {
+          label: name.trim(),
+          description: desc.trim() || name.trim(),
+          language: lang,
+          targetFileTypes: exts.split(",").map((s) => s.trim()).filter(Boolean),
+          source: prompt,
+        };
+        if (editing.bucket === "pending") await updatePending(editing.spec.slug, patch);
+        else await updateInstalled(editing.spec.slug, patch);
+        Alert.alert("Saved", "Forged tool updated.");
+      } else {
+        await forgeFromRequest({
+          name: name.trim(),
+          description: desc.trim() || name.trim(),
+          language: lang,
+          targetFileTypes: exts.split(",").map((s) => s.trim()).filter(Boolean),
+          detectionPrompt: prompt.trim(),
+          origin: "forge-button",
+        });
+        Alert.alert("Drafted", "New scanner is in the Pending list. Approve it to install.");
+      }
+      setName(""); setDesc(""); setPrompt("");
+      onClose();
+    } catch (err) {
+      Alert.alert("Forge failed", err instanceof Error ? err.message : String(err));
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <Modal visible={open} animationType="slide" onRequestClose={onClose}>
+      <ScrollView style={{ flex: 1, backgroundColor: colors.background }} contentContainerStyle={{ padding: 16, gap: 10 }}>
+        <Text style={{ color: colors.foreground, fontFamily: "Inter_700Bold", fontSize: 18 }}>{editMode ? "Edit forged scanner" : "Forge a new scanner"}</Text>
+        <TextInput value={name} onChangeText={setName} placeholder="Tool name (e.g. dangerous-eval)" placeholderTextColor={colors.mutedForeground}
+          style={input(colors)} />
+        <TextInput value={desc} onChangeText={setDesc} placeholder="Description" placeholderTextColor={colors.mutedForeground}
+          style={input(colors)} />
+        <View style={{ flexDirection: "row", gap: 6 }}>
+          {(["javascript","python","semgrep"] as const).map((l) => (
+            <Pressable key={l} onPress={() => setLang(l)} style={[styles.btn, { borderColor: lang === l ? colors.primary : colors.border }]}>
+              <Text style={{ color: lang === l ? colors.primary : colors.foreground, fontSize: 11 }}>{l}</Text>
+            </Pressable>
+          ))}
+        </View>
+        <TextInput value={exts} onChangeText={setExts} placeholder="File extensions (comma-separated, * for any)" placeholderTextColor={colors.mutedForeground}
+          autoCapitalize="none" style={input(colors)} />
+        <TextInput value={prompt} onChangeText={setPrompt} placeholder="Detection logic — describe what counts as a finding" placeholderTextColor={colors.mutedForeground}
+          multiline style={[input(colors), { minHeight: 120, textAlignVertical: "top" }]} />
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <Pressable onPress={submit} disabled={busy} style={[styles.runBtn, { backgroundColor: colors.primary }]}>
+            {busy ? <ActivityIndicator color={colors.background} /> : <Feather name="zap" size={14} color={colors.background} />}
+            <Text style={{ color: colors.background, fontFamily: "Inter_700Bold" }}>{editMode ? "Save" : "Draft"}</Text>
+          </Pressable>
+          <Pressable onPress={onClose} style={[styles.btn, { borderColor: colors.border }]}>
+            <Text style={{ color: colors.foreground }}>Close</Text>
+          </Pressable>
+        </View>
+      </ScrollView>
+    </Modal>
+  );
+}
+
+const input = (colors: ReturnType<typeof useColors>) => ({
+  borderWidth: 1, borderColor: colors.border, borderRadius: 8, padding: 8, color: colors.foreground, backgroundColor: colors.card, fontSize: 12,
+});
+
+const styles = StyleSheet.create({
+  card: { borderWidth: 1, borderRadius: 12, padding: 12, gap: 8 },
+  cardLabel: { fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.5 },
+  sourceGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  sourceTile: { borderWidth: 1, borderRadius: 10, padding: 10, alignItems: "center", flexBasis: "30%", flexGrow: 1, gap: 4 },
+  toolGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  toolTile: { borderWidth: 1, borderRadius: 10, padding: 8, gap: 4, flexBasis: "47%", flexGrow: 1 },
+  runBtn: { flex: 1, padding: 12, borderRadius: 10, alignItems: "center", justifyContent: "center", flexDirection: "row", gap: 8 },
+  btn: { paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8, borderWidth: 1, flexDirection: "row", alignItems: "center", gap: 4 },
+  findingCard: { borderWidth: 1, borderRadius: 10, padding: 10, gap: 4 },
+  pendingRow: { flexDirection: "row", gap: 6, alignItems: "center", borderWidth: 1, borderRadius: 8, padding: 8 },
+});

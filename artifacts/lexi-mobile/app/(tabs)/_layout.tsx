@@ -48,6 +48,10 @@ export default function TabLayout() {
         options={{ title: "Upload", tabBarIcon: ({ color }) => <Feather name="upload-cloud" size={22} color={color} /> }}
       />
       <Tabs.Screen
+        name="scan"
+        options={{ title: "Scan", tabBarIcon: ({ color }) => <Feather name="shield" size={22} color={color} /> }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{ title: "Profile", tabBarIcon: ({ color }) => <Feather name="user" size={22} color={color} /> }}
       />

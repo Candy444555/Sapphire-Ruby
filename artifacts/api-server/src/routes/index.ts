@@ -22,6 +22,7 @@ import easUpdateRouter from "./eas-update";
 import adminDebugRouter from "./admin-debug";
 import appleActivationRouter from "./apple-activation";
 import scanRouter from "./scan";
+import scanAiReviewRouter from "./scan-ai-review";
 
 const router: IRouter = Router();
 
@@ -48,5 +49,6 @@ router.use(easUpdateRouter);
 router.use(adminDebugRouter);
 router.use(appleActivationRouter);
 router.use(scanRouter);
+router.use(scanAiReviewRouter);
 
 export default router;

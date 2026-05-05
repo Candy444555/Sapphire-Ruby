@@ -37,6 +37,15 @@ artifacts-monorepo/
 └── package.json
 ```
 
+## Lexi Scan tab + Tool-Forge (2026-05, task #22)
+
+- New Scan tab `artifacts/lexi-mobile/app/(tabs)/scan.tsx` — no-paste source picker (file/APK/ZIP/GitHub URL/workspace/one-shot screen capture), multi-select scanner grid, parallel runner with phone-first / server-fallback policy.
+- Per-finding contract `lib/findings/contract.ts` — every tool emits a `scan/finding` log entry the existing Logs tab Fix/Reproduce row already understands, and the Scan tab's `FindingCard` re-uses the same #20 streamLexi explainer.
+- New scanners: `bandit`, `nuclei`, `apktool`+`jadx` decompile pipeline (`scripts/scan-{bandit,nuclei,decompile}.js`), `ai-review` (Featherless via `lib/scanners/ai-review.ts` + server fallback `routes/scan-ai-review.ts`), and on-phone `regex-secrets`. Trivy was already shipped in #14.
+- Server SSE aggregator: `POST /api/scan/run` in `artifacts/api-server/src/routes/scan.ts`.
+- Tool-Forge — operator-gated: auto-suggest from clustered log findings (`lib/tool-forge/analyzer.ts`), chat-to-scanner generator (`chat-to-scanner.ts`), Forge Tool button. Pending → Approve installs into the registry; JS tools execute on-phone via sandboxed `function scan(file)`.
+- Profile gains a Scan section (auto-suggest toggle, screen-capture toggle, default timeout). See `artifacts/lexi-mobile/SCAN-TAB.md` and the new section in `SECURITY.md`.
+
 ## Lexi upgrades (2026-04)
 
 - **Deploy fix**: `artifacts/mockup-sandbox/vite.config.ts` no longer throws on missing `PORT`/`BASE_PATH` at config-load time — defaults to port 5173 and `/` so `vite build` works during the deploy build phase.

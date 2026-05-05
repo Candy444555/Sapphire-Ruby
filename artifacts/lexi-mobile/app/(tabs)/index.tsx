@@ -161,6 +161,22 @@ export default function ChatScreen() {
     if (isStreaming) return;
     if (!model) { Alert.alert("Pick a model", "Models are still loading."); return; }
 
+    // /forge slash command — third Tool-Forge entry point (chat-driven).
+    // Syntax: `/forge <name>: <detection prompt>`  (extra fields optional
+    // via `lang=python` / `ext=py,go`). Drafts a Pending scanner; operator
+    // still has to Approve in the Scan tab before it installs.
+    if (text.startsWith("/forge ")) {
+      setInput("");
+      try {
+        const m = await import("@/lib/tool-forge/chat-to-scanner");
+        const spec = await m.forgeFromRequest(parseForgeSlash(text));
+        Alert.alert("Drafted", `“${spec.label}” is in Pending — open Scan tab → Tool-Forge to Approve.`);
+      } catch (err) {
+        Alert.alert("Forge failed", err instanceof Error ? err.message : String(err));
+      }
+      return;
+    }
+
     setInput("");
     learnFromMessage(text);
 
@@ -501,6 +517,33 @@ export default function ChatScreen() {
       </Modal>
     </View>
   );
+}
+
+function parseForgeSlash(raw: string): {
+  name: string; description: string;
+  language: "javascript" | "python" | "semgrep";
+  targetFileTypes: string[]; detectionPrompt: string; origin: "chat";
+} {
+  const body = raw.replace(/^\/forge\s+/, "").trim();
+  let language: "javascript" | "python" | "semgrep" = "javascript";
+  let targetFileTypes: string[] = ["js", "ts"];
+  const stripped = body.replace(/\b(lang|language)=([a-z]+)/i, (_m, _k, v) => {
+    const lv = String(v).toLowerCase();
+    if (lv === "python" || lv === "py") language = "python";
+    else if (lv === "semgrep" || lv === "yaml") language = "semgrep";
+    else language = "javascript";
+    return "";
+  }).replace(/\bext=([a-z0-9,]+)/i, (_m, v) => {
+    targetFileTypes = String(v).split(",").map((s) => s.trim()).filter(Boolean);
+    return "";
+  }).trim();
+  const colonIdx = stripped.indexOf(":");
+  const name = (colonIdx >= 0 ? stripped.slice(0, colonIdx) : stripped).trim() || "untitled-forge";
+  const detectionPrompt = (colonIdx >= 0 ? stripped.slice(colonIdx + 1) : stripped).trim();
+  return {
+    name, description: detectionPrompt.slice(0, 120) || name,
+    language, targetFileTypes, detectionPrompt, origin: "chat",
+  };
 }
 
 const styles = StyleSheet.create({

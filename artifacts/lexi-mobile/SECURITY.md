@@ -90,3 +90,49 @@ Outputs land in `<target>/security-reports/` unless you also pass
 `/.github/workflows/security-scan.yml` mirrors the same suite but is
 disabled by default — it only runs when you trigger `workflow_dispatch`
 from the GitHub Actions UI. Enable a schedule yourself if you want it.
+
+## Task #22 — In-app Scan tab, new tools, Tool-Forge
+
+The Scan tab (`app/(tabs)/scan.tsx`) is now the operator-facing surface for
+every scanner. Operator picks a source (file / APK / ZIP / GitHub URL /
+workspace / one-shot screen capture), toggles tools in the multi-select
+grid, and taps **Scan** — nothing runs until then. See `SCAN-TAB.md` for
+the full operator workflow and the no-paste safety rule.
+
+New tools wired in (in addition to the existing #14 set):
+
+- `bandit` — Python SAST. Wrapper: `scripts/scan-bandit.js`.
+- `trivy` — already shipped in #14; still wired through `scripts/scan-trivy.js`.
+- `nuclei` — template-based. Wrapper: `scripts/scan-nuclei.js`.
+- `apktool` + `jadx` — APK decompile pipeline. Wrapper:
+  `scripts/scan-decompile.js`. The output dirs are intended to feed back
+  into semgrep / secrets / `ai-review` on a follow-up scan.
+- `ai-review` — Featherless model emits structured findings via
+  `lib/scanners/ai-review.ts` (on-phone) or `routes/scan-ai-review.ts`
+  (server fallback).
+- `regex-secrets` — fast on-phone secret regex sweep.
+
+Server-side aggregator: `POST /api/scan/run` streams per-tool NDJSON
+events back via SSE. See `routes/scan.ts`.
+
+Per-finding contract: every tool — built-in, server, on-phone, forged —
+flows through `lib/findings/contract.ts → normalizeFinding()`. That writes
+a `scan/finding` log entry the Logs tab already understands and returns a
+normalized object the Scan tab's `FindingCard` renders with the same Fix /
+Reproduce buttons that the Logs tab uses (re-using #20).
+
+### Tool-Forge
+
+Operator-gated authoring of new scanners. Three modes, all routed through
+`lib/tool-forge/approval-queue.ts`:
+
+1. Auto-suggest from scan history (`analyzer.ts`, threshold = 3 similar
+   findings, toggle in Profile → Scan).
+2. Chat-to-scanner / programmatic generator (`chat-to-scanner.ts`).
+3. Forge Tool button — guided form in the Scan tab.
+
+Approved tools register at runtime in `lib/scanners/registry.ts` and
+appear as toggles in the multi-select picker. JS-language forged tools
+execute on-phone via the `function scan(file)` contract in
+`lib/tool-forge/runner.ts`. Forged tools ship with the same Fix /
+Reproduce contract as the built-ins.

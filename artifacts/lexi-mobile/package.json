@@ -30,6 +30,7 @@
     "scan:nuclei": "node scripts/scan-nuclei.js",
     "scan:ai-review": "node scripts/scan-ai-review.js",
     "scan:apk-decompile": "node scripts/scan-apk-decompile.js",
+    "scan:decompile": "node scripts/scan-decompile.js",
     "explain": "node scripts/explain.js"
   },
   "devDependencies": {

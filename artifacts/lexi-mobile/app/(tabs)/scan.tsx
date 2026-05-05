@@ -438,29 +438,59 @@ function ForgeModal(props: {
 
           <Text style={[styles.sectionLabel, { marginTop: 24 }]}>Pending approval ({props.pending.length})</Text>
           {props.pending.length === 0 && <Text style={styles.muted}>No pending forged tools.</Text>}
-          {props.pending.map((t) => (
-            <View key={t.slug} style={styles.findingCard}>
-              <Text style={styles.findingSummary}>{t.name}</Text>
-              <Text style={styles.muted}>{t.description}</Text>
-              <Text style={styles.toolMeta}>slug: {t.slug} • source: {t.source}</Text>
-              <ScrollView horizontal style={{ marginTop: 8, maxHeight: 120 }}>
-                <Text style={[styles.explainText, { fontFamily: "Courier", fontSize: 11 }]}>{t.code.slice(0, 1500)}{t.code.length > 1500 ? "…" : ""}</Text>
-              </ScrollView>
-              <View style={styles.actionRow}>
-                <Pressable style={[styles.actionBtn, { backgroundColor: "#10b98122" }]} onPress={() => approve(t.slug)}>
-                  <Feather name="check" size={12} color="#10b981" />
-                  <Text style={[styles.actionText, { color: "#10b981" }]}>Approve</Text>
-                </Pressable>
-                <Pressable style={[styles.actionBtn, { backgroundColor: "#dc262622" }]} onPress={() => reject(t.slug)}>
-                  <Feather name="trash-2" size={12} color="#dc2626" />
-                  <Text style={[styles.actionText, { color: "#dc2626" }]}>Reject</Text>
-                </Pressable>
-              </View>
-            </View>
-          ))}
+          {props.pending.map((t) => <PendingForgedCard key={t.slug} tool={t} approve={approve} reject={reject} />)}
         </ScrollView>
       </SafeAreaView>
     </Modal>
+  );
+}
+
+// =====================================================================
+
+function PendingForgedCard(props: {
+  tool: ForgedTool;
+  approve: (slug: string) => Promise<void>;
+  reject: (slug: string) => Promise<void>;
+}) {
+  const colors = useColors();
+  const styles = makeStyles(colors);
+  const { tool: t } = props;
+  const [acknowledged, setAcknowledged] = useState(false);
+  const codeLen = t.code.length;
+  // No truncation — operator must scroll the full code before approval is enabled.
+  return (
+    <View style={styles.findingCard}>
+      <Text style={styles.findingSummary}>{t.name}</Text>
+      <Text style={styles.muted}>{t.description}</Text>
+      <Text style={styles.toolMeta}>slug: {t.slug} • source: {t.source} • {codeLen} chars</Text>
+      <View style={{ marginTop: 8, maxHeight: 240, borderWidth: 1, borderColor: colors.border, borderRadius: 6, padding: 8 }}>
+        <ScrollView>
+          <ScrollView horizontal>
+            <Text style={[styles.explainText, { fontFamily: "Courier", fontSize: 11 }]}>{t.code}</Text>
+          </ScrollView>
+        </ScrollView>
+      </View>
+      <Pressable style={[styles.smallBtn, { marginTop: 8, borderColor: acknowledged ? "#10b981" : colors.primary }]}
+        onPress={() => setAcknowledged((v) => !v)}>
+        <Feather name={acknowledged ? "check-square" : "square"} size={14} color={acknowledged ? "#10b981" : colors.primary} />
+        <Text style={[styles.smallBtnText, { color: acknowledged ? "#10b981" : colors.primary }]}>
+          I have read the full code ({codeLen} chars)
+        </Text>
+      </Pressable>
+      <View style={styles.actionRow}>
+        <Pressable
+          disabled={!acknowledged}
+          style={[styles.actionBtn, { backgroundColor: acknowledged ? "#10b98122" : "#94a3b822", opacity: acknowledged ? 1 : 0.5 }]}
+          onPress={() => props.approve(t.slug)}>
+          <Feather name="check" size={12} color={acknowledged ? "#10b981" : "#94a3b8"} />
+          <Text style={[styles.actionText, { color: acknowledged ? "#10b981" : "#94a3b8" }]}>Approve</Text>
+        </Pressable>
+        <Pressable style={[styles.actionBtn, { backgroundColor: "#dc262622" }]} onPress={() => props.reject(t.slug)}>
+          <Feather name="trash-2" size={12} color="#dc2626" />
+          <Text style={[styles.actionText, { color: "#dc2626" }]}>Reject</Text>
+        </Pressable>
+      </View>
+    </View>
   );
 }
 

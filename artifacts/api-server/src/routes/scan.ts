@@ -114,9 +114,20 @@ async function materializeSource(src: NonNullable<RunBody["source"]>): Promise<{
   }
   if (kind === "github") {
     if (!src.repo) throw new Error("github source needs repo");
-    // Clone shallow.
+    const repo = String(src.repo).trim();
+    // Strict allowlist: only https GitHub repos, no leading dash, no whitespace,
+    // limit length. Defends against git argument-injection (--upload-pack etc.)
+    // and non-https transports (file://, ssh://, ext::).
+    const ok =
+      repo.length <= 200 &&
+      !repo.startsWith("-") &&
+      !/\s/.test(repo) &&
+      /^https:\/\/github\.com\/[A-Za-z0-9_.-]{1,100}\/[A-Za-z0-9_.-]{1,100}(?:\.git)?$/.test(repo);
+    if (!ok) throw new Error("Repo URL rejected: must be https://github.com/owner/repo");
+    // The trailing `--` ensures git treats `repo` and `tmp` as positionals.
     await new Promise<void>((resolve, reject) => {
-      const p = spawn("git", ["clone", "--depth", "1", src.repo!, tmp], { stdio: "ignore" });
+      const p = spawn("git", ["clone", "--depth", "1", "--single-branch", "--no-tags", "--", repo, tmp],
+        { stdio: "ignore", env: { ...process.env, GIT_TERMINAL_PROMPT: "0" } });
       p.on("exit", (code) => (code === 0 ? resolve() : reject(new Error(`git clone exit ${code}`))));
       p.on("error", reject);
     });

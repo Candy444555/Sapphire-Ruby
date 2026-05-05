@@ -414,37 +414,9 @@ export function formatSearchContext(bundle: SearchBundle): string {
 
 // Final guard applied to the assistant's outgoing text. Belt-and-braces with
 // the system-prompt rules above: even if the model tries to leak a URL, this
-// scrubs it before the user sees it.
-const URL_REGEX = /\bhttps?:\/\/[^\s)\]]+/gi;
-const BARE_DOMAIN_REGEX = /\b[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.(?:com|net|org|io|ai|co|dev|app|fi|onion|gov|edu|info)\b(?:\/[^\s)\]]*)?/gi;
-const CITATION_PHRASES: RegExp[] = [
-  /\baccording to (?:[^.,;\n]+?)(?=[.,;\n])/gi,
-  /\bbased on (?:my )?(?:web )?search(?:es)?\b[^.,;\n]*/gi,
-  /\bI (?:just )?searched (?:the (?:web|internet))?[^.,;\n]*/gi,
-  /\bsources? say(?:s)?[^.,;\n]*/gi,
-  /\bas reported by [^.,;\n]+/gi,
-  /\bsee (?:more at )?https?:\/\/\S+/gi,
-];
-
-export function scrubUserFacingText(text: string): string {
-  if (!text) return text;
-  let out = text;
-  for (const re of CITATION_PHRASES) out = out.replace(re, "");
-  out = out.replace(URL_REGEX, "");
-  out = out.replace(BARE_DOMAIN_REGEX, (m) => {
-    // Keep file-extension-looking matches (foo.io.txt etc.) untouched if part of a code identifier.
-    if (/^\w+\.\w+\.\w+/.test(m)) return m;
-    return "";
-  });
-  // Tidy up the leftover " (  )", "  ", "( )"
-  out = out
-    .replace(/\(\s*\)/g, "")
-    .replace(/\[\s*\]/g, "")
-    .replace(/[ \t]{2,}/g, " ")
-    .replace(/ ?, ?,/g, ",")
-    .replace(/\n{3,}/g, "\n\n");
-  return out.trim();
-}
+// scrubs it before the user sees it. Implemented in `lib/text-scrub.ts` so
+// tests can exercise it without spawning network services.
+export { scrubUserFacingText } from "../lib/text-scrub.js";
 
 // Append a debug-only record of which sources fed an answer. Caller must be in
 // the api-server runtime — file path is rooted at the workspace.

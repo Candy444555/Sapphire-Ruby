@@ -364,8 +364,11 @@ async function streamChat(
         toEmit = "";
       }
       if (!toEmit) return;
-      const cleaned = scrubUserFacingText(toEmit);
-      if (cleaned) res.write(`data: ${JSON.stringify(cleaned)}\n\n`);
+      // Streaming mode preserves boundary whitespace so words don't bunch
+      // when a token like " world" arrives mid-stream. Emit even if the
+      // result is pure whitespace — that whitespace IS the inter-word space.
+      const cleaned = scrubUserFacingText(toEmit, { streaming: true });
+      if (cleaned.length > 0) res.write(`data: ${JSON.stringify(cleaned)}\n\n`);
     };
 
     while (!done) {

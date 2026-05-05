@@ -1,0 +1,52 @@
+{
+  "shellcheck:SC2086": {
+    "title": "Unquoted variable expansion (word splitting / globbing)",
+    "fix": "Quote the variable: change `cmd $var` to `cmd \"$var\"`. Use `\"${arr[@]}\"` for arrays. If you really want word splitting, add a comment justifying it and a `# shellcheck disable=SC2086` directive on that line.",
+    "reproduce": "```bash\nfile=\"my report.txt\"\nrm $file        # SC2086 — splits into two args: rm 'my' 'report.txt'\n# Broken output:  rm: cannot remove 'my': No such file or directory\n#                rm: cannot remove 'report.txt': No such file or directory\n# Fixed:\nrm \"$file\"     # treats 'my report.txt' as one path\n```"
+  },
+  "shellcheck:SC2046": {
+    "title": "Unquoted command substitution (word splitting)",
+    "fix": "Wrap the substitution in double quotes: `\"$(cmd)\"`. If you intentionally want a list of args, switch to an array: `mapfile -t items < <(cmd)`.",
+    "reproduce": "```bash\necho $(printf 'a b\\nc')   # SC2046 — splits into 3 words\n# Broken output: a b c   (newline collapsed, words split)\n# Fixed:\necho \"$(printf 'a b\\nc')\"\n# Output: a b\\nc          (preserved)\n```"
+  },
+  "shellcheck:SC2155": {
+    "title": "Declare and assign separately to avoid masking return values",
+    "fix": "Split the declaration from the assignment so the exit code of the command substitution isn't swallowed by `local`/`export`/`readonly`.",
+    "reproduce": "```bash\nlocal x=$(false)         # SC2155 — exit code is 0 (from `local`), not 1 (from `false`)\necho $?                  # 0  ← bug, masked failure\n# Fixed:\nlocal x\nx=$(false)\necho $?                  # 1  ← correct\n```"
+  },
+  "njsscan:eval_nodejs": {
+    "title": "Use of eval() — code injection risk",
+    "fix": "Replace `eval(input)` with a parser/evaluator scoped to your data shape. For JSON use `JSON.parse(input)`. For arithmetic use a dedicated lib (e.g. `mathjs.evaluate`). Never feed user input into `eval`, `new Function`, `setTimeout(string, ...)`, or `vm.runInThisContext`.",
+    "reproduce": "```js\nconst userInput = \"process.exit(1); 'pwned'\";\neval(`const x = ${userInput}`);   // attacker controls execution\n// Broken output: the process exits with code 1; nothing after this line runs.\n// Fixed:\nconst x = JSON.parse(userInput);  // throws SyntaxError, no code execution\n```"
+  },
+  "semgrep:javascript.lang.security.audit.eval-detected.eval-detected": {
+    "title": "eval() used on attacker-influenced input",
+    "fix": "Same as njsscan:eval_nodejs — never `eval` untrusted input. Use a typed parser (`JSON.parse`, `zod.parse`, a small grammar) or a sandboxed evaluator (`vm2` is deprecated; prefer isolated-vm or QuickJS-WASM).",
+    "reproduce": "```js\napp.get('/calc', (req, res) => {\n  res.send(String(eval(req.query.expr)));   // GET /calc?expr=process.mainModule.require('child_process').execSync('id')\n});\n// Broken output: server returns the result of `id`, leaking shell access to the request author.\n// Fixed: parse expr as a math AST and evaluate only allowed nodes.\n```"
+  },
+  "retire:jquery": {
+    "title": "Outdated jQuery with known XSS in $.html()/$.append()",
+    "fix": "Upgrade jQuery to ≥ 3.5.0 (fixes CVE-2020-11022/11023). If the version is pinned by a transitive dep, override it: in `package.json` add `\"pnpm\": { \"overrides\": { \"jquery\": \"^3.5.1\" } }` then `pnpm install`.",
+    "reproduce": "```html\n<!-- jQuery < 3.5.0 -->\n<script>\n  const evil = '<img src=x onerror=alert(1)>';\n  $('#box').html(evil);   // CVE-2020-11022 — innerHTML executes onerror\n</script>\n<!-- Broken output: alert(1) fires.\n     Fixed (jQuery ≥ 3.5.0): the same call sanitizes <script>/event handlers and the alert never fires. -->\n```"
+  },
+  "lockfile-lint:lockfile-integrity": {
+    "title": "Lockfile points to non-https or non-allowlisted hosts",
+    "fix": "Inspect the offending entries in `pnpm-lock.yaml` (search for `http://` or unexpected hostnames). Re-resolve by deleting the suspicious lines and running `pnpm install`. If the entry is from a private registry, add it to `--allowed-hosts`. Commit the regenerated lockfile.",
+    "reproduce": "```yaml\n# pnpm-lock.yaml fragment that lockfile-lint flags:\n'/some-pkg@1.0.0':\n  resolution: { tarball: 'http://evil.example.com/some-pkg-1.0.0.tgz' }   # http, not https; unknown host\n# Broken output: any teammate running `pnpm install` fetches from evil.example.com — full RCE during install.\n# Fixed entry resolves from `https://registry.npmjs.org/...` only.\n```"
+  },
+  "madge:circular-dependency": {
+    "title": "Circular import between modules",
+    "fix": "Break the cycle by extracting the shared symbol into a third module that both sides import. Or invert the dependency: have the lower-level module accept the dependency via a function parameter / DI container instead of importing the higher-level one.",
+    "reproduce": "```ts\n// a.ts\nimport { fromB } from './b';\nexport const fromA = () => fromB() + 1;\n\n// b.ts\nimport { fromA } from './a';\nexport const fromB = () => fromA() + 1;\n\n// consumer.ts\nimport { fromA } from './a';\nconsole.log(fromA());\n// Broken output (depending on bundler): TypeError: fromB is not a function\n// because at the moment a.ts is evaluated, b.ts hasn't finished initialising and fromB is still undefined.\n```"
+  },
+  "trivy:secret": {
+    "title": "Hard-coded secret in source tree",
+    "fix": "Rotate the secret immediately at the provider, then move it into an environment variable / secret manager. Replace the literal in code with `process.env.MY_SECRET`. Add the file to `.gitignore` and rewrite history with `git filter-repo` if it ever landed on a shared branch.",
+    "reproduce": "```js\n// config.js committed to git\nexport const stripeKey = 'sk_live_AbCdEf1234567890';   // anyone with repo read can charge cards\nfetch('https://api.stripe.com/v1/charges', {\n  headers: { Authorization: `Bearer ${stripeKey}` },\n  ...\n});\n// Broken output: the literal key is visible in `git log -p` forever and grants live charge access.\n// Fixed: stripeKey = process.env.STRIPE_SECRET_KEY  (and the value lives only in the secret manager).\n```"
+  },
+  "expo-doctor:generic": {
+    "title": "expo-doctor reported environment / config issues",
+    "fix": "Run `pnpm --filter @workspace/lexi-mobile exec expo-doctor` locally to see the full list. Common fixes: `pnpm exec expo install --check` to align native dep versions to the current Expo SDK, then commit the updated `package.json` / lockfile.",
+    "reproduce": "```text\n# Symptom that expo-doctor flags:\n#   ✖ Validating dependency versions for installed Expo SDK\n#     Expected react-native@0.74.5; found react-native@0.73.6\n# Broken output at runtime: app crashes on launch with native-module mismatch errors\n# (e.g. 'TurboModuleRegistry.getEnforcing(...): \"...\" could not be found').\n# Fixed by `expo install --check` which pins react-native to the SDK-matched version.\n```"
+  }
+}

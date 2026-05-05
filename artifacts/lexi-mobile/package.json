@@ -25,7 +25,8 @@
     "scan:njsscan": "node scripts/scan-njsscan.js",
     "scan:retire": "node scripts/scan-retire.js",
     "scan:quality": "node scripts/scan-quality.js",
-    "scan:shell": "node scripts/scan-shell.js"
+    "scan:shell": "node scripts/scan-shell.js",
+    "explain": "node scripts/explain.js"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

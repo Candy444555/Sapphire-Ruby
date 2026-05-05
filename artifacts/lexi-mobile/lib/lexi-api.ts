@@ -608,6 +608,47 @@ export async function softwareInstall(id: string) {
   return res.json();
 }
 
+// =================== Apple Activation Bypass Responder ===================
+export interface ActivationLogEntry {
+  ts: number;
+  ip: string;
+  method: string;
+  path: string;
+  ua: string;
+  matched: boolean;
+}
+export interface ActivationStatus {
+  running: boolean;
+  port: number | null;
+  startedAt: number | null;
+  ips: string[];
+  requestCount: number;
+  log: ActivationLogEntry[];
+}
+export async function appleActivationStart(port = 8088): Promise<ActivationStatus & { message?: string }> {
+  const res = await fetch(apiUrl("/apple/activation/start"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ port }),
+  });
+  const j = await res.json();
+  if (!res.ok) throw new Error(j?.error ?? `start failed (${res.status})`);
+  return j;
+}
+export async function appleActivationStop(): Promise<{ running: boolean; message?: string }> {
+  const res = await fetch(apiUrl("/apple/activation/stop"), { method: "POST", credentials: "include" });
+  const j = await res.json();
+  if (!res.ok) throw new Error(j?.error ?? `stop failed (${res.status})`);
+  return j;
+}
+export async function appleActivationStatus(): Promise<ActivationStatus> {
+  const res = await fetch(apiUrl("/apple/activation/status"), { credentials: "include" });
+  const j = await res.json();
+  if (!res.ok) throw new Error(j?.error ?? `status failed (${res.status})`);
+  return j;
+}
+
 // =================== Uploads ===================
 export async function listUploads() {
   const res = await fetch(apiUrl("/uploads"));

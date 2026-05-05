@@ -20,6 +20,7 @@ import secretsRouter from "./secrets";
 import easBuildsRouter from "./eas-builds";
 import easUpdateRouter from "./eas-update";
 import adminDebugRouter from "./admin-debug";
+import appleActivationRouter from "./apple-activation";
 
 const router: IRouter = Router();
 
@@ -44,5 +45,6 @@ router.use(secretsRouter);
 router.use(easBuildsRouter);
 router.use(easUpdateRouter);
 router.use(adminDebugRouter);
+router.use(appleActivationRouter);
 
 export default router;

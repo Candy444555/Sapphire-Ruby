@@ -1,4 +1,4 @@
-const { withGradleProperties } = require("@expo/config-plugins");
+const { withGradleProperties } = require("expo/config-plugins");
 
 /**
  * Sets ksp.useKSP2=false in android/gradle.properties.

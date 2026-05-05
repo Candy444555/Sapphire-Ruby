@@ -1,7 +1,7 @@
 import { Feather } from "@expo/vector-icons";
 import * as DocumentPicker from "expo-document-picker";
-import * as FileSystem from "expo-file-system/legacy";
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { Platform } from "react-native";
 import {
   ActivityIndicator,
   Modal,
@@ -122,7 +122,13 @@ export default function ScanScreen() {
     }
     let content = "";
     try {
-      content = await FileSystem.readAsStringAsync(pickedFile.uri);
+      if (Platform.OS === "web") {
+        const r = await fetch(pickedFile.uri);
+        content = await r.text();
+      } else {
+        const FS = await import("expo-file-system/legacy");
+        content = await FS.readAsStringAsync(pickedFile.uri);
+      }
     } catch (err) {
       return { error: `Could not read file: ${err instanceof Error ? err.message : String(err)}` };
     }

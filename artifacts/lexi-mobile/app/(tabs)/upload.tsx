@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
 import { getApiUrl, deleteUpload, listUploads, uploadFile } from "@/lib/lexi-api";
+import { log } from "@/lib/logger";
 
 interface UploadItem { filename: string; size?: number; mtime?: string; url?: string }
 
@@ -39,22 +40,25 @@ export default function UploadScreen() {
   const pickAndUpload = useCallback(async (mode: "image" | "document") => {
     setUploading(true);
     try {
+      log.info("user", "upload:pick", { actor: "user", target: mode });
       let uri = "", name = "", mime = "application/octet-stream";
       if (mode === "image") {
         const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.All, quality: 1 });
-        if (r.canceled || !r.assets[0]) return;
+        if (r.canceled || !r.assets[0]) { log.info("user", "upload:cancel", { actor: "user", target: mode }); return; }
         const a = r.assets[0];
         uri = a.uri; name = a.fileName ?? `upload-${Date.now()}.jpg`; mime = a.mimeType ?? "image/jpeg";
       } else {
         const r = await DocumentPicker.getDocumentAsync({ multiple: false, copyToCacheDirectory: true });
-        if (r.canceled || !r.assets?.[0]) return;
+        if (r.canceled || !r.assets?.[0]) { log.info("user", "upload:cancel", { actor: "user", target: mode }); return; }
         const a = r.assets[0];
         uri = a.uri; name = a.name ?? `file-${Date.now()}`; mime = a.mimeType ?? "application/octet-stream";
       }
+      log.info("file", "upload", { target: name, outputs: { mime } });
       const result = await uploadFile(uri, name, mime);
       if (result?.error) throw new Error(result.error);
       await load();
     } catch (e) {
+      log.error("file", "upload", { error: e });
       Alert.alert("Upload failed", e instanceof Error ? e.message : "Unknown");
     } finally { setUploading(false); }
   }, [load]);

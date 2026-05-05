@@ -15,11 +15,18 @@ import { StatusBar } from "expo-status-bar";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { DebugErrorOverlay } from "@/components/DebugErrorOverlay";
+import { NavLogger } from "@/components/NavLogger";
 import { RootModeProvider } from "@/lib/root-mode";
 import { installGlobalErrorHandlers } from "@/lib/global-error-log";
+import { installNetworkInstrumentation, log, loadSettings, rotateRetention } from "@/lib/logger";
 
 // Install BEFORE anything else so we capture init-time crashes too.
 installGlobalErrorHandlers();
+installNetworkInstrumentation();
+loadSettings()
+  .then(() => rotateRetention())
+  .then(() => log.info("app", "boot", { actor: "system", status: "ready" }))
+  .catch(() => {});
 
 const queryClient = new QueryClient();
 
@@ -50,6 +57,7 @@ export default function RootLayout() {
             <KeyboardProvider>
               <RootModeProvider>
                 <StatusBar style="light" />
+                <NavLogger />
                 <RootLayoutNav />
                 <DebugErrorOverlay />
               </RootModeProvider>

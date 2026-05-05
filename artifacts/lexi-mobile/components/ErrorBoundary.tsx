@@ -33,6 +33,17 @@ export class ErrorBoundary extends Component<
     if (typeof this.props.onError === "function") {
       this.props.onError(error, info.componentStack);
     }
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const { log } = require("@/lib/logger") as typeof import("@/lib/logger");
+      log.error("react", "error-boundary", {
+        actor: "system",
+        error,
+        outputs: { componentStack: info.componentStack },
+      });
+    } catch {
+      /* ignore */
+    }
   }
 
   resetError = (): void => {

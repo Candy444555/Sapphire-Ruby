@@ -17,8 +17,10 @@ import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
+import { useLoggedAction } from "@/hooks/useLoggedAction";
 import { useSsh } from "@/hooks/useSsh";
 import { useTerminal, type HistoryEntry } from "@/hooks/useTerminal";
+import { log } from "@/lib/logger";
 
 type Mode = "local" | "ssh";
 
@@ -47,18 +49,24 @@ export default function TerminalScreen() {
   const cwd = mode === "local" ? local.cwd : ssh.state.host ? `${ssh.state.username}@${ssh.state.host}` : "";
   const history = mode === "local" ? local.history : sshHistory;
 
+  const runExec = useLoggedAction("terminal:exec", { category: "terminal" });
+  const runConnect = useLoggedAction("ssh:connect", { category: "terminal" });
+
   const run = useCallback(async () => {
     const c = cmd.trim();
     if (!c || busy) return;
     setCmd("");
     setBusy(true);
     try {
-      if (mode === "local") {
-        await local.exec(c);
-      } else {
-        const r = await ssh.exec(c);
-        setSshHistory((p) => [...p, { command: c, output: r.output, exitCode: r.exitCode, cwd: r.cwd, timestamp: Date.now() }]);
-      }
+      await runExec(async () => {
+        if (mode === "local") {
+          await local.exec(c);
+        } else {
+          const r = await ssh.exec(c);
+          setSshHistory((p) => [...p, { command: c, output: r.output, exitCode: r.exitCode, cwd: r.cwd, timestamp: Date.now() }]);
+          if (r.exitCode !== 0) throw new Error(`exit ${r.exitCode}`);
+        }
+      }, { target: mode, inputs: { command: c } });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Failed";
       if (mode === "ssh") setSshHistory((p) => [...p, { command: c, output: msg, exitCode: 1, cwd: "", timestamp: Date.now() }]);
@@ -66,18 +74,21 @@ export default function TerminalScreen() {
     } finally {
       setBusy(false);
     }
-  }, [cmd, busy, mode, local, ssh]);
+  }, [cmd, busy, mode, local, ssh, runExec]);
 
   const connectSsh = useCallback(async () => {
     if (!host || !username) { Alert.alert("Required", "Host and username are required."); return; }
     try {
-      await ssh.connect({ host, port: parseInt(port, 10) || 22, username, password: password || undefined });
-      setShowSshModal(false);
-      setMode("ssh");
+      await runConnect(async () => {
+        await ssh.connect({ host, port: parseInt(port, 10) || 22, username, password: password || undefined });
+        setShowSshModal(false);
+        setMode("ssh");
+      }, { target: `${username}@${host}:${port}`, inputs: { host, port, username, hasPassword: !!password } });
     } catch (e) {
+      log.error("terminal", "ssh:connect:failed", { target: host, error: e });
       Alert.alert("SSH failed", e instanceof Error ? e.message : "Unknown");
     }
-  }, [host, port, username, password, ssh]);
+  }, [host, port, username, password, ssh, runConnect]);
 
   const renderItem = ({ item }: { item: HistoryEntry | SshHistory }) => (
     <View style={[styles.entry, { borderColor: colors.border }]}>

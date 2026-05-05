@@ -7,6 +7,7 @@ import {
   ActivityIndicator,
   Alert,
   Linking,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -15,6 +16,13 @@ import {
   TextInput,
   View,
 } from "react-native";
+import {
+  getSettings as loggerGetSettings,
+  log as logger,
+  logsDir as loggerLogsDir,
+  subscribeSettings as loggerSubscribeSettings,
+  updateSettings as loggerUpdateSettings,
+} from "@/lib/logger";
 import { defaultBakedDomain, getApiBase, getApiUrl, loadApiDomain, pingServer, setApiDomain, getFeatherlessKey, setFeatherlessKey, loadFeatherlessKey, testFeatherlessKey, triggerApkBuild } from "@/lib/lexi-api";
 import { saveApkToPhone } from "@/lib/save-to-device";
 import { BUILD_INFO } from "@/lib/build-info";
@@ -177,9 +185,11 @@ export default function ProfileScreen() {
       else if (name === "photos") ok = (await ImagePicker.requestMediaLibraryPermissionsAsync()).status === "granted";
       else if (name === "location") ok = (await Location.requestForegroundPermissionsAsync()).status === "granted";
       else if (name === "contacts") ok = (await Contacts.requestPermissionsAsync()).status === "granted";
+      logger.info("permission", "request", { actor: "user", target: name, outputs: { granted: ok } });
       setGranted((p) => ({ ...p, [name]: ok }));
       if (!ok) Alert.alert("Permission denied", "Enable in Settings to use this feature.");
     } catch (e) {
+      logger.error("permission", "request", { actor: "user", target: name, error: e });
       Alert.alert("Error", e instanceof Error ? e.message : "Failed");
     }
   };
@@ -509,8 +519,114 @@ export default function ProfileScreen() {
         </Text>
       </View>
 
+      <Text style={[styles.section, { color: colors.mutedForeground }]}>LOGGING</Text>
+      <LoggingSection colors={colors} />
+
       <Text style={[styles.footer, { color: colors.mutedForeground }]}>Lexi Mobile v1.0.0 · {BUILD_INFO.sourceHash}</Text>
     </ScrollView>
+  );
+}
+
+function LoggingSection({ colors }: { colors: ReturnType<typeof useColors> }) {
+  const [settings, setSettings] = React.useState(loggerGetSettings());
+  const [retentionInput, setRetentionInput] = React.useState(String(settings.retentionDays));
+  const [folder, setFolder] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const unsub = loggerSubscribeSettings((s) => {
+      setSettings(s);
+      setRetentionInput(String(s.retentionDays));
+    });
+    setFolder(loggerLogsDir());
+    return unsub;
+  }, []);
+
+  const verbosityOptions: ("error" | "warn" | "info" | "debug" | "trace")[] = [
+    "error", "warn", "info", "debug", "trace",
+  ];
+
+  return (
+    <View style={[styles.cardLeft, { backgroundColor: colors.card, borderColor: colors.border, gap: 10 }]}>
+      <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 13 }}>Verbosity</Text>
+      <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+        {verbosityOptions.map((v) => {
+          const on = settings.verbosity === v;
+          return (
+            <Pressable
+              key={v}
+              onPress={() => loggerUpdateSettings({ verbosity: v })}
+              style={{
+                paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8,
+                borderWidth: 1, borderColor: on ? colors.primary : colors.border,
+                backgroundColor: on ? colors.primary : "transparent",
+              }}
+            >
+              <Text style={{ color: on ? colors.background : colors.foreground, fontSize: 12, fontFamily: "Inter_600SemiBold" }}>{v}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 13, marginTop: 8 }}>Retention (days)</Text>
+      <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+        <TextInput
+          value={retentionInput}
+          onChangeText={setRetentionInput}
+          keyboardType="number-pad"
+          style={{
+            flex: 1, color: colors.foreground, borderColor: colors.border, borderWidth: 1,
+            borderRadius: 8, paddingHorizontal: 10, paddingVertical: 8,
+          }}
+          placeholderTextColor={colors.mutedForeground}
+        />
+        <Pressable
+          onPress={() => {
+            const n = parseInt(retentionInput, 10);
+            if (Number.isFinite(n) && n > 0) loggerUpdateSettings({ retentionDays: n });
+          }}
+          style={{ paddingHorizontal: 12, paddingVertical: 8, borderRadius: 8, backgroundColor: colors.primary }}
+        >
+          <Text style={{ color: colors.background, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>Save</Text>
+        </Pressable>
+      </View>
+
+      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 6 }}>
+        <Text style={{ color: colors.foreground, fontFamily: "Inter_500Medium", fontSize: 13 }}>Redact secrets</Text>
+        <Switch
+          value={settings.redact}
+          onValueChange={(v) => { void loggerUpdateSettings({ redact: v }); }}
+          trackColor={{ true: colors.primary, false: colors.border }}
+        />
+      </View>
+
+      <Pressable
+        onPress={async () => {
+          if (Platform.OS === "android") {
+            try {
+              const IL = await import("expo-intent-launcher");
+              await IL.startActivityAsync("android.intent.action.VIEW", {
+                data: folder ?? undefined,
+                type: "resource/folder",
+              });
+              return;
+            } catch {
+              /* fall through */
+            }
+          }
+          Alert.alert("Logs folder", folder ?? "Unavailable");
+        }}
+        style={{
+          paddingVertical: 10, borderRadius: 8, borderWidth: 1, borderColor: colors.border, alignItems: "center", marginTop: 4,
+        }}
+      >
+        <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>
+          Open logs folder
+        </Text>
+      </Pressable>
+      <Text style={{ color: colors.mutedForeground, fontSize: 10 }} numberOfLines={2}>
+        {folder ?? "Logs folder unavailable on this platform."}
+      </Text>
+    </View>
   );
 }
 

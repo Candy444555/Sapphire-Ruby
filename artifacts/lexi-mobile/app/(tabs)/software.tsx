@@ -12,6 +12,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { useColors } from "@/hooks/useColors";
+import { useLoggedAction } from "@/hooks/useLoggedAction";
 import { getApiBase, softwareCatalog, softwareInstall, softwareStatus } from "@/lib/lexi-api";
 
 interface CatalogItem {
@@ -55,16 +56,20 @@ export default function SoftwareScreen() {
 
   useEffect(() => { load(); }, [load]);
 
+  const runInstall = useLoggedAction("software:install", { category: "software" });
   const install = useCallback(async (id: string) => {
     setInstalling(id); setOutput("");
-    try {
-      const r = await softwareInstall(id);
-      setOutput(r.output ?? r.log ?? JSON.stringify(r, null, 2));
-      await load();
-    } catch (e) {
-      setOutput(`Error: ${e instanceof Error ? e.message : "unknown"}`);
-    } finally { setInstalling(null); }
-  }, [load]);
+    await runInstall(async () => {
+      try {
+        const r = await softwareInstall(id);
+        setOutput(r.output ?? r.log ?? JSON.stringify(r, null, 2));
+        await load();
+      } catch (e) {
+        setOutput(`Error: ${e instanceof Error ? e.message : "unknown"}`);
+        throw e;
+      } finally { setInstalling(null); }
+    }, { target: id, inputs: { packageId: id } });
+  }, [load, runInstall]);
 
   const grouped = catalog.reduce<Record<string, CatalogItem[]>>((acc, item) => {
     const cat = item.category ?? "Other";

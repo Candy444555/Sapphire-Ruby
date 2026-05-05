@@ -1,6 +1,8 @@
-import { fetch as expoFetch } from "expo/fetch";
+import { expoFetch } from "@/lib/logged-fetch";
 import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+
+import { log } from "@/lib/logger";
 
 // =================== Network base URL resolution ===================
 // Priority:
@@ -222,6 +224,17 @@ export async function streamLexi(
   onToken: (chunk: string) => void,
   opts: StreamLexiOpts = {},
 ): Promise<void> {
+  return log.span("ai", "chat", () => streamLexiInner(messages, onToken, opts), {
+    target: opts.model ?? "default",
+    inputs: { messageCount: messages.length, hasSystemPrompt: Boolean(opts.systemPrompt) },
+  });
+}
+
+async function streamLexiInner(
+  messages: ChatMsg[],
+  onToken: (chunk: string) => void,
+  opts: StreamLexiOpts,
+): Promise<void> {
   if (getApiBase()) {
     let receivedAny = false;
     const serverOnToken = (t: string) => {
@@ -389,6 +402,19 @@ export async function streamAgent(
   onEvent: (ev: AgentRawEvent) => void,
   signal?: AbortSignal,
 ): Promise<void> {
+  return log.span(
+    "ai",
+    "agent",
+    () => streamAgentInner(body, onEvent, signal),
+    { target: body.model, inputs: { messageCount: body.messages.length, sessionId: body.sessionId } },
+  );
+}
+
+async function streamAgentInner(
+  body: { model: string; messages: ChatMsg[]; systemPrompt?: string; sessionId?: string },
+  onEvent: (ev: AgentRawEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
   // If API server is configured, use it (full code execution agent)
   if (getApiBase()) {
     const res = await expoFetch(apiUrl("/agent"), {
@@ -439,16 +465,25 @@ export async function streamAgent(
 
 // Image generation via Pollinations.ai — free, no API key required
 export async function generateImage(prompt: string): Promise<string> {
-  const seed = Date.now();
-  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=768&height=768&nologo=true&model=flux&seed=${seed}`;
-  // Verify the image is reachable before returning the URL
-  const res = await fetch(url, { method: "HEAD" });
-  if (!res.ok) throw new Error(`Image generation failed (HTTP ${res.status})`);
-  return url;
+  return log.span("ai", "image-gen", async () => {
+    const seed = Date.now();
+    const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=768&height=768&nologo=true&model=flux&seed=${seed}`;
+    // Verify the image is reachable before returning the URL
+    const res = await fetch(url, { method: "HEAD" });
+    if (!res.ok) throw new Error(`Image generation failed (HTTP ${res.status})`);
+    return url;
+  }, { target: "pollinations", inputs: { promptLen: prompt.length } });
 }
 
 // Vision analysis via Featherless.ai — direct, no server needed
 export async function analyzeImages(prompt: string, imageDataUrls: string[]): Promise<string> {
+  return log.span("ai", "vision", () => analyzeImagesInner(prompt, imageDataUrls), {
+    target: "featherless:vision",
+    inputs: { imageCount: imageDataUrls.length, promptLen: prompt.length },
+  });
+}
+
+async function analyzeImagesInner(prompt: string, imageDataUrls: string[]): Promise<string> {
   const key = getFeatherlessKey();
   if (!key) throw new Error("No Featherless.ai key set. Add it in Profile settings.");
   const imageContent = imageDataUrls.map((url) => ({

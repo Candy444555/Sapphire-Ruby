@@ -1,37 +1,53 @@
-// Captures every unhandled JS error and promise rejection so we can paint
-// them to the user's screen — Android release APKs hide this from us
-// otherwise and "stuck on splash" gives no actionable signal.
+// Captures every unhandled JS error and promise rejection.
+//
+// All writes go through the structured logger (`@/lib/logger`) — that is the
+// single source of truth for log lines in this app. Helpers below are thin
+// views over the logger's in-memory ring buffer so existing screens
+// (DebugErrorOverlay, ErrorFallback) keep working without their own list.
 
-type Entry = { time: number; kind: "error" | "rejection" | "fatal"; message: string; stack?: string };
+import {
+  getRecentEntries,
+  log as structured,
+  subscribeLogs,
+  type LogEntry,
+} from "@/lib/logger";
 
-const log: Entry[] = [];
-const listeners = new Set<() => void>();
+export type Entry = { time: number; kind: "error" | "rejection" | "fatal"; message: string; stack?: string };
 
-function notify() {
-  for (const fn of listeners) {
-    try { fn(); } catch {}
-  }
+function entryFromLog(e: LogEntry): Entry | null {
+  if (e.category !== "global") return null;
+  const kind = (e.action as Entry["kind"]) ?? "error";
+  if (kind !== "error" && kind !== "rejection" && kind !== "fatal") return null;
+  return {
+    time: e.ts,
+    kind,
+    message: e.error?.message ?? "(no message)",
+    stack: e.error?.stack,
+  };
 }
 
 export function pushGlobalError(kind: Entry["kind"], err: unknown) {
-  const e: Entry = {
-    time: Date.now(),
-    kind,
-    message: err instanceof Error ? err.message : String(err),
-    stack: err instanceof Error ? err.stack : undefined,
-  };
-  log.push(e);
-  if (log.length > 50) log.shift();
-  notify();
+  structured.error("global", kind, {
+    actor: "system",
+    target: "globalThis",
+    error: err,
+    status: kind,
+  });
 }
 
 export function getGlobalErrors(): Entry[] {
-  return log.slice();
+  const out: Entry[] = [];
+  for (const e of getRecentEntries()) {
+    const m = entryFromLog(e);
+    if (m) out.push(m);
+  }
+  return out.slice(-50);
 }
 
 export function subscribeGlobalErrors(fn: () => void): () => void {
-  listeners.add(fn);
-  return () => { listeners.delete(fn); };
+  return subscribeLogs((e) => {
+    if (entryFromLog(e)) fn();
+  });
 }
 
 let installed = false;
@@ -79,8 +95,9 @@ export function installGlobalErrorHandlers() {
 }
 
 export function formatGlobalErrors(): string {
-  if (log.length === 0) return "No global errors captured.";
-  return log
+  const list = getGlobalErrors();
+  if (list.length === 0) return "No global errors captured.";
+  return list
     .map((e, i) => {
       const d = new Date(e.time).toISOString().slice(11, 19);
       return `#${i + 1} [${d}] ${e.kind.toUpperCase()}: ${e.message}${e.stack ? `\n${e.stack}` : ""}`;

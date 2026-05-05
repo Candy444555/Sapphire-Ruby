@@ -1,0 +1,42 @@
+# Mirrors `pnpm --filter @workspace/lexi-mobile run scan`.
+# Disabled by default — only runs when you trigger it manually from the
+# GitHub Actions UI. Enable a schedule below if you want it on every push.
+name: Lexi Mobile security scan
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Path to scan (default: artifacts/lexi-mobile)"
+        required: false
+        default: "artifacts/lexi-mobile"
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Install scanners
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/gitleaks/gitleaks/master/install.sh | sh -s -- -b /usr/local/bin || true
+          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh | sh -s -- -b /usr/local/bin || true
+          npm i -g osv-scanner@latest semgrep@latest || true
+      - name: Run scanner suite
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        run: node artifacts/lexi-mobile/scripts/scan.js --path "${{ github.event.inputs.target }}"
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports
+          path: artifacts/lexi-mobile/security-reports/

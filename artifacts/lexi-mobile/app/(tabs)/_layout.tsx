@@ -67,6 +67,10 @@ export default function TabLayout() {
         name="usb"
         options={{ title: "USB", tabBarIcon: ({ color }) => <Feather name="link-2" size={22} color={color} /> }}
       />
+      <Tabs.Screen
+        name="logs"
+        options={{ title: "Logs", tabBarIcon: ({ color }) => <Feather name="list" size={22} color={color} /> }}
+      />
     </Tabs>
   );
 }

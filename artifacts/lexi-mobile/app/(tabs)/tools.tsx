@@ -12,6 +12,8 @@ import {
 import * as Clipboard from "expo-clipboard";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
+import { useLoggedAction } from "@/hooks/useLoggedAction";
+import { log } from "@/lib/logger";
 import {
   validateIMEI,
   lookupTAC,
@@ -69,15 +71,20 @@ export default function ToolsScreen() {
     }
   };
 
+  const runGenerate = useLoggedAction("imei:generate", { category: "tools" });
   const generate = () => {
     if (imei.length !== 15) { Alert.alert("Invalid IMEI", "Enter a 15-digit IMEI number."); return; }
     if (imeiValid === false) { Alert.alert("Checksum Failed", "IMEI failed Luhn check. Verify the number."); return; }
-    const codes = generateCodes(imei, carrier, tacEntry?.brand ?? "Unknown", motoModelId);
-    setResults(codes);
+    void runGenerate(() => {
+      const codes = generateCodes(imei, carrier, tacEntry?.brand ?? "Unknown", motoModelId);
+      setResults(codes);
+      return codes.length;
+    }, { inputs: { carrier, brand: tacEntry?.brand, motoModelId, tac: imei.slice(0, 8) } });
   };
 
   const copy = async (code: string, label: string) => {
     await Clipboard.setStringAsync(code);
+    log.info("tools", "imei:copy", { actor: "user", target: label });
     Alert.alert("Copied", `${label}: ${code}`);
   };
 

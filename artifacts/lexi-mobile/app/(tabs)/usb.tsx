@@ -16,15 +16,19 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import {
   classifyDevice,
+  copyRoleScript,
   describeClass,
   describeVendor,
   listDevices,
   openSerial,
+  openUsbSettings,
   requestPermission,
   usbAvailable,
   usbLoadError,
+  USB_ROLE_COMMANDS,
   type UsbConnection,
   type UsbDeviceInfo,
+  type UsbRoleCommand,
 } from "@/lib/usb-host";
 
 const BAUD_RATES = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600];
@@ -42,7 +46,17 @@ export default function UsbScreen() {
   const [output, setOutput] = useState<string>("");
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showRole, setShowRole] = useState(true);
   const scrollRef = useRef<ScrollView | null>(null);
+
+  const onCopyRole = async (c: UsbRoleCommand) => {
+    await copyRoleScript(c);
+    Alert.alert("Copied", `${c.label} — paste into ${c.needs === "root" ? "a rooted shell" : c.needs === "termux" ? "Termux" : "ADB shell or Termux"}.`);
+  };
+  const onOpenUsbSettings = async () => {
+    const ok = await openUsbSettings();
+    if (!ok) Alert.alert("Couldn't open", "Open Settings → Connected devices → USB and set 'USB controlled by: This device'.");
+  };
 
   const refresh = useCallback(async () => {
     setScanning(true);
@@ -129,6 +143,53 @@ export default function UsbScreen() {
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 14, paddingBottom: insets.bottom + 32, gap: 12 }}>
+        {/* ====== FORCE HOST ROLE (no OTG dongle needed) ====== */}
+        <View style={[styles.card, { borderColor: colors.primary, backgroundColor: colors.card }]}>
+          <Pressable onPress={() => setShowRole(!showRole)} style={{ flexDirection: "row", alignItems: "flex-start" }}>
+            <Feather name="refresh-ccw" size={14} color={colors.primary} style={{ marginTop: 2 }} />
+            <View style={{ flex: 1, marginLeft: 8 }}>
+              <Text style={{ color: colors.foreground, fontFamily: "Inter_700Bold", fontSize: 14 }}>No OTG dongle? Flip USB-C role to Host</Text>
+              <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 17, marginTop: 4 }}>
+                Modern USB-C phones (Pixel 6+, Samsung S20+, OnePlus 7+, Xiaomi flagships) are dual-role — a plain USB-C cable is enough. If a plugged-in device doesn't appear in the list below, the phone landed on "Peripheral" by mistake. Flip it to Host with one of the methods below.
+              </Text>
+            </View>
+            <Feather name={showRole ? "chevron-up" : "chevron-down"} size={18} color={colors.primary} />
+          </Pressable>
+
+          {showRole && (
+            <View style={{ gap: 10, marginTop: 10 }}>
+              <Pressable onPress={onOpenUsbSettings} style={[styles.btn, { backgroundColor: colors.primary }]}>
+                <Feather name="settings" size={13} color={colors.primaryForeground} />
+                <Text style={{ color: colors.primaryForeground, fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1 }}>OPEN USB PREFERENCES</Text>
+              </Pressable>
+              <View style={[styles.warnBox, { borderColor: colors.border, backgroundColor: colors.background }]}>
+                <Feather name="info" size={13} color={colors.accent} />
+                <Text style={{ flex: 1, color: colors.mutedForeground, fontFamily: "Inter_500Medium", fontSize: 11, lineHeight: 16 }}>
+                  In USB Preferences set <Text style={{ color: colors.foreground, fontFamily: "Inter_700Bold" }}>USB controlled by: This device</Text>, then tap <Text style={{ color: colors.foreground, fontFamily: "Inter_700Bold" }}>File transfer</Text>. Come back here and tap refresh — the device should now appear.
+                </Text>
+              </View>
+
+              <Text style={{ color: colors.accent, fontFamily: "Inter_700Bold", fontSize: 10, letterSpacing: 1, marginTop: 4 }}>ONE-LINER FORCE-HOST COMMANDS</Text>
+              {USB_ROLE_COMMANDS.map((c) => (
+                <Pressable key={c.id} onPress={() => onCopyRole(c)} style={[styles.card, { borderColor: colors.border, backgroundColor: colors.background, padding: 10 }]}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                    <Feather name={c.needs === "root" ? "shield" : c.needs === "termux" ? "terminal" : "code"} size={12} color={c.needs === "root" ? colors.destructive : colors.accent} />
+                    <Text style={{ flex: 1, color: colors.foreground, fontFamily: "Inter_700Bold", fontSize: 12 }}>{c.label}</Text>
+                    <View style={{ paddingHorizontal: 5, paddingVertical: 2, borderRadius: 3, backgroundColor: c.needs === "root" ? colors.destructive + "22" : colors.muted }}>
+                      <Text style={{ color: c.needs === "root" ? colors.destructive : colors.mutedForeground, fontFamily: "Inter_700Bold", fontSize: 8, letterSpacing: 1 }}>{c.needs.toUpperCase()}</Text>
+                    </View>
+                    <Feather name="copy" size={12} color={colors.mutedForeground} />
+                  </View>
+                  <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 11, lineHeight: 15, marginTop: 4 }}>{c.description}</Text>
+                  <Text selectable style={{ color: colors.foreground, fontFamily: "Courier", fontSize: 10, marginTop: 4 }}>
+                    {c.commands.join("\n")}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </View>
+
         {!usbAvailable && (
           <View style={[styles.warnBox, { borderColor: colors.border, backgroundColor: colors.muted }]}>
             <Feather name="alert-circle" size={14} color={colors.mutedForeground} />

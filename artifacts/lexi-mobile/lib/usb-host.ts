@@ -1,4 +1,111 @@
 import { Platform } from "react-native";
+import * as IntentLauncher from "expo-intent-launcher";
+import * as Clipboard from "expo-clipboard";
+
+// =================== USB-C Host Role Switch ===================
+// Modern USB-C phones don't need an OTG dongle — every USB-C port is
+// dual-role (DRD). When you plug a plain USB-C cable into another device
+// the phone negotiates host-or-peripheral via the CC pins. If it lands
+// on the wrong role, you flip it from USB Preferences (no root) or via
+// shell (root / Termux / adb).
+
+export async function openUsbSettings(): Promise<boolean> {
+  if (Platform.OS !== "android") return false;
+  // Ladder of fall-backs — one of these opens on every Android 10+.
+  const ACTIONS = [
+    "android.settings.USB_SETTINGS",            // direct (Android 11+ "USB Preferences")
+    "android.settings.MEMORY_CARD_SETTINGS",    // some OEMs hide USB here
+    "android.settings.HARD_KEYBOARD_SETTINGS",  // Connected-devices on Pixel
+    "android.settings.SETTINGS",                // last-resort root settings
+  ];
+  for (const a of ACTIONS) {
+    try {
+      await IntentLauncher.startActivityAsync(a);
+      return true;
+    } catch {
+      /* try next */
+    }
+  }
+  return false;
+}
+
+export interface UsbRoleCommand {
+  id: string;
+  label: string;
+  description: string;
+  needs: "root" | "shell" | "termux";
+  commands: string[];
+}
+
+export const USB_ROLE_COMMANDS: UsbRoleCommand[] = [
+  {
+    id: "typec_data_role",
+    label: "Force data role = host (Pixel / Snapdragon)",
+    description: "Writes 'host' to the Type-C port's data_role sysfs node — instant, no reboot.",
+    needs: "root",
+    commands: [
+      "su -c 'echo host > /sys/class/typec/port0/data_role'",
+      "su -c 'cat /sys/class/typec/port0/data_role'",
+    ],
+  },
+  {
+    id: "usb_role_switch",
+    label: "Force USB role = host (newer kernels)",
+    description: "Newer Linux kernel UAPI: /sys/class/usb_role/<port>/role.",
+    needs: "root",
+    commands: [
+      "su -c 'for p in /sys/class/usb_role/*/role; do echo host > \"$p\"; done'",
+      "su -c 'cat /sys/class/usb_role/*/role'",
+    ],
+  },
+  {
+    id: "svc_usb_host",
+    label: "svc usb setFunctions (Android-side)",
+    description: "Tells the framework to expose host functions; works on most ROMs without root via ADB.",
+    needs: "shell",
+    commands: [
+      "svc usb setFunctions none",
+      "svc usb setFunctions host",
+    ],
+  },
+  {
+    id: "svc_usb_off",
+    label: "Reset USB stack",
+    description: "Clears any stuck role; force-renegotiate by toggling the radio off/on.",
+    needs: "shell",
+    commands: [
+      "svc usb setFunctions none",
+      "sleep 1",
+      "svc usb setFunctions mtp",
+    ],
+  },
+  {
+    id: "samsung_dex",
+    label: "Samsung Dex / OneUI USB host",
+    description: "On Samsung you can also run this from Termux to enable host even if Dex is disabled.",
+    needs: "termux",
+    commands: [
+      "settings put global usb_host_mode 1",
+      "settings get global usb_host_mode",
+    ],
+  },
+  {
+    id: "xiaomi_otg",
+    label: "Xiaomi / MIUI OTG enable",
+    description: "MIUI auto-disables OTG after 10 minutes of idle — this re-arms it.",
+    needs: "shell",
+    commands: [
+      "settings put global otg_enabled 1",
+      "settings put global usb_default_function host",
+    ],
+  },
+];
+
+export async function copyRoleScript(cmd: UsbRoleCommand): Promise<void> {
+  const header = `# ${cmd.label}\n# ${cmd.description}\n# Run from: ${cmd.needs === "root" ? "rooted shell (Magisk / KernelSU)" : cmd.needs === "shell" ? "ADB shell or Termux" : "Termux"}\n`;
+  await Clipboard.setStringAsync(header + cmd.commands.join("\n"));
+}
+
 
 export interface UsbDeviceInfo {
   deviceId: number;

@@ -1,6 +1,7 @@
 // AI code review tool. Calls Featherless directly when an API key is set
 // (on-phone), falling back to /api/scan/ai-review on the server otherwise.
 import { getApiBase, getApiUrl, getFeatherlessKey } from "@/lib/lexi-api";
+import { stealthFetch } from "@/lib/stealth-fetch";
 import { log } from "@/lib/logger";
 import { normalizeFinding, type NormalizedFinding, type RawFinding } from "@/lib/findings/contract";
 
@@ -20,7 +21,7 @@ export async function runAiReview(input: AiReviewInput, correlationId?: string):
   let raw: string = "[]";
   if (key) {
     log.info("scan", "ai-review:phone", { correlationId, target: input.filename ?? "(inline)" });
-    const r = await fetch("https://api.featherless.ai/v1/chat/completions", {
+    const r = await stealthFetch("https://api.featherless.ai/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
       body: JSON.stringify({

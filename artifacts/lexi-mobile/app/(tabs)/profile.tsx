@@ -24,6 +24,7 @@ import {
   updateSettings as loggerUpdateSettings,
 } from "@/lib/logger";
 import { defaultBakedDomain, getApiBase, getApiUrl, loadApiDomain, pingServer, setApiDomain, getFeatherlessKey, setFeatherlessKey, loadFeatherlessKey, testFeatherlessKey, triggerApkBuild } from "@/lib/lexi-api";
+import { loadStealth, setStealth } from "@/lib/stealth-fetch";
 import { saveApkToPhone } from "@/lib/save-to-device";
 import { BUILD_INFO } from "@/lib/build-info";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -60,6 +61,10 @@ export default function ProfileScreen() {
   const [orKeySaved, setOrKeySaved] = useState(false);
   const [keyTestState, setKeyTestState] = useState<"idle" | "testing" | "ok" | "fail">("idle");
   const [keyTestError, setKeyTestError] = useState("");
+
+  const [stealth, setStealthLocal] = useState(true);
+  const [stealthCheck, setStealthCheck] = useState<"idle" | "checking" | "ok" | "fail">("idle");
+  const [stealthMsg, setStealthMsg] = useState("");
 
   // Latest APK build (fetched from server which calls Expo via EXPO_TOKEN)
   type BuildInfo = {
@@ -127,8 +132,45 @@ export default function ProfileScreen() {
       setServerInput(base.replace(/^https?:\/\//, ""));
       const key = await loadFeatherlessKey();
       setOrKey(key);
+      const s = await loadStealth();
+      setStealthLocal(s);
     })();
   }, []);
+
+  const toggleStealth = async (next: boolean) => {
+    if (!next) {
+      Alert.alert(
+        "Disable Stealth?",
+        "Your phone's real IP address will be exposed to Featherless.ai, Pollinations, and any other server Lexi contacts. Only do this if you know what you're doing.",
+        [
+          { text: "Keep Stealth ON", style: "cancel" },
+          { text: "Disable", style: "destructive", onPress: async () => { await setStealth(false); setStealthLocal(false); } },
+        ],
+      );
+      return;
+    }
+    await setStealth(true);
+    setStealthLocal(true);
+  };
+
+  const checkStealth = async () => {
+    setStealthCheck("checking");
+    setStealthMsg("");
+    try {
+      if (!getApiBase()) {
+        setStealthCheck("fail");
+        setStealthMsg("Set the Server URL below first — stealth needs the server's Tor circuit.");
+        return;
+      }
+      const r = await fetch(getApiUrl("/api/stealth-fetch/status"));
+      const j = await r.json() as { ok?: boolean; torReady?: boolean };
+      if (j.torReady) { setStealthCheck("ok"); setStealthMsg("Tor circuit ready — every outbound request is anonymized."); }
+      else { setStealthCheck("fail"); setStealthMsg("Tor not ready on the server. Calls will fail until it bootstraps."); }
+    } catch (e) {
+      setStealthCheck("fail");
+      setStealthMsg(e instanceof Error ? e.message : "Could not reach server");
+    }
+  };
 
   const saveOrKey = async () => {
     await setFeatherlessKey(orKey);
@@ -356,6 +398,45 @@ export default function ProfileScreen() {
             Add your Featherless.ai key above — it's needed for all AI features.
           </Text>
         )}
+      </View>
+
+      <View style={[styles.cardLeft, { backgroundColor: colors.card, borderColor: colors.border, gap: 8 }]}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+          <Feather name="eye-off" size={16} color={colors.accent} />
+          <Text style={{ flex: 1, color: colors.accent, fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.5 }}>STEALTH MODE</Text>
+          <Pressable
+            onPress={() => toggleStealth(!stealth)}
+            style={{
+              width: 44, height: 24, borderRadius: 12, padding: 2,
+              backgroundColor: stealth ? "#238636" : colors.border,
+              justifyContent: "center", alignItems: stealth ? "flex-end" : "flex-start",
+            }}
+          >
+            <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: "#fff" }} />
+          </Pressable>
+        </View>
+        <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>
+          When ON, every internet request Lexi makes (chat, models, image gen, vision, OCR, code review, tool-forge) is routed through the server's Tor circuit. Identifying headers are stripped, the User-Agent is randomized per call, cookies/referers are blocked, and your phone's real IP never reaches Featherless or anywhere else. Requires Server URL to be set.
+        </Text>
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <Pressable
+            onPress={checkStealth}
+            disabled={stealthCheck === "checking"}
+            style={{
+              flex: 1, padding: 10, borderRadius: 10, alignItems: "center",
+              backgroundColor: stealthCheck === "ok" ? "#238636" : stealthCheck === "fail" ? colors.destructive : colors.card,
+              borderWidth: 1, borderColor: stealthCheck === "ok" ? "#238636" : stealthCheck === "fail" ? colors.destructive : colors.border,
+              opacity: stealthCheck === "checking" ? 0.6 : 1,
+            }}
+          >
+            <Text style={{ color: stealthCheck === "ok" || stealthCheck === "fail" ? "#fff" : colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>
+              {stealthCheck === "checking" ? "Checking…" : stealthCheck === "ok" ? "✓ Tor ready" : stealthCheck === "fail" ? "✗ Not ready" : "Verify Tor circuit"}
+            </Text>
+          </Pressable>
+        </View>
+        {stealthMsg ? (
+          <Text style={{ color: stealthCheck === "ok" ? colors.tint : colors.destructive, fontSize: 11, fontFamily: "Inter_500Medium" }}>{stealthMsg}</Text>
+        ) : null}
       </View>
 
       <View style={[styles.cardLeft, { backgroundColor: colors.card, borderColor: colors.border, gap: 8 }]}>

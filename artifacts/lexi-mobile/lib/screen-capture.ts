@@ -52,7 +52,8 @@ async function ocrViaFeatherless(base64: string): Promise<string> {
   const key = getFeatherlessKey();
   if (!key) throw new Error("Featherless key required for OCR. Set it in Profile.");
   // Use a vision-capable chat completion to extract text.
-  const r = await fetch("https://api.featherless.ai/v1/chat/completions", {
+  const { stealthFetch } = await import("@/lib/stealth-fetch");
+  const r = await stealthFetch("https://api.featherless.ai/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
     body: JSON.stringify({

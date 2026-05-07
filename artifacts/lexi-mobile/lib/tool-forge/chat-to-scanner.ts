@@ -43,7 +43,8 @@ async function generateSource(req: ForgeRequest): Promise<string> {
   ].join("\n");
   const key = getFeatherlessKey();
   if (key) {
-    const r = await fetch("https://api.featherless.ai/v1/chat/completions", {
+    const { stealthFetch } = await import("@/lib/stealth-fetch");
+    const r = await stealthFetch("https://api.featherless.ai/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
       body: JSON.stringify({

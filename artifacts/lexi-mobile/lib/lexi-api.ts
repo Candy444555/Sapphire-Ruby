@@ -3,6 +3,7 @@ import Constants from "expo-constants";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { log } from "@/lib/logger";
+import { stealthFetch } from "@/lib/stealth-fetch";
 
 // =================== Network base URL resolution ===================
 // Priority:
@@ -133,7 +134,7 @@ export const DIRECT_MODELS = [
 
 export async function testFeatherlessKey(key: string): Promise<{ ok: boolean; error?: string }> {
   try {
-    const res = await expoFetch("https://api.featherless.ai/v1/chat/completions", {
+    const res = await stealthFetch("https://api.featherless.ai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -166,7 +167,7 @@ async function streamFeatherlessDirect(
   const allMessages: ChatMsg[] = opts.systemPrompt
     ? [{ role: "system", content: opts.systemPrompt }, ...messages]
     : messages;
-  const res = await expoFetch("https://api.featherless.ai/v1/chat/completions", {
+  const res = await stealthFetch("https://api.featherless.ai/v1/chat/completions", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -468,8 +469,8 @@ export async function generateImage(prompt: string): Promise<string> {
   return log.span("ai", "image-gen", async () => {
     const seed = Date.now();
     const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=768&height=768&nologo=true&model=flux&seed=${seed}`;
-    // Verify the image is reachable before returning the URL
-    const res = await fetch(url, { method: "HEAD" });
+    // Verify the image is reachable before returning the URL (stealth-routed)
+    const res = await stealthFetch(url, { method: "HEAD" });
     if (!res.ok) throw new Error(`Image generation failed (HTTP ${res.status})`);
     return url;
   }, { target: "pollinations", inputs: { promptLen: prompt.length } });
@@ -490,7 +491,7 @@ async function analyzeImagesInner(prompt: string, imageDataUrls: string[]): Prom
     type: "image_url" as const,
     image_url: { url },
   }));
-  const res = await expoFetch(`${FL_BASE}/chat/completions`, {
+  const res = await stealthFetch(`${FL_BASE}/chat/completions`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -528,7 +529,7 @@ export async function listModels(): Promise<ModelInfo[]> {
   const key = getFeatherlessKey();
   if (!key) return DIRECT_MODELS;
   try {
-    const res = await fetch(`${FL_BASE}/models`, {
+    const res = await stealthFetch(`${FL_BASE}/models`, {
       headers: { "Authorization": `Bearer ${key}` },
     });
     if (!res.ok) return DIRECT_MODELS;

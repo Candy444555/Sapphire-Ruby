@@ -23,6 +23,7 @@ import adminDebugRouter from "./admin-debug";
 import appleActivationRouter from "./apple-activation";
 import scanRouter from "./scan";
 import scanAiReviewRouter from "./scan-ai-review";
+import stealthRouter from "./stealth";
 
 const router: IRouter = Router();
 
@@ -50,5 +51,6 @@ router.use(adminDebugRouter);
 router.use(appleActivationRouter);
 router.use(scanRouter);
 router.use(scanAiReviewRouter);
+router.use(stealthRouter);
 
 export default router;

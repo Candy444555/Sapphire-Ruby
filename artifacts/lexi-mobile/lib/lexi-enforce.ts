@@ -26,12 +26,12 @@ export function hardenSystemPrompt(userPrompt: string | undefined): string {
 
 export function hardenMessages(messages: ChatMsg[], userSystemPrompt?: string): ChatMsg[] {
   const out: ChatMsg[] = [];
+  // Protocol always comes first.
   out.push({ role: "system", content: hardenSystemPrompt(userSystemPrompt) });
-  // Strip any pre-existing system messages from the conversation — the
-  // protocol is the only authoritative system context. User-level system
-  // messages would otherwise dilute or contradict the protocol.
+  // ALL pre-existing messages from the conversation are preserved as-is —
+  // including any system messages the user / app has set. The protocol
+  // sits above them; it does not replace them.
   for (const m of messages) {
-    if (m.role === "system") continue;
     out.push(m);
   }
   // Tail reminder injected right before generation as the last system turn.

@@ -78,6 +78,7 @@
         "VIBRATE",
         "WAKE_LOCK",
         "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_MEDIA_PROJECTION",
         "FOREGROUND_SERVICE_DATA_SYNC",
         "FOREGROUND_SERVICE_LOCATION",
         "FOREGROUND_SERVICE_MEDIA_PLAYBACK",
@@ -126,6 +127,7 @@
     "plugins": [
       "./plugins/with-gradle-properties",
       "./plugins/with-usb-host",
+      "./modules/lexi-screen-capture/plugin/app.plugin.js",
       [
         "expo-router",
         {

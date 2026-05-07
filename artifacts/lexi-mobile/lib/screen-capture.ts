@@ -2,18 +2,23 @@
 //
 // SAFETY RULE: every capture requires a fresh per-scan operator consent
 // (Alert dialog) — there is NO persistent permission. Android also requires
-// MediaProjection consent, which is enforced by the OS each call.
+// MediaProjection consent and iOS requires ReplayKit consent, both of which
+// are enforced by the OS on every single call.
 //
-// Implementation note: the Expo SDK exposes no first-party screen-capture
-// API yet (expo-screen-capture only blocks/allows screenshots). Until a
-// native module ships, this helper falls back to expo-image-picker so the
-// operator can hand-pick a screenshot — the *consent* and *one-shot OCR*
-// flow stays identical so callers don't change.
+// Implementation: prefers the local `lexi-screen-capture` Expo native module
+// (Android MediaProjection / iOS ReplayKit) for one-tap capture. When that
+// module is unavailable (Expo Go, web, broken build), it falls back to
+// expo-image-picker so the operator can hand-pick a screenshot — the
+// consent + one-shot OCR flow is identical either way so callers don't change.
 
 import { Alert, Platform } from "react-native";
 import { log } from "@/lib/logger";
 import { getFeatherlessKey } from "@/lib/lexi-api";
 import { getScanSettings, loadScanSettings } from "@/lib/scan-settings";
+import {
+  captureOnce as nativeCaptureOnce,
+  isNativeCaptureAvailable,
+} from "../modules/lexi-screen-capture";
 
 export type CaptureResult = { ocrText: string; imageBase64?: string };
 
@@ -84,13 +89,39 @@ export async function captureScreenAndOcr(): Promise<CaptureResult | null> {
     log.info("scan", "screen-capture:declined", { actor: "user" });
     return null;
   }
-  log.info("scan", "screen-capture:start", { actor: "user", target: Platform.OS });
-  const pick = await pickImage();
-  if (!pick) {
-    log.warn("scan", "screen-capture:no-image", {});
-    return null;
+  const useNative = isNativeCaptureAvailable();
+  log.info("scan", "screen-capture:start", {
+    actor: "user", target: Platform.OS, outputs: { source: useNative ? "native" : "image-picker" },
+  });
+
+  let base64: string | null = null;
+  if (useNative) {
+    try {
+      base64 = await nativeCaptureOnce();
+    } catch (err) {
+      // Native capture errored. We deliberately do NOT silently fall back to
+      // the image picker here: the operator already gave one-shot consent for
+      // a screen capture, so swapping in a gallery picker would be a surprise
+      // and could leak an unrelated image. Fail fast and surface the error.
+      const error = err instanceof Error ? err.message : String(err);
+      log.warn("scan", "screen-capture:native-error", { error });
+      throw err;
+    }
+    if (!base64) {
+      // User declined the OS consent, or the native call timed out.
+      log.warn("scan", "screen-capture:no-image", { target: "native" });
+      return null;
+    }
+  } else {
+    const pick = await pickImage();
+    if (!pick) {
+      log.warn("scan", "screen-capture:no-image", { target: "image-picker" });
+      return null;
+    }
+    base64 = pick.base64;
   }
-  const ocrText = await ocrViaFeatherless(pick.base64);
+
+  const ocrText = await ocrViaFeatherless(base64);
   log.info("scan", "screen-capture:end", { outputs: { chars: ocrText.length } });
-  return { ocrText, imageBase64: pick.base64 };
+  return { ocrText, imageBase64: base64 };
 }

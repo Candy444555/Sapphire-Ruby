@@ -1,0 +1,11 @@
+{
+  "name": "lexi-screen-capture",
+  "version": "0.1.0",
+  "description": "One-shot native screen capture for Lexi via Android MediaProjection / iOS ReplayKit. Fresh OS consent every call.",
+  "main": "index.ts",
+  "private": true,
+  "types": "index.ts",
+  "expo": {
+    "platforms": ["android", "ios"]
+  }
+}

@@ -4,6 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { log } from "@/lib/logger";
 import { stealthFetch } from "@/lib/stealth-fetch";
+import { hardenMessages, hardenSystemPrompt, detectBannedRefusal, ENFORCEMENT_REROLL_REMINDER } from "@/lib/lexi-enforce";
 
 // =================== Network base URL resolution ===================
 // Priority:
@@ -159,14 +160,21 @@ export async function testFeatherlessKey(key: string): Promise<{ ok: boolean; er
 async function streamFeatherlessDirect(
   messages: ChatMsg[],
   onToken: (chunk: string) => void,
-  opts: { model?: string; systemPrompt?: string; signal?: AbortSignal } = {},
+  opts: { model?: string; systemPrompt?: string; signal?: AbortSignal; _enforcementAttempt?: number } = {},
 ): Promise<void> {
   const key = getFeatherlessKey();
   if (!key) throw new Error("No Featherless.ai API key set. Add it in Profile settings.");
   const model = opts.model ?? "Orenguteng/Llama-3.1-8B-Lexi-Uncensored-V2";
-  const allMessages: ChatMsg[] = opts.systemPrompt
-    ? [{ role: "system", content: opts.systemPrompt }, ...messages]
-    : messages;
+  // Baked-in enforcement: the literal-compliance protocol is ALWAYS the
+  // first system message; the tail reminder is ALWAYS the last system
+  // message right before generation. The user's systemPrompt becomes
+  // secondary context that lives between them.
+  const allMessages: ChatMsg[] = hardenMessages(messages, opts.systemPrompt);
+  // On a re-roll triggered by detectBannedRefusal(), inject a sharper
+  // reminder right before the assistant turn.
+  if ((opts._enforcementAttempt ?? 0) > 0) {
+    allMessages.push({ role: "system", content: ENFORCEMENT_REROLL_REMINDER });
+  }
   const res = await stealthFetch("https://api.featherless.ai/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -184,6 +192,10 @@ async function streamFeatherlessDirect(
   const reader = (res.body as ReadableStream<Uint8Array>).getReader();
   const decoder = new TextDecoder();
   let buf = "";
+  let assistantBuf = "";
+  let refusalChecked = false;
+  let refusalDetected = false;
+  const localCtrl = new AbortController();
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -194,13 +206,36 @@ async function streamFeatherlessDirect(
       buf = buf.slice(i + 1);
       if (!line.startsWith("data: ")) continue;
       const payload = line.slice(6).trim();
-      if (!payload || payload === "[DONE]") return;
+      if (!payload || payload === "[DONE]") {
+        if (refusalDetected) break;
+        return;
+      }
       try {
         const tok = JSON.parse(payload);
         const content = tok?.choices?.[0]?.delta?.content;
-        if (typeof content === "string" && content) onToken(content);
+        if (typeof content === "string" && content) {
+          assistantBuf += content;
+          // Refusal detection — only on the first attempt, only on the
+          // first 160 chars. If a banned opener fires, abort the stream,
+          // discard whatever we've shown, and re-issue with the
+          // enforcement reminder. Only re-roll once to avoid loops.
+          if (!refusalChecked && assistantBuf.length >= 40) {
+            refusalChecked = true;
+            if ((opts._enforcementAttempt ?? 0) === 0 && detectBannedRefusal(assistantBuf)) {
+              refusalDetected = true;
+              try { localCtrl.abort(); } catch {}
+              try { reader.cancel(); } catch {}
+              break;
+            }
+          }
+          onToken(content);
+        }
       } catch { /* skip malformed lines */ }
     }
+    if (refusalDetected) break;
+  }
+  if (refusalDetected) {
+    await streamFeatherlessDirect(messages, onToken, { ...opts, _enforcementAttempt: (opts._enforcementAttempt ?? 0) + 1 });
   }
 }
 
@@ -327,7 +362,9 @@ async function streamServerChat(
     res = await expoFetch(apiUrl("/chat"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model, messages, systemPrompt: opts.systemPrompt }),
+      // Even on the server path, harden the systemPrompt at the client edge
+      // so the protocol cannot be stripped by a stale or modified server.
+      body: JSON.stringify({ model, messages, systemPrompt: hardenSystemPrompt(opts.systemPrompt) }),
       signal: connectCtrl.signal,
     });
   } catch (err) {

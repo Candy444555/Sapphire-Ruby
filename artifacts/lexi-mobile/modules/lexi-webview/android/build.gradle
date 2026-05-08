@@ -1,0 +1,20 @@
+plugins {
+  id 'com.android.library'
+  id 'kotlin-android'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'com.lexi'
+version = '0.1.0'
+
+android {
+  namespace "expo.modules.lexiwebview"
+  defaultConfig {
+    versionCode 1
+    versionName '0.1.0'
+  }
+}
+
+dependencies {
+  implementation "androidx.webkit:webkit:1.11.0"
+}

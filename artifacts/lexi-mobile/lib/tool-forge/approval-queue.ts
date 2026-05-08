@@ -102,6 +102,7 @@ export async function updateInstalled(slug: string, patch: Partial<ForgedToolSpe
     label: installed[i].label,
     description: installed[i].description,
     languages: installed[i].targetFileTypes,
+    acceptsSources: ["file", "zip", "github", "workspace"],
     runsOn: installed[i].language === "javascript" ? "phone" : "server",
     needsServer: installed[i].language !== "javascript",
   });

@@ -43,7 +43,7 @@ export const SUPPORTED_LANGUAGES: SupportedLanguage[] = Object.keys(LANGUAGES) a
 
 /**
  * Run a code snippet in the local sandbox. Used by both the public /code/run
- * endpoint and the code-craft self-test loop. Snippet is written to a temp
+ * endpoint. Snippet is written to a temp
  * file under SCRATCH_DIR, executed with a hard timeout, then deleted.
  */
 export async function runCodeSandbox(

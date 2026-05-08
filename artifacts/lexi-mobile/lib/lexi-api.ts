@@ -562,66 +562,36 @@ async function analyzeImagesInner(prompt: string, imageDataUrls: string[]): Prom
   return json.choices?.[0]?.message?.content ?? "";
 }
 
-// =================== Code-Craft (generate → test → regenerate loop) ===================
-// Mirrors the SSE schema in artifacts/api-server/src/routes/code-craft.ts.
-export type CodeCraftLanguage = "python" | "javascript" | "typescript" | "bash" | "ruby" | "go";
+// =================== Code proofread (syntax + typo fix) ===================
+// Mirrors POST /api/code/proofread on the server. Pass a single fenced block's
+// language + code. Server runs a language-aware syntax check; if it errors,
+// it asks Featherless once to fix syntax + obvious typos and returns the
+// cleaned code. Always returns something — falls back to original on failure.
+export type ProofreadResult = {
+  code: string;
+  changed: boolean;
+  hadErrors: boolean;
+  errors: string;
+};
 
-export type CodeCraftEvent =
-  | { type: "start"; request: string; language: CodeCraftLanguage; maxAttempts: number }
-  | { type: "research"; webHits: number; torHits: number; torUsed: boolean }
-  | { type: "attempt"; n: number }
-  | { type: "thinking"; n: number }
-  | { type: "code"; n: number; language: CodeCraftLanguage; code: string }
-  | { type: "running"; n: number }
-  | { type: "result"; n: number; ok: boolean; exitCode: number | null; timedOut: boolean; durationMs: number; stdout: string; stderr: string }
-  | { type: "final"; ok: boolean; attempts: number; language: CodeCraftLanguage; code: string; stdout?: string; stderr?: string }
-  | { type: "error"; message: string };
-
-export async function streamCodeCraft(
-  body: { request: string; language?: CodeCraftLanguage; maxAttempts?: number; model?: string; systemPrompt?: string },
-  onEvent: (ev: CodeCraftEvent) => void,
-  signal?: AbortSignal,
-): Promise<void> {
-  if (!getApiBase()) {
-    throw new Error("Code-Craft requires the API server (set the domain in Profile).");
-  }
-  const res = await expoFetch(apiUrl("/chat/code-craft"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-    signal,
-  });
-  if (!res.ok || !res.body) {
-    let msg = `HTTP ${res.status}`;
-    try { const j = await res.json(); msg = (j as any)?.error ?? msg; } catch {}
-    throw new Error(msg);
-  }
-  const reader = (res.body as ReadableStream<Uint8Array>).getReader();
-  const decoder = new TextDecoder();
-  let buf = "";
-  const onAbort = () => { reader.cancel().catch(() => {}); };
-  if (signal) {
-    if (signal.aborted) onAbort();
-    else signal.addEventListener("abort", onAbort);
-  }
+export async function proofreadCode(language: string, code: string): Promise<ProofreadResult> {
+  if (!getApiBase()) return { code, changed: false, hadErrors: false, errors: "" };
   try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      let i: number;
-      while ((i = buf.indexOf("\n\n")) >= 0) {
-        const ev = buf.slice(0, i);
-        buf = buf.slice(i + 2);
-        if (!ev.startsWith("data: ")) continue;
-        const payload = ev.slice(6).trim();
-        if (!payload) continue;
-        if (payload === "[DONE]") return;
-        try { onEvent(JSON.parse(payload) as CodeCraftEvent); } catch { /* skip malformed */ }
-      }
-    }
-  } finally {
-    if (signal) signal.removeEventListener("abort", onAbort);
+    const res = await expoFetch(apiUrl("/code/proofread"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ language, code }),
+    });
+    if (!res.ok) return { code, changed: false, hadErrors: false, errors: "" };
+    const j = (await res.json()) as Partial<ProofreadResult>;
+    return {
+      code: j.code ?? code,
+      changed: Boolean(j.changed),
+      hadErrors: Boolean(j.hadErrors),
+      errors: j.errors ?? "",
+    };
+  } catch {
+    return { code, changed: false, hadErrors: false, errors: "" };
   }
 }
 

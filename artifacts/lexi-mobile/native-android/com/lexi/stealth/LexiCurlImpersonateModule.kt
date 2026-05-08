@@ -12,15 +12,22 @@ import com.facebook.react.bridge.WritableArray
 import com.facebook.react.bridge.WritableMap
 
 /**
- * Calls into a curl-impersonate JNI .so dropped under
- * artifacts/lexi-mobile/native/curl-impersonate/jniLibs/<abi>/.
+ * Calls into the curl-impersonate JNI bridge.
  *
- * The .so is expected to expose a single C entry point:
- *   `Java_com_lexi_stealth_LexiCurlImpersonateModule_nativeRequest(JNIEnv*, jobject, jstring opts_json) -> jstring result_json`
+ * Native libs loaded at class-init:
+ *   - libcurl-impersonate.so (prebuilt arm64-v8a from lexiforest, dropped
+ *     under artifacts/lexi-mobile/native-android/jniLibs/arm64-v8a/)
+ *   - libcurl-impersonate-jni.so (compiled from
+ *     artifacts/lexi-mobile/native-android/jni/curl_impersonate_jni.c by
+ *     gradle's externalNativeBuild during ./gradlew assembleRelease)
  *
- * If the lib isn't bundled, isAvailable() returns false and request() rejects
+ * JNI entry points exported by the bridge:
+ *   Java_com_lexi_stealth_LexiCurlImpersonateModule_nativeRequest(JNIEnv*, jobject, jstring opts_json) -> jstring result_json
+ *   Java_com_lexi_stealth_LexiCurlImpersonateModule_nativeListImpersonations(JNIEnv*, jobject) -> jstring json_array
+ *
+ * If the libs aren't bundled, isAvailable() returns false and request() rejects
  * — the TS wrapper turns that into the loud `CURL_IMPERSONATE_NOT_BUNDLED`
- * error so stealth traffic never silently leaks.
+ * error so stealth traffic never silently leaks through a different transport.
  */
 class LexiCurlImpersonateModule(reactContext: ReactApplicationContext) :
     ReactContextBaseJavaModule(reactContext) {
@@ -31,8 +38,16 @@ class LexiCurlImpersonateModule(reactContext: ReactApplicationContext) :
         @Volatile private var loaded: Boolean = false
         @Volatile private var loadError: String? = null
         init {
-            try { System.loadLibrary("curl-impersonate-chrome"); loaded = true }
-            catch (t: Throwable) { loadError = t.message }
+            try {
+                // Load the prebuilt libcurl-impersonate.so (lexiforest fork) first,
+                // then our JNI bridge which dt_NEEDED-links against it.
+                // The Android linker auto-resolves transitively, but loading
+                // explicitly in order surfaces clearer errors when the prebuilt
+                // .so is missing from jniLibs/.
+                System.loadLibrary("curl-impersonate")
+                System.loadLibrary("curl-impersonate-jni")
+                loaded = true
+            } catch (t: Throwable) { loadError = t.message }
         }
     }
 
@@ -57,7 +72,7 @@ class LexiCurlImpersonateModule(reactContext: ReactApplicationContext) :
     @ReactMethod
     fun request(opts: ReadableMap, promise: Promise) {
         if (!loaded) {
-            promise.reject("CURL_NOT_LOADED", "libcurl-impersonate-chrome.so not in jniLibs (${loadError ?: "missing"})")
+            promise.reject("CURL_NOT_LOADED", "libcurl-impersonate.so / libcurl-impersonate-jni.so missing from jniLibs (${loadError ?: "missing"})")
             return
         }
         try {

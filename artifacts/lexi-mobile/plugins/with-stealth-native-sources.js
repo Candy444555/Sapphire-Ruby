@@ -78,15 +78,12 @@ module.exports = function withStealthNativeSources(config) {
       // arm64 .so present. Without it, LexiCurlImpersonate is unavailable at
       // runtime and any backend that requires curl (residential / mobile / any
       // proxy-needing path) silently degrades. We fail the prebuild instead.
+      // (The actual jniLibs copy + CMake wiring happens in with-curl-impersonate.js
+      // — this is purely the operator-protection guard.)
       const jniDir = path.join(projectRoot, "native-android", "jniLibs", "arm64-v8a");
       const requiredSo = path.join(jniDir, "libcurl-impersonate.so");
       if (process.env.LEXI_REQUIRE_CURL_IMPERSONATE === "1" && !fs.existsSync(requiredSo)) {
         throw new Error(`[with-stealth-native-sources] Missing ${requiredSo}. Drop a prebuilt arm64-v8a libcurl-impersonate.so there, or unset LEXI_REQUIRE_CURL_IMPERSONATE for a Cronet-only test build.`);
-      }
-      // If the .so directory exists, copy it into the generated android tree.
-      if (fs.existsSync(jniDir)) {
-        const dstJni = path.join(platformRoot, "app", "src", "main", "jniLibs", "arm64-v8a");
-        copyDirRecursive(path.dirname(jniDir), path.dirname(dstJni));
       }
 
       const main = findMainApplication(platformRoot);

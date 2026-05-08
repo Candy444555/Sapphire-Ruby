@@ -11,3 +11,9 @@ id = "BmN9zhJU5RJkBBZgaleYB"
 uri = "file://.local/lexi-source.zip"
 type = "unspecified"
 title = "Lexi Source Code (mobile + API server)"
+
+[[outputs]]
+id = "wZQJW7_C5PKIuewKIpC9a"
+uri = "file://.local/downloads/lexi-16841f13-apk.zip"
+type = "unspecified"
+title = "Lexi APK build 16841f13 (zipped — unzip to get .apk, OTA-capable, runtime 1.0.0)"

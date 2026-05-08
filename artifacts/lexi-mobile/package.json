@@ -83,6 +83,7 @@
     "zod-validation-error": "^3.4.0"
   },
   "dependencies": {
+    "expo": "~54.0.34",
     "expo-build-properties": "^1.0.10",
     "expo-calendar": "^15.0.8",
     "expo-clipboard": "^8.0.8",
@@ -93,9 +94,9 @@
     "expo-media-library": "^18.2.1",
     "expo-secure-store": "~15.0.7",
     "expo-sharing": "^14.0.8",
+    "expo-updates": "~29.0.17",
     "react": "19.1.0",
     "react-native": "0.81.5",
-    "react-native-usb-serialport-for-android": "^0.5.0",
-    "expo": "~54.0.34"
+    "react-native-usb-serialport-for-android": "^0.5.0"
   }
 }

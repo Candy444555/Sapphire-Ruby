@@ -8,6 +8,13 @@
     "scheme": "lexi-mobile",
     "userInterfaceStyle": "dark",
     "newArchEnabled": true,
+    "runtimeVersion": "1.0.0",
+    "updates": {
+      "url": "https://u.expo.dev/7ccd35ca-bf3d-460e-a3a1-b4ad337478a6",
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.lexi.mobile",

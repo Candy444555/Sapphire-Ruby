@@ -55,6 +55,7 @@ export default function ChatScreen() {
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
   const [mode, setMode] = useState<Mode>("chat");
   const [codeMode, setCodeMode] = useState(false);
+  const [craftMode, setCraftMode] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
@@ -215,11 +216,15 @@ export default function ChatScreen() {
     if (isSelfUpdateRequest(text)) addInstruction(text);
 
     if (mode === "chat") {
-      await chat.sendMessage(userContent, model, buildFullSystemPrompt(overrideExtra));
+      if (craftMode) {
+        await chat.craftCode(userContent, model, { systemPrompt: buildFullSystemPrompt(overrideExtra) });
+      } else {
+        await chat.sendMessage(userContent, model, buildFullSystemPrompt(overrideExtra));
+      }
     } else {
       await agent.sendMessage(userContent, model, buildFullSystemPrompt(overrideExtra));
     }
-  }, [input, pendingImage, isStreaming, model, mode, chat, agent, buildFullSystemPrompt, learnFromMessage, addInstruction]);
+  }, [input, pendingImage, isStreaming, model, mode, craftMode, chat, agent, buildFullSystemPrompt, learnFromMessage, addInstruction]);
 
   const onFuse = useCallback(() => {
     const text = input.trim();
@@ -278,6 +283,10 @@ export default function ChatScreen() {
         <Pressable onPress={() => setCodeMode((v) => !v)} style={[styles.modePill, codeMode && { backgroundColor: "#3fb950" }]}>
           <Feather name="code" size={13} color={codeMode ? "#0d1117" : colors.mutedForeground} />
           <Text style={{ color: codeMode ? "#0d1117" : colors.mutedForeground, fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1 }}>CODE</Text>
+        </Pressable>
+        <Pressable onPress={() => setCraftMode((v) => !v)} style={[styles.modePill, craftMode && { backgroundColor: "#f7931e" }]}>
+          <Feather name="tool" size={13} color={craftMode ? "#0d1117" : colors.mutedForeground} />
+          <Text style={{ color: craftMode ? "#0d1117" : colors.mutedForeground, fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 1 }}>CRAFT</Text>
         </Pressable>
         <View style={{ flex: 1 }} />
         <Pressable onPress={() => createConversation(model, systemPrompt)} hitSlop={8}>

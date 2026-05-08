@@ -7,6 +7,9 @@
 import { stealthFetch } from "@/lib/stealth-fetch";
 import { runGuards, type ActionDescriptor } from "@/lib/ops/guardrails";
 import { pushOpsEvent } from "@/lib/stealth/operator-eyes";
+import { isWebViewAvailable, submitForm as webViewSubmitForm, type WebFormStep } from "../../modules/lexi-webview";
+import { getActiveBackend, withSocksOrProxy } from "@/lib/stealth/backends";
+import { getActiveProfile } from "@/lib/stealth/profiles";
 
 export type OpsResult<T = unknown> = {
   ok: boolean;
@@ -222,24 +225,41 @@ export async function jira<T = unknown>(opts: { instanceUrl: string; path: strin
   return httpRequest<T>({ url: `${opts.instanceUrl.replace(/\/$/, "")}/rest/api/3${opts.path}`, method: opts.method ?? "GET", headers: { "Content-Type": "application/json", ...h }, body: opts.body, blastRadius: opts.blastRadius, tags: { kind: "saas", provider: "jira" } });
 }
 
-// ───────── Web-form submit (placeholder) ─────────
+// ───────── Web-form submit ─────────
 //
-// Headless WebView is wired in a separate native module (out of scope for this
-// pass). For now we surface the descriptor through the guardrail engine and
-// throw a clear error so the operator sees the intent in the operator-eyes
-// drawer even if the transport isn't available yet.
-
-// Submit a classic HTML form (application/x-www-form-urlencoded or
-// multipart/form-data) through the stealth stack. This covers the realistic
-// "old web admin panel" case that was the original spec target. JS-rendered
-// SPA forms (Cloudflare Turnstile etc.) are not in scope here — those need
-// the headless-WebView transport, tracked as a separate follow-up.
+// Two transports:
+//
+//  1. "fetch"   — POST application/x-www-form-urlencoded or multipart/form-data
+//                 through `stealthFetch`. Covers classic server-rendered admin
+//                 panels (no JS validation, no anti-CSRF token round-trip).
+//
+//  2. "webview" — load the page in a hidden Android WebView / iOS WKWebView
+//                 via the `lexi-webview` native module, evaluate a JS shim
+//                 that fills `name=`d inputs and clicks submit, then return
+//                 the resulting HTML / final URL / status. Required for SPA
+//                 forms, hidden CSRF tokens, JS-mutated submit handlers, etc.
+//                 The WebView is configured with the active stealth backend's
+//                 SOCKS/HTTP proxy and stealth profile User-Agent so its
+//                 egress matches `stealthFetch`.
+//
+// "auto" (default) prefers the WebView when the native module is bundled and
+// falls back to fetch otherwise.
+//
+// Each phase (navigate / fill <field> / click submit / response) is mirrored
+// into the operator-eyes drawer so the operator can audit the form-fill
+// step-by-step.
 export async function webFormSubmit(opts: {
   url: string;
   fields: Record<string, string>;
   encoding?: "urlencoded" | "multipart";
+  transport?: "fetch" | "webview" | "auto";
+  submitSelector?: string;
+  userAgent?: string;
+  timeoutMs?: number;
   blastRadius?: ActionDescriptor["estimatedBlastRadius"];
 }): Promise<OpsResult> {
+  const transport = opts.transport ?? "auto";
+  const wantWebView = transport === "webview" || (transport === "auto" && isWebViewAvailable());
   const a: ActionDescriptor = {
     kind: "web-form",
     target: hostname(opts.url),
@@ -247,10 +267,89 @@ export async function webFormSubmit(opts: {
     method: "POST",
     payload: opts.fields,
     estimatedBlastRadius: opts.blastRadius,
-    tags: { kind: "web-form", encoding: opts.encoding ?? "urlencoded" },
+    tags: {
+      kind: "web-form",
+      encoding: opts.encoding ?? "urlencoded",
+      transport: wantWebView ? "webview" : "fetch",
+    },
   };
   return gated(a, async (final) => {
     const fields = (final.payload as Record<string, string>) ?? {};
+
+    if (wantWebView) {
+      if (!isWebViewAvailable()) {
+        // Operator explicitly asked for the WebView transport but the native
+        // module isn't bundled (Expo Go, web, broken build). Surface the
+        // distinct error so they can switch transport or rebuild.
+        const e = new Error("WEBVIEW_NOT_BUNDLED: headless WebView native module is not in this build");
+        (e as Error & { code?: string }).code = "WEBVIEW_NOT_BUNDLED";
+        throw e;
+      }
+      const backend = getActiveBackend();
+      // FAIL-CLOSED proxy resolution: if the active backend can't surface
+      // its proxy (Tor not bootstrapped, residential session expired,
+      // misconfigured backend), we MUST refuse rather than fall through
+      // to direct egress. Mirrors the model `stealthFetch` enforces. We
+      // only allow `direct` (`{}`) when the active backend itself is
+      // explicitly direct.
+      let proxy: { socksProxy?: string; httpProxy?: string };
+      try {
+        proxy = await withSocksOrProxy(backend);
+      } catch (err) {
+        const e = new Error(
+          `WEBVIEW_PROXY_REQUIRED: active backend "${backend}" failed to provide a proxy ` +
+          `(${err instanceof Error ? err.message : String(err)}); refusing to send the WebView request direct.`
+        );
+        (e as Error & { code?: string }).code = "WEBVIEW_PROXY_REQUIRED";
+        throw e;
+      }
+      const hasAnyProxy = !!(proxy.socksProxy || proxy.httpProxy);
+      if (!hasAnyProxy && backend !== "direct") {
+        const e = new Error(
+          `WEBVIEW_PROXY_REQUIRED: active backend "${backend}" returned no proxy; refusing to send the WebView request direct.`
+        );
+        (e as Error & { code?: string }).code = "WEBVIEW_PROXY_REQUIRED";
+        throw e;
+      }
+      // Proxy parity: SOCKS-only backends (notably Tor) are honored by the
+      // native module's local SOCKS→HTTP-CONNECT bridge (see
+      // `modules/lexi-webview/android/.../SocksHttpBridge.kt` and the iOS
+      // counterpart). The native module also fails closed if it can't apply
+      // any proxy (e.g. iOS <17 without a SOCKS bridge).
+      const profile = (() => { try { return getActiveProfile(); } catch { return null; } })();
+      const ua = opts.userAgent ?? profile?.headers.find(([k]) => k.toLowerCase() === "user-agent")?.[1];
+      pushOpsEvent("info", `web-form: webview start ${final.url}`, {
+        backend, fields: Object.keys(fields), proxy: proxy.socksProxy ? "socks(bridged)" : proxy.httpProxy ? "http" : "direct",
+      });
+      const onStep = (s: WebFormStep) => {
+        switch (s.phase) {
+          case "navigate":
+            pushOpsEvent("info", `web-form: navigate ${s.url}`); break;
+          case "fill":
+            pushOpsEvent("info", `web-form: fill ${s.field}`); break;
+          case "submit":
+            pushOpsEvent("info", `web-form: click submit`, s.selector ? { selector: s.selector } : undefined); break;
+          case "response":
+            pushOpsEvent("response", `web-form: ${s.status} ${s.finalUrl}`, { status: s.status }); break;
+        }
+      };
+      const result = await webViewSubmitForm({
+        url: final.url,
+        fields,
+        submitSelector: opts.submitSelector,
+        socksProxy: proxy.socksProxy,
+        httpProxy: proxy.httpProxy,
+        userAgent: ua,
+        timeoutMs: opts.timeoutMs ?? 30_000,
+        onStep,
+      });
+      return {
+        status: result.status,
+        data: { html: result.html, finalUrl: result.finalUrl, steps: result.steps },
+      };
+    }
+
+    // ── fetch transport ──
     const enc = opts.encoding ?? "urlencoded";
     let body: string;
     let contentType: string;
@@ -272,6 +371,9 @@ export async function webFormSubmit(opts: {
         .join("&");
       contentType = "application/x-www-form-urlencoded";
     }
+    pushOpsEvent("info", `web-form: fetch POST ${final.url}`, { fields: Object.keys(fields), encoding: enc });
+    for (const k of Object.keys(fields)) pushOpsEvent("info", `web-form: fill ${k}`);
+    pushOpsEvent("info", `web-form: submit`);
     const r = await stealthFetch(final.url, {
       method: "POST",
       headers: { "Content-Type": contentType },
@@ -280,6 +382,7 @@ export async function webFormSubmit(opts: {
     const text = await r.text();
     let parsed: unknown = text;
     try { parsed = JSON.parse(text); } catch {}
+    pushOpsEvent("response", `web-form: ${r.status} ${final.url}`, { status: r.status });
     return { status: r.status, data: parsed };
   });
 }

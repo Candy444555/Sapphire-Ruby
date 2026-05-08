@@ -1,0 +1,11 @@
+{
+  "name": "lexi-webview",
+  "version": "0.1.0",
+  "description": "Headless WebView form-submit transport for Lexi. Loads a URL through the active SOCKS/HTTP proxy, fills named inputs, clicks submit, and returns the resulting HTML/redirect.",
+  "main": "index.ts",
+  "private": true,
+  "types": "index.ts",
+  "expo": {
+    "platforms": ["android", "ios"]
+  }
+}

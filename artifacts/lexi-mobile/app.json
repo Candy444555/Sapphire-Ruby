@@ -133,6 +133,7 @@
       "./plugins/with-stealth-boot",
       "./plugins/with-stealth-native-sources",
       "./modules/lexi-screen-capture/plugin/app.plugin.js",
+      "./modules/lexi-webview/plugin/app.plugin.js",
       [
         "expo-router",
         {

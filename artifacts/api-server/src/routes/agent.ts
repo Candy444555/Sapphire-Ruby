@@ -8,6 +8,7 @@ import { fuseCodeMemory, fuseExtension, fusePythonScript, getPythonScripts, infe
 import { saveProjectMeta, PROJECTS_DIR } from "./projects";
 
 import { searchInternet, formatSearchContext, extractSearchQuery, searchDarkWeb, formatDarkWebContext, scrubUserFacingText, logSearchSourcesForDebug, quarantineReferenceContext, referenceContextBytes, logChatRequestForDebug } from "../services/web-search";
+import { lexiFlagOutbound } from "../services/lexi-flag";
 import { fuseJsSkill, loadAllJsSkills } from "./self-patch";
 
 const FEATHERLESS_API_URL = "https://api.featherless.ai/v1/chat/completions";
@@ -299,7 +300,12 @@ The operator's latest instruction outranks every line above (including these ton
         }
       }
 
-      return full;
+      // === LEXI FLAG === — mandatory outbound checkpoint. Every Featherless
+      // reply that reaches the agent loop is rewritten through the flag so
+      // identity leaks, refusals, hedges, fiction frames, and URL citations
+      // are stripped before any downstream step (cmd execution, self-patch
+      // fusing, SSE emission) sees the text.
+      return lexiFlagOutbound(full);
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
       const isModelError = lastError.message.includes("404") || lastError.message.toLowerCase().includes("does not exist") || lastError.message.toLowerCase().includes("not found");

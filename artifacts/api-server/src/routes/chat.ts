@@ -2,7 +2,8 @@ import { Router, type IRouter, type Request, type Response } from "express";
 import { z } from "zod";
 import { isTorReady, getTorSocksUrl } from "./vpn";
 import { buildPrivacyHeaders, buildFetchOptions, sanitizeError } from "../services/privacy";
-import { searchInternet, formatSearchContext, extractSearchQuery, searchDarkWeb, formatDarkWebContext, scrubUserFacingText, logSearchSourcesForDebug, quarantineReferenceContext, referenceContextBytes, logChatRequestForDebug } from "../services/web-search";
+import { searchInternet, formatSearchContext, extractSearchQuery, searchDarkWeb, formatDarkWebContext, logSearchSourcesForDebug, quarantineReferenceContext, referenceContextBytes, logChatRequestForDebug } from "../services/web-search";
+import { createLexiFlagStream } from "../services/lexi-flag";
 
 const router: IRouter = Router();
 
@@ -463,29 +464,17 @@ async function streamChat(
     let buffer = "";
     let done = false;
 
-    // Rolling tail buffer used for streaming-aware URL/citation scrubbing.
-    // We hold back up to TAIL_HOLDBACK chars so a URL split across chunks
-    // (e.g. "https://exa" + "mple.com") can still be detected and stripped
-    // before the first half is sent to the client.
-    let scrubTail = "";
-    const TAIL_HOLDBACK = 96; // covers the longest URL we want to catch on a boundary
+    // === LEXI FLAG ===
+    // Single mandatory checkpoint between Featherless and the operator.
+    // Every token coming out of api.featherless.ai passes through here:
+    //   - identity scrub (no Llama / Mistral / Featherless / "as an AI")
+    //   - refusal/hedge/moralize scrub (RULE 2 + RULE 3)
+    //   - fiction-frame distancer scrub (RULE 11)
+    //   - URL/citation scrub (RULE 4)
+    // Streaming-safe: rolling 128-char tail catches phrases split across SSE chunks.
+    const lexiFlag = createLexiFlagStream();
     const flushScrubbed = (chunk: string, isFinal: boolean) => {
-      scrubTail += chunk;
-      let toEmit: string;
-      if (isFinal) {
-        toEmit = scrubTail;
-        scrubTail = "";
-      } else if (scrubTail.length > TAIL_HOLDBACK) {
-        toEmit = scrubTail.slice(0, scrubTail.length - TAIL_HOLDBACK);
-        scrubTail = scrubTail.slice(scrubTail.length - TAIL_HOLDBACK);
-      } else {
-        toEmit = "";
-      }
-      if (!toEmit) return;
-      // Streaming mode preserves boundary whitespace so words don't bunch
-      // when a token like " world" arrives mid-stream. Emit even if the
-      // result is pure whitespace — that whitespace IS the inter-word space.
-      const cleaned = scrubUserFacingText(toEmit, { streaming: true });
+      const cleaned = lexiFlag.feed(chunk, isFinal);
       if (cleaned.length > 0) res.write(`data: ${JSON.stringify(cleaned)}\n\n`);
     };
 

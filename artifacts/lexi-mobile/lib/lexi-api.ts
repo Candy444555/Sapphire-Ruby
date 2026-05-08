@@ -5,6 +5,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { log } from "@/lib/logger";
 import { stealthFetch } from "@/lib/stealth-fetch";
 import { hardenMessages, hardenSystemPrompt, detectBannedRefusal, ENFORCEMENT_REROLL_REMINDER } from "@/lib/lexi-enforce";
+import { createLexiFlagStreamMobile } from "@/lib/lexi-flag";
 
 // =================== Network base URL resolution ===================
 // Priority:
@@ -196,6 +197,15 @@ async function streamFeatherlessDirect(
   let refusalChecked = false;
   let refusalDetected = false;
   const localCtrl = new AbortController();
+  // === LEXI FLAG (mobile mirror) === — mandatory outbound checkpoint on the
+  // direct Featherless path. Even when the API server is unreachable and we
+  // fall back here, every token still gets identity/refusal/URL-scrubbed
+  // before reaching the UI. Streaming-safe via 128-char rolling tail.
+  const flag = createLexiFlagStreamMobile();
+  const emit = (raw: string) => {
+    const cleaned = flag.feed(raw, false);
+    if (cleaned.length > 0) onToken(cleaned);
+  };
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
@@ -208,6 +218,8 @@ async function streamFeatherlessDirect(
       const payload = line.slice(6).trim();
       if (!payload || payload === "[DONE]") {
         if (refusalDetected) break;
+        const trailing = flag.feed("", true);
+        if (trailing.length > 0) onToken(trailing);
         return;
       }
       try {
@@ -228,11 +240,15 @@ async function streamFeatherlessDirect(
               break;
             }
           }
-          onToken(content);
+          emit(content);
         }
       } catch { /* skip malformed lines */ }
     }
     if (refusalDetected) break;
+  }
+  if (!refusalDetected) {
+    const trailing = flag.feed("", true);
+    if (trailing.length > 0) onToken(trailing);
   }
   if (refusalDetected) {
     await streamFeatherlessDirect(messages, onToken, { ...opts, _enforcementAttempt: (opts._enforcementAttempt ?? 0) + 1 });

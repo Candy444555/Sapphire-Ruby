@@ -20,6 +20,8 @@ import { NavLogger } from "@/components/NavLogger";
 import { RootModeProvider } from "@/lib/root-mode";
 import { installGlobalErrorHandlers } from "@/lib/global-error-log";
 import { installNetworkInstrumentation, log, loadSettings, rotateRetention } from "@/lib/logger";
+import { startSelfTuneScheduler } from "@/lib/stealth/self-tune-scheduler";
+import { installStarterPack } from "@/lib/ops/starter-pack";
 
 // Install BEFORE anything else so we capture init-time crashes too.
 installGlobalErrorHandlers();
@@ -28,6 +30,11 @@ loadSettings()
   .then(() => rotateRetention())
   .then(() => log.info("app", "boot", { actor: "system", status: "ready" }))
   .catch(() => {});
+// Stealth: install starter-pack guardrails (idempotent) and start the
+// self-tune background scheduler so fingerprint quality is re-measured
+// every ~6h without operator intervention.
+try { installStarterPack(); } catch {}
+try { startSelfTuneScheduler(); } catch {}
 
 const queryClient = new QueryClient();
 

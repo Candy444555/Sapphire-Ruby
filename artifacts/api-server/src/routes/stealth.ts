@@ -59,7 +59,11 @@ function sanitizeRequestHeaders(input: Record<string, string> | undefined): Reco
   return out;
 }
 
-router.post("/api/stealth-fetch", async (req: Request, res: Response): Promise<void> => {
+// DEPRECATED — Lexi mobile now does on-device stealth (embedded Tor +
+// Cronet + curl-impersonate). This route is kept temporarily for any older
+// builds still in the wild and returns 410 Gone so they fail loudly instead
+// of silently routing through the server.
+router.post("/api/stealth-fetch/legacy", async (req: Request, res: Response): Promise<void> => {
   try {
     const { url, method, headers, body } = req.body as {
       url?: string;
@@ -136,6 +140,13 @@ router.post("/api/stealth-fetch", async (req: Request, res: Response): Promise<v
       try { res.end(); } catch {}
     }
   }
+});
+
+router.post("/api/stealth-fetch", (_req, res) => {
+  res.status(410).json({
+    error: "GONE",
+    message: "Server-side stealth-fetch is deprecated. Lexi mobile now runs the embedded Tor + Cronet + curl-impersonate stack on-device. Update the app.",
+  });
 });
 
 router.get("/api/stealth-fetch/status", (_req, res) => {

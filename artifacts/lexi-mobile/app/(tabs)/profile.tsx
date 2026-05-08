@@ -25,6 +25,8 @@ import {
 } from "@/lib/logger";
 import { defaultBakedDomain, getApiBase, getApiUrl, loadApiDomain, pingServer, setApiDomain, getFeatherlessKey, setFeatherlessKey, loadFeatherlessKey, testFeatherlessKey, triggerApkBuild } from "@/lib/lexi-api";
 import { loadStealth, setStealth } from "@/lib/stealth-fetch";
+import { StealthCenter } from "@/components/StealthCenter";
+import { installStarterPack } from "@/lib/ops/starter-pack";
 import { saveApkToPhone } from "@/lib/save-to-device";
 import { BUILD_INFO } from "@/lib/build-info";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -134,6 +136,9 @@ export default function ProfileScreen() {
       setOrKey(key);
       const s = await loadStealth();
       setStealthLocal(s);
+      // Install the 12 starter-pack guardrails. All OFF except #12
+      // (pre-emptive log-noise avoidance), which is ON by default per spec.
+      try { installStarterPack(); } catch {}
     })();
   }, []);
 
@@ -400,44 +405,7 @@ export default function ProfileScreen() {
         )}
       </View>
 
-      <View style={[styles.cardLeft, { backgroundColor: colors.card, borderColor: colors.border, gap: 8 }]}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Feather name="eye-off" size={16} color={colors.accent} />
-          <Text style={{ flex: 1, color: colors.accent, fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 1.5 }}>STEALTH MODE</Text>
-          <Pressable
-            onPress={() => toggleStealth(!stealth)}
-            style={{
-              width: 44, height: 24, borderRadius: 12, padding: 2,
-              backgroundColor: stealth ? "#238636" : colors.border,
-              justifyContent: "center", alignItems: stealth ? "flex-end" : "flex-start",
-            }}
-          >
-            <View style={{ width: 20, height: 20, borderRadius: 10, backgroundColor: "#fff" }} />
-          </Pressable>
-        </View>
-        <Text style={{ color: colors.mutedForeground, fontSize: 11, lineHeight: 16 }}>
-          When ON, every internet request Lexi makes (chat, models, image gen, vision, OCR, code review, tool-forge) is routed through the server's Tor circuit. Identifying headers are stripped, the User-Agent is randomized per call, cookies/referers are blocked, and your phone's real IP never reaches Featherless or anywhere else. Requires Server URL to be set.
-        </Text>
-        <View style={{ flexDirection: "row", gap: 8 }}>
-          <Pressable
-            onPress={checkStealth}
-            disabled={stealthCheck === "checking"}
-            style={{
-              flex: 1, padding: 10, borderRadius: 10, alignItems: "center",
-              backgroundColor: stealthCheck === "ok" ? "#238636" : stealthCheck === "fail" ? colors.destructive : colors.card,
-              borderWidth: 1, borderColor: stealthCheck === "ok" ? "#238636" : stealthCheck === "fail" ? colors.destructive : colors.border,
-              opacity: stealthCheck === "checking" ? 0.6 : 1,
-            }}
-          >
-            <Text style={{ color: stealthCheck === "ok" || stealthCheck === "fail" ? "#fff" : colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>
-              {stealthCheck === "checking" ? "Checking…" : stealthCheck === "ok" ? "✓ Tor ready" : stealthCheck === "fail" ? "✗ Not ready" : "Verify Tor circuit"}
-            </Text>
-          </Pressable>
-        </View>
-        {stealthMsg ? (
-          <Text style={{ color: stealthCheck === "ok" ? colors.tint : colors.destructive, fontSize: 11, fontFamily: "Inter_500Medium" }}>{stealthMsg}</Text>
-        ) : null}
-      </View>
+      <StealthCenter />
 
       <View style={[styles.cardLeft, { backgroundColor: colors.card, borderColor: colors.border, gap: 8 }]}>
         <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>

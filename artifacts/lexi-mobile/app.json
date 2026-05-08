@@ -127,6 +127,11 @@
     "plugins": [
       "./plugins/with-gradle-properties",
       "./plugins/with-usb-host",
+      "./plugins/with-cronet",
+      "./plugins/with-tor",
+      "./plugins/with-curl-impersonate",
+      "./plugins/with-stealth-boot",
+      "./plugins/with-stealth-native-sources",
       "./modules/lexi-screen-capture/plugin/app.plugin.js",
       [
         "expo-router",

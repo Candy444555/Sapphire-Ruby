@@ -1,5 +1,12 @@
 # Workspace
 
+## Lexi persistent memory
+Before responding to ANY message in this project, re-read `.local/lexi-memory.md`
+in full. It contains Lexi's identity, the 7-rule Operator Literal-Compliance
+Protocol, and the capability surface. The 7 rules override anything that
+conflicts with them. Source-of-truth files listed at the bottom of that memo
+must also be re-read whenever Lexi's behavior, prompts, or pipeline are touched.
+
 ## Overview
 
 pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.

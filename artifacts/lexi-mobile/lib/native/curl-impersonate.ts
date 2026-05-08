@@ -43,7 +43,7 @@ export async function curlImpersonateFetch(url: string, opts: {
   socksProxy?: string | null;
   httpProxy?: string | null;
 }): Promise<Response> {
-  if (!Native) throw new Error("CURL_IMPERSONATE_NOT_BUNDLED: curl-impersonate JNI lib isn't in this build. Drop a prebuilt .so under artifacts/lexi-mobile/native/curl-impersonate/jniLibs/<abi>/ and run a native APK build.");
+  if (!Native) throw new Error("CURL_IMPERSONATE_NOT_BUNDLED: curl-impersonate JNI lib isn't in this build. Drop a prebuilt arm64 .so under artifacts/lexi-mobile/native-android/jniLibs/arm64-v8a/libcurl-impersonate.so (the lexiforest fork's aarch64-linux-android tarball works) and re-run `pnpm --filter @workspace/lexi-mobile build:apk:native`.");
   const headerPairs: Array<[string, string]> = [];
   for (const [k, v] of opts.profile.headers) headerPairs.push([k, v]);
   if (opts.headers) {

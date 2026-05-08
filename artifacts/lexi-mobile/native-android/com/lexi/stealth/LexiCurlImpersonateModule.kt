@@ -99,6 +99,14 @@ class LexiCurlImpersonateModule(reactContext: ReactApplicationContext) :
 
             val raw = nativeRequest(json.toString())
             val parsed = org.json.JSONObject(raw)
+            // The JNI bridge signals failures by including an "error" string
+            // in its JSON response (see make_error in curl_impersonate_jni.c).
+            // Reject the promise so the JS layer's reroll / fallback logic
+            // actually fires instead of seeing a phantom 0-status response.
+            if (parsed.has("error") && !parsed.isNull("error")) {
+                promise.reject("CURL_REQUEST_FAILED", parsed.optString("error", "unknown curl error"))
+                return
+            }
             val r: WritableMap = Arguments.createMap()
             r.putInt("status", parsed.optInt("status", 0))
             r.putString("bodyBase64", parsed.optString("bodyBase64", ""))

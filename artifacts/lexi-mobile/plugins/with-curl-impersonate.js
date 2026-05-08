@@ -18,9 +18,12 @@ const path = require("path");
  *      block so gradle's NDK build compiles libcurl-impersonate-jni.so for
  *      arm64-v8a and links it against the prebuilt libcurl-impersonate.so.
  *
- * If no prebuilt .so is present, the plugin silently skips both the copy and
- * the gradle patch — the TS wrapper (`lib/native/curl-impersonate.ts`) then
- * throws a loud "engine not bundled" error at runtime so stealth traffic
+ * If no prebuilt .so is present, the plugin skips both the JNI source copy
+ * AND the gradle CMake patch — gradle's externalNativeBuild can't build the
+ * bridge without the prebuilt to link against, so injecting the block would
+ * just turn into a noisy build failure. Skipping silently lets a "Cronet +
+ * Tor only" build still succeed; the TS wrapper (`lib/native/curl-impersonate.ts`)
+ * then throws a loud "engine not bundled" error at runtime so stealth traffic
  * never silently leaks through a different transport.
  */
 
@@ -121,7 +124,23 @@ function withCurlImpersonateGradle(config) {
   });
 }
 
+function curlImpersonatePrebuiltPresent(artifactRoot) {
+  const root = findArtifactJniLibs(artifactRoot);
+  if (!root) return false;
+  // Require at least the arm64 prebuilt — that's what we ship for.
+  return fs.existsSync(path.join(root, "arm64-v8a", "libcurl-impersonate.so"));
+}
+
 module.exports = function withCurlImpersonate(config) {
+  // Skip the entire pipeline when no prebuilt .so is staged — gradle would
+  // otherwise try to link against a missing IMPORTED target and fail noisily.
+  // The TS wrapper still throws CURL_IMPERSONATE_NOT_BUNDLED at runtime, so
+  // stealth never silently degrades to a different transport.
+  // (We use process.cwd() here because withDangerousMod's projectRoot is only
+  // available inside the mod callback; for the gradle patch we still need
+  // the same gate at config-parse time.)
+  const artifactRoot = config._internal?.projectRoot || process.cwd();
+  if (!curlImpersonatePrebuiltPresent(artifactRoot)) return config;
   config = withCurlImpersonateFiles(config);
   config = withCurlImpersonateGradle(config);
   return config;

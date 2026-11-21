@@ -5,12 +5,6 @@
     "filePath": "/home/runner/workspace/lexi-python-scripts/lexi_app.py",
     "addedAt": "2026-04-19T20:44:03.484Z"
   },
-  "apk_generator": {
-    "slug": "apk_generator",
-    "description": "Python code that generates the APK file",
-    "filePath": "/home/runner/workspace/lexi-python-scripts/apk_generator.py",
-    "addedAt": "2026-04-19T20:44:49.240Z"
-  },
   "app_code": {
     "slug": "app_code",
     "description": "create app code",

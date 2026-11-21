@@ -2,11 +2,12 @@
 
 ## Problem
 
-Lexi's Agent currently sends requests to the API server, where the server calls
-Featherless and automatically executes `<cmd>` blocks. The user wants the
-`mini-agent-v2-Q4_K_M.gguf` model to run on their Android phone, while keeping
-the existing Agent tools and requiring a tap before any generated terminal
-command runs.
+Lexi's existing Agent path asks Featherless to generate responses. The API
+server—not Featherless—parses generated `<cmd>` blocks and runs those commands.
+The user no longer has paid Featherless access, so the existing hosted-model
+path is not usable for them. They want the `mini-agent-v2-Q4_K_M.gguf` model to
+run on their Android phone instead, while keeping the existing Agent tools and
+requiring a tap before any generated terminal command runs.
 
 The model file is 986,050,816 bytes (about 986 MB). The user chose cellular
 downloads, Android only, and Agent-only changes. Chat and Code must remain
@@ -39,9 +40,10 @@ untouched. The saved API server URL and Featherless key must not change.
 ## Existing behavior and constraints
 
 - `useAgentChat` currently calls `/api/agent`.
-- `/api/agent` calls Featherless, keeps up to 12 messages in its model prompt,
-  runs `<cmd>` blocks immediately, and returns terminal output capped at 4,000
-  characters.
+- `/api/agent` calls Featherless for model responses, keeps up to 12 messages in
+  its model prompt, then the API server runs `<cmd>` blocks immediately and
+  returns terminal output capped at 4,000 characters. Featherless does not run
+  the commands.
 - The same route provides search context, `needs_input`, self-patching, Python
   scripts, JS skills, and project-completion events. These must remain
   available to local Agent mode.
@@ -88,12 +90,14 @@ untouched. The saved API server URL and Featherless key must not change.
 
 ### Existing Agent tools
 
-- Add a separate API-server endpoint that exposes Agent tools without calling
-  any model. Keep the current `/api/agent` behavior and its Featherless
-  configuration intact.
+- Add a separate API-server endpoint that exposes non-shell Agent tools without
+  calling any model. It must not accept or execute generated shell commands.
+  Keep the current `/api/agent` behavior and its Featherless configuration
+  intact. The new local Agent path must not call Featherless.
 - Use that endpoint for existing search and Tor-search behavior, project
   completion metadata, and code/skill fusion. Use the existing terminal
-  session routes for approved shell commands.
+  session routes for shell commands, and call them only after the user taps
+  **Run**.
 - Preserve the current Agent event types and visible results so project cards,
   self-patch results, command output, and follow-up questions continue to work.
 
@@ -106,6 +110,8 @@ untouched. The saved API server URL and Featherless key must not change.
 - Call the terminal endpoint only after **Run**. On **Cancel**, do not execute
   the command and tell the local Agent that it was declined.
 - Gate each command separately. Chat and Code mode are not modified.
+- The API server remains the command runner after approval; it does not need
+  Featherless to execute the command.
 
 ## Memory and device limits
 

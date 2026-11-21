@@ -57,6 +57,7 @@ export default function ChatScreen() {
   const [codeMode, setCodeMode] = useState(false);
   const [showSidebar, setShowSidebar] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showPromptEditor, setShowPromptEditor] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
   const [input, setInput] = useState("");
   const [pendingImage, setPendingImage] = useState<string | null>(null);
@@ -463,13 +464,32 @@ export default function ChatScreen() {
               </View>
 
               <View>
-                <Text style={[styles.settingsLabel, { color: colors.mutedForeground }]}>SYSTEM PROMPT</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", marginBottom: 6 }}>
+                  <Text style={[styles.settingsLabel, { color: colors.mutedForeground, flex: 1, marginBottom: 0 }]}>SYSTEM PROMPT</Text>
+                  <Pressable
+                    onPress={() => setShowPromptEditor(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Open the full system prompt editor"
+                    testID="expand-system-prompt"
+                    hitSlop={8}
+                    style={{ flexDirection: "row", alignItems: "center", gap: 5, paddingVertical: 4, paddingLeft: 8 }}
+                  >
+                    <Feather name="maximize-2" size={13} color={colors.primary} />
+                    <Text style={{ color: colors.primary, fontFamily: "Inter_600SemiBold", fontSize: 11 }}>Expand</Text>
+                  </Pressable>
+                </View>
                 <TextInput
                   value={systemPrompt}
                   onChangeText={(v) => { setSystemPrompt(v); if (activeId) updateConversation(activeId, { systemPrompt: v }); }}
                   multiline
-                  style={[styles.textarea, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]}
+                  scrollEnabled
+                  testID="system-prompt-preview"
+                  accessibilityLabel="System prompt preview"
+                  style={[styles.textarea, styles.promptPreview, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]}
                 />
+                <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 11, marginTop: 5 }}>
+                  {systemPrompt.length.toLocaleString()} characters · Tap Expand to review or edit the whole prompt
+                </Text>
               </View>
 
               <View>
@@ -513,6 +533,58 @@ export default function ChatScreen() {
               </View>
             </ScrollView>
           </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showPromptEditor}
+        animationType="slide"
+        onRequestClose={() => setShowPromptEditor(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: colors.background, paddingTop: insets.top, paddingBottom: insets.bottom + 12 }}>
+          <View style={{ flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.border }}>
+            <Text style={{ flex: 1, color: colors.foreground, fontFamily: "Inter_700Bold", fontSize: 18 }}>System prompt</Text>
+            <Pressable
+              onPress={() => setShowPromptEditor(false)}
+              accessibilityRole="button"
+              accessibilityLabel="Close system prompt editor"
+              testID="close-system-prompt-editor"
+              hitSlop={10}
+              style={{ padding: 6 }}
+            >
+              <Feather name="x" size={22} color={colors.foreground} />
+            </Pressable>
+          </View>
+          <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 12, lineHeight: 18, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
+            Scroll inside the editor to review the entire prompt. Changes save automatically.
+          </Text>
+          <TextInput
+            value={systemPrompt}
+            onChangeText={(v) => { setSystemPrompt(v); if (activeId) updateConversation(activeId, { systemPrompt: v }); }}
+            multiline
+            scrollEnabled
+            textAlignVertical="top"
+            accessibilityLabel="Full system prompt editor"
+            testID="system-prompt-full-editor"
+            style={{
+              flex: 1,
+              marginHorizontal: 16,
+              marginTop: 4,
+              marginBottom: 10,
+              borderWidth: 1,
+              borderRadius: 10,
+              padding: 12,
+              color: colors.foreground,
+              backgroundColor: colors.card,
+              borderColor: colors.border,
+              fontFamily: "Inter_400Regular",
+              fontSize: 14,
+              lineHeight: 20,
+            }}
+          />
+          <Text style={{ color: colors.mutedForeground, fontFamily: "Inter_400Regular", fontSize: 11, textAlign: "right", paddingHorizontal: 18 }}>
+            {systemPrompt.length.toLocaleString()} characters
+          </Text>
         </View>
       </Modal>
     </View>
@@ -594,6 +666,7 @@ const styles = StyleSheet.create({
     minHeight: 100, borderWidth: 1, borderRadius: 10, padding: 10,
     fontFamily: "Inter_400Regular", fontSize: 13, textAlignVertical: "top",
   },
+  promptPreview: { height: 200, minHeight: 200 },
   modelChip: {
     paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, borderWidth: 1,
   },

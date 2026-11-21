@@ -1,0 +1,1 @@
+- [Local Agent boundaries](local-agent-boundaries.md) — keep local GGUF work Android/Agent-only and preserve Chat, Code, and existing Agent tools.

@@ -31,50 +31,6 @@ export default function TabLayout() {
         name="index"
         options={{ title: "Chat", tabBarIcon: ({ color }) => <Feather name="message-circle" size={22} color={color} /> }}
       />
-      <Tabs.Screen
-        name="terminal"
-        options={{ title: "Terminal", tabBarIcon: ({ color }) => <Feather name="terminal" size={22} color={color} /> }}
-      />
-      <Tabs.Screen
-        name="github"
-        options={{ title: "GitHub", tabBarIcon: ({ color }) => <Feather name="github" size={22} color={color} /> }}
-      />
-      <Tabs.Screen
-        name="software"
-        options={{ title: "Software", tabBarIcon: ({ color }) => <Feather name="package" size={22} color={color} /> }}
-      />
-      <Tabs.Screen
-        name="upload"
-        options={{ title: "Upload", tabBarIcon: ({ color }) => <Feather name="upload-cloud" size={22} color={color} /> }}
-      />
-      <Tabs.Screen
-        name="scan"
-        options={{ title: "Scan", tabBarIcon: ({ color }) => <Feather name="shield" size={22} color={color} /> }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{ title: "Profile", tabBarIcon: ({ color }) => <Feather name="user" size={22} color={color} /> }}
-      />
-      <Tabs.Screen
-        name="tools"
-        options={{ title: "Tools", tabBarIcon: ({ color }) => <Feather name="unlock" size={22} color={color} /> }}
-      />
-      <Tabs.Screen
-        name="android"
-        options={{ title: "Android", tabBarIcon: ({ color }) => <Feather name="cpu" size={22} color={color} /> }}
-      />
-      <Tabs.Screen
-        name="apple"
-        options={{ title: "Apple", tabBarIcon: ({ color }) => <Feather name="smartphone" size={22} color={color} /> }}
-      />
-      <Tabs.Screen
-        name="usb"
-        options={{ title: "USB", tabBarIcon: ({ color }) => <Feather name="link-2" size={22} color={color} /> }}
-      />
-      <Tabs.Screen
-        name="logs"
-        options={{ title: "Logs", tabBarIcon: ({ color }) => <Feather name="list" size={22} color={color} /> }}
-      />
     </Tabs>
   );
 }

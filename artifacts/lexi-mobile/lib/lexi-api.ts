@@ -136,7 +136,10 @@ export const DIRECT_MODELS = [
 
 export async function testFeatherlessKey(key: string): Promise<{ ok: boolean; error?: string }> {
   try {
-    const res = await stealthFetch("https://api.featherless.ai/v1/chat/completions", {
+    // Credential validation uses the phone's normal network path. The
+    // fail-closed stealth router may reject this test before Featherless sees
+    // it when Tor/proxy backends are unavailable; chat routing stays separate.
+    const res = await expoFetch("https://api.featherless.ai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

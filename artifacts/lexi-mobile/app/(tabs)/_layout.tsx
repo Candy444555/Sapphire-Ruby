@@ -31,6 +31,10 @@ export default function TabLayout() {
         name="index"
         options={{ title: "Chat", tabBarIcon: ({ color }) => <Feather name="message-circle" size={22} color={color} /> }}
       />
+      <Tabs.Screen
+        name="ai-settings"
+        options={{ title: "AI Settings", tabBarIcon: ({ color }) => <Feather name="sliders" size={22} color={color} /> }}
+      />
     </Tabs>
   );
 }

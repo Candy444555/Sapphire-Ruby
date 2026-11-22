@@ -590,4 +590,217 @@ router.post("/agent", async (req: Request, res: Response) => {
   }
 });
 
+const LocalAgentToolsRequestSchema = z.object({
+  messages: z.array(
+    z.object({
+      role: z.enum(["user", "assistant"]),
+      content: z.string().max(20_000),
+    }),
+  ).max(6),
+  response: z.string().max(20_000).default(""),
+  includeSearch: z.boolean().default(false),
+});
+
+const LOCAL_TOOL_COMMAND_BLOCK_REGEX = /<cmd>[\s\S]*?<\/cmd>/i;
+
+/**
+ * Local Agent support for server-backed non-shell tools.
+ *
+ * Shell blocks are deliberately rejected here. The phone parses them locally,
+ * shows each exact command to the user, and calls /terminal/exec only after Run.
+ */
+router.post("/agent/local-tools", async (req: Request, res: Response) => {
+  const parsed = LocalAgentToolsRequestSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Invalid local Agent tools request." });
+    return;
+  }
+  if (LOCAL_TOOL_COMMAND_BLOCK_REGEX.test(parsed.data.response)) {
+    res.status(400).json({
+      error: "Shell command blocks are not accepted by the local tools endpoint.",
+    });
+    return;
+  }
+
+  const { messages, includeSearch } = parsed.data;
+  let responseText = parsed.data.response;
+  const events: Array<Record<string, unknown>> = [];
+  let searchContext = "";
+  let pythonScriptPath: string | undefined;
+
+  if (includeSearch) {
+    const latestUserMessage =
+      [...messages].reverse().find((message) => message.role === "user")?.content ?? "";
+
+    for (const snippet of extractCodeSnippets(latestUserMessage)) {
+      try {
+        const fused = fuseCodeMemory(snippet.code, snippet.language);
+        events.push({
+          type: "self_patch",
+          name: fused.slug,
+          description: fused.description,
+        });
+      } catch (err) {
+        events.push({
+          type: "self_patch_error",
+          name: "auto_code_memory",
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    }
+
+    try {
+      const query = extractSearchQuery(messages);
+      if (query) {
+        const searches: Promise<string>[] = [
+          searchInternet(query)
+            .then((bundle) => {
+              logSearchSourcesForDebug(query, bundle, "web");
+              return formatSearchContext(bundle);
+            })
+            .catch(() => ""),
+        ];
+        if (isTorReady()) {
+          searches.push(
+            searchDarkWeb(query, getTorSocksUrl())
+              .then((bundle) => {
+                logSearchSourcesForDebug(query, bundle, "tor");
+                return formatDarkWebContext(bundle);
+              })
+              .catch(() => ""),
+          );
+        }
+        searchContext = quarantineReferenceContext(
+          (await Promise.all(searches)).filter(Boolean).join("\n\n"),
+        );
+      }
+    } catch {
+      // Search is optional; local text generation can continue without it.
+    }
+  }
+
+  const jsSkillMatches = [...responseText.matchAll(SELF_PATCH_JS_SKILL_REGEX)];
+  for (const match of jsSkillMatches) {
+    const patchName = match[1].trim();
+    try {
+      const fused = fuseJsSkill(patchName, match[3].trim(), match[2]?.trim() ?? "");
+      loadAllJsSkills();
+      events.push({
+        type: "self_patch",
+        name: fused.slug,
+        description: `[JS skill] ${fused.description}`,
+      });
+    } catch (err) {
+      events.push({
+        type: "self_patch_error",
+        name: patchName,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  const extensionMatches = [...responseText.matchAll(SELF_PATCH_REGEX)];
+  for (const match of extensionMatches) {
+    const patchName = match[1].trim();
+    try {
+      const slug = patchName.replace(/[^a-zA-Z0-9_]/g, "_").replace(/^_+/, "");
+      const fused = fuseExtension(
+        sanitizeExtensionName(slug),
+        match[3].trim(),
+        match[2]?.trim() ?? "",
+      );
+      events.push({
+        type: "self_patch",
+        name: fused.slug,
+        description: fused.description,
+      });
+    } catch (err) {
+      events.push({
+        type: "self_patch_error",
+        name: patchName,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  const pythonMatches = [...responseText.matchAll(SELF_PATCH_PYTHON_REGEX)];
+  for (const match of pythonMatches) {
+    const patchName = match[1].trim();
+    try {
+      const fused = fusePythonScript(
+        patchName,
+        match[3].trim(),
+        match[2]?.trim() ?? "",
+      );
+      pythonScriptPath = fused.filePath;
+      events.push({
+        type: "self_patch",
+        name: fused.slug,
+        description: `[Python] ${fused.description}`,
+      });
+      responseText = responseText.replace(
+        /python3 PATH_TO_SCRIPT/g,
+        `python3 ${fused.filePath}`,
+      );
+    } catch (err) {
+      events.push({
+        type: "self_patch_error",
+        name: patchName,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  const projectDoneMatch = responseText.match(PROJECT_DONE_REGEX);
+  if (projectDoneMatch) {
+    const [, name, projectPath, mainFile, projectType] = projectDoneMatch;
+    const projectId =
+      projectPath.split("/").pop() ?? name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+    try {
+      saveProjectMeta(projectId, {
+        name,
+        type: projectType,
+        mainFile,
+        path: projectPath,
+      });
+      events.push({
+        type: "project_complete",
+        projectId,
+        name,
+        path: projectPath,
+        mainFile,
+        projectType,
+      });
+    } catch (err) {
+      events.push({
+        type: "self_patch_error",
+        name: "project_complete",
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  const needsInputMatch = responseText.match(NEEDS_INPUT_REGEX);
+  if (needsInputMatch) {
+    events.push({ type: "needs_input", question: needsInputMatch[1].trim() });
+  }
+
+  const cleanedText = responseText
+    .replace(SELF_PATCH_REGEX, "")
+    .replace(SELF_PATCH_PYTHON_REGEX, "")
+    .replace(SELF_PATCH_JS_SKILL_REGEX, "")
+    .replace(PROJECT_DONE_REGEX, "")
+    .replace(NEEDS_INPUT_REGEX, "")
+    .trim();
+
+  res.json({
+    text: scrubUserFacingText(cleanedText),
+    events,
+    searchContext,
+    substitutions: pythonScriptPath
+      ? { PATH_TO_SCRIPT: pythonScriptPath }
+      : undefined,
+  });
+});
+
 export default router;

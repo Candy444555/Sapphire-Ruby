@@ -1,13 +1,23 @@
 import { Feather } from "@expo/vector-icons";
 import React from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { useColors } from "@/hooks/useColors";
 import type { AgentMessage as AgentMsg } from "@/hooks/useAgentChat";
 import { Markdown } from "./Markdown";
 import { ProjectCard } from "./ProjectCard";
 
-export function AgentMessage({ msg }: { msg: AgentMsg }) {
+interface AgentMessageProps {
+  msg: AgentMsg;
+  onRunCommand?: (command: string) => void;
+  onCancelCommand?: (command: string) => void;
+}
+
+export function AgentMessage({
+  msg,
+  onRunCommand,
+  onCancelCommand,
+}: AgentMessageProps) {
   const colors = useColors();
   const isUser = msg.role === "user";
 
@@ -35,6 +45,49 @@ export function AgentMessage({ msg }: { msg: AgentMsg }) {
                 </Text>
               </View>
               <Text selectable style={[styles.code, { color: colors.foreground }]}>$ {ev.command}</Text>
+            </View>
+          );
+        }
+        if (ev.type === "cmd_pending") {
+          return (
+            <View key={i} style={[styles.cmd, { borderColor: colors.accent, backgroundColor: colors.muted }]}>
+              <View style={styles.cmdHead}>
+                <Feather name="alert-circle" size={13} color={colors.accent} />
+                <Text style={{ color: colors.accent, fontSize: 10, fontFamily: "Inter_600SemiBold", letterSpacing: 1 }}>
+                  APPROVE COMMAND
+                </Text>
+              </View>
+              <Text selectable style={[styles.code, { color: colors.foreground }]}>$ {ev.command}</Text>
+              <View style={styles.commandActions}>
+                <Pressable
+                  onPress={() => onRunCommand?.(ev.command)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Run this command"
+                  testID="approve-agent-command"
+                  style={[styles.commandButton, { backgroundColor: colors.primary }]}
+                >
+                  <Feather name="play" size={13} color={colors.primaryForeground} />
+                  <Text style={{ color: colors.primaryForeground, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>Run</Text>
+                </Pressable>
+                <Pressable
+                  onPress={() => onCancelCommand?.(ev.command)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Cancel this command"
+                  testID="cancel-agent-command"
+                  style={[styles.commandButton, { borderColor: colors.border, borderWidth: 1 }]}
+                >
+                  <Feather name="x" size={14} color={colors.foreground} />
+                  <Text style={{ color: colors.foreground, fontFamily: "Inter_600SemiBold", fontSize: 12 }}>Cancel</Text>
+                </Pressable>
+              </View>
+            </View>
+          );
+        }
+        if (ev.type === "cmd_cancelled") {
+          return (
+            <View key={i} style={[styles.event, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+              <Feather name="slash" size={14} color={colors.mutedForeground} />
+              <Text style={[styles.eventText, { color: colors.mutedForeground }]}>Command canceled; it was not run.</Text>
             </View>
           );
         }
@@ -103,6 +156,15 @@ export function AgentMessage({ msg }: { msg: AgentMsg }) {
             </View>
           );
         }
+        if (ev.type === "tool_error" || ev.type === "error") {
+          const message = ev.type === "tool_error" ? `${ev.tool}: ${ev.error}` : ev.message;
+          return (
+            <View key={i} style={[styles.event, { backgroundColor: "rgba(248,81,73,0.15)", borderColor: colors.destructive }]}>
+              <Feather name="alert-triangle" size={14} color={colors.destructive} />
+              <Text style={[styles.eventText, { color: colors.foreground }]}>{message}</Text>
+            </View>
+          );
+        }
         return null;
       })}
       {msg.content ? (
@@ -126,6 +188,8 @@ const styles = StyleSheet.create({
   assist: { paddingHorizontal: 14, paddingTop: 10, paddingBottom: 14, borderRadius: 16, borderWidth: 1, overflow: "visible" },
   cmd: { borderRadius: 10, borderWidth: 1, padding: 10, gap: 6 },
   cmdHead: { flexDirection: "row", alignItems: "center", gap: 6 },
+  commandActions: { flexDirection: "row", gap: 8, marginTop: 4 },
+  commandButton: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, minHeight: 36, paddingHorizontal: 12, borderRadius: 8 },
   code: { fontFamily: "Courier", fontSize: 12, lineHeight: 18 },
   event: {
     flexDirection: "row",

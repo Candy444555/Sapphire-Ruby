@@ -154,6 +154,14 @@
       "expo-contacts",
       "expo-calendar",
       [
+        "llama.rn",
+        {
+          "enableEntitlements": false,
+          "forceCxx20": true,
+          "enableOpenCLAndHexagon": false
+        }
+      ],
+      [
         "expo-media-library",
         {
           "photosPermission": "Allow Lexi to save images to your gallery.",

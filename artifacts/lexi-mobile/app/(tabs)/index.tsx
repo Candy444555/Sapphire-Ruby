@@ -21,6 +21,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { AgentGuide } from "@/components/AgentGuide";
 import { AgentMessage } from "@/components/AgentMessage";
+import { LocalAgentModelStatus } from "@/components/LocalAgentModelStatus";
 import { ChatMessage, type DisplayMsg } from "@/components/ChatMessage";
 import { TorStatus } from "@/components/TorStatus";
 import { VpnIndicator } from "@/components/VpnIndicator";
@@ -160,7 +161,7 @@ export default function ChatScreen() {
     const text = (overrideText ?? input).trim();
     if (!text && !pendingImage) return;
     if (isStreaming) return;
-    if (!model) { Alert.alert("Pick a model", "Models are still loading."); return; }
+    if (!model && (mode === "chat" || codeMode)) { Alert.alert("Pick a model", "Models are still loading."); return; }
 
     // /forge slash command — third Tool-Forge entry point (chat-driven).
     // Syntax: `/forge <name>: <detection prompt>`  (extra fields optional
@@ -200,10 +201,14 @@ export default function ChatScreen() {
     const sentImage = pendingImage;
     setPendingImage(null);
     if (sentImage) {
-      try {
-        const analysis = await analyzeImages(text || "Describe this image in detail.", [sentImage]);
-        userContent = `${text}\n\n[Vision analysis: ${analysis}]`.trim();
-      } catch {}
+      if (mode === "chat") {
+        try {
+          const analysis = await analyzeImages(text || "Describe this image in detail.", [sentImage]);
+          userContent = `${text}\n\n[Vision analysis: ${analysis}]`.trim();
+        } catch {}
+      } else {
+        userContent = `${text}\n\n[The attached image was not sent to the local text-only Agent model.]`.trim();
+      }
     }
 
     // IMEI unlock — auto-detect and inject computed codes before sending
@@ -237,7 +242,13 @@ export default function ChatScreen() {
 
   const renderItem = ({ item }: { item: any }) => {
     if (mode === "chat") return <ChatMessage msg={item} />;
-    return <AgentMessage msg={item} />;
+    return (
+      <AgentMessage
+        msg={item}
+        onRunCommand={agent.runPendingCommand}
+        onCancelCommand={agent.cancelPendingCommand}
+      />
+    );
   };
 
   return (
@@ -298,6 +309,7 @@ export default function ChatScreen() {
           keyboardDismissMode="interactive"
           ListHeaderComponent={
             <>
+              {mode === "agent" ? <LocalAgentModelStatus /> : null}
               {showGuide && mode === "agent" && (
                 <View style={{ marginBottom: 10 }}>
                   <AgentGuide onDismiss={() => { setShowGuide(false); storage.setString("lexi_guide_seen", "1"); }} />

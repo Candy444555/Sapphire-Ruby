@@ -445,14 +445,54 @@ export type AgentRawEvent =
   | { type: "session"; sessionId: string }
   | { type: "text"; content: string }
   | { type: "cmd_start"; command: string }
+  | { type: "cmd_pending"; command: string }
+  | { type: "cmd_cancelled"; command: string }
   | { type: "cmd_result"; command: string; output: string; exitCode: number; cwd: string }
   | { type: "needs_input"; question: string }
   | { type: "self_patch"; name: string; description: string }
   | { type: "self_patch_error"; name: string; error: string }
+  | { type: "tool_error"; tool: string; error: string }
   | { type: "project_complete"; projectId: string; name: string; path: string; mainFile: string; projectType: string }
   | { type: "thinking" }
   | { type: "done" }
   | { type: "error"; message: string };
+
+export interface LocalAgentToolsResult {
+  text: string;
+  events: AgentRawEvent[];
+  searchContext: string;
+  substitutions?: Record<string, string>;
+}
+
+export async function runLocalAgentTools(
+  body: {
+    messages: ChatMsg[];
+    response: string;
+    includeSearch: boolean;
+  },
+  signal?: AbortSignal,
+): Promise<LocalAgentToolsResult> {
+  if (!getApiBase()) {
+    throw new Error("Set the API server URL to use Agent search and saved skills.");
+  }
+  const res = await expoFetch(apiUrl("/agent/local-tools"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal,
+  });
+  if (!res.ok) {
+    let message = `Agent tools request failed (HTTP ${res.status}).`;
+    try {
+      const json = (await res.json()) as { error?: string };
+      message = json.error ?? message;
+    } catch {
+      // Keep the HTTP status message.
+    }
+    throw new Error(message);
+  }
+  return (await res.json()) as LocalAgentToolsResult;
+}
 
 export async function streamAgent(
   body: { model: string; messages: ChatMsg[]; systemPrompt?: string; sessionId?: string },

@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { KeyboardAwareScrollViewCompat } from "@/components/KeyboardAwareScrollViewCompat";
 import { useColors } from "@/hooks/useColors";
+import { LocalAgentModelStatus } from "@/components/LocalAgentModelStatus";
 import {
   defaultBakedDomain,
   getApiBase,
@@ -135,6 +136,17 @@ export default function AiSettingsScreen() {
             Manage the existing phone-side connections.
           </Text>
         </View>
+      </View>
+
+      <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <View style={styles.cardHeading}>
+          <Feather name="cpu" size={17} color={colors.accent} />
+          <Text style={[styles.cardTitle, { color: colors.foreground }]}>On-device Agent</Text>
+        </View>
+        <Text style={[styles.description, { color: colors.mutedForeground }]}>
+          Lexi downloads and checks this model in private phone storage. The first download is about 986 MB and may use cellular data.
+        </Text>
+        <LocalAgentModelStatus />
       </View>
 
       <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>

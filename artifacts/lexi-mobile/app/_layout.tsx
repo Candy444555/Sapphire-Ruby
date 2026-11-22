@@ -22,6 +22,7 @@ import { installGlobalErrorHandlers } from "@/lib/global-error-log";
 import { installNetworkInstrumentation, log, loadSettings, rotateRetention } from "@/lib/logger";
 import { startSelfTuneScheduler } from "@/lib/stealth/self-tune-scheduler";
 import { installStarterPack } from "@/lib/ops/starter-pack";
+import { ensureLocalModelDownloaded } from "@/lib/local-agent-model";
 
 // Install BEFORE anything else so we capture init-time crashes too.
 installGlobalErrorHandlers();
@@ -60,6 +61,9 @@ export default function RootLayout() {
   useEffect(() => {
     const t = setTimeout(() => setTimedOut(true), 1500);
     return () => clearTimeout(t);
+  }, []);
+  useEffect(() => {
+    void ensureLocalModelDownloaded().catch(() => {});
   }, []);
 
   if (!loaded && !timedOut) {

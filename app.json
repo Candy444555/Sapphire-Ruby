@@ -1,12 +1,11 @@
 {
   "expo": {
+    "name": "my-app",
+    "slug": "my-app",
     "extra": {
       "eas": {
-        "projectId": "be4ef1a2-df99-4894-ad39-44169d937309"
+        "projectId": "63ca74e0-e77c-4065-bc34-e3d9e6c33afc"
       }
-    },
-    "android": {
-      "package": "com.rubywilliam444.workspace"
     }
   }
 }
